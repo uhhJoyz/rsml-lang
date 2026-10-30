@@ -25,10 +25,6 @@ Every change ends with `scripts/check_all.sh` (all 19 checks, not only
   existing matches do, while 2 can still become 1 or 3 later without
   breaking anyone. Recommended: 2. Size S (parser `finish_lit_pat`, a
   Rust-habit row, toy 075, completion/span cases if the error moves).
-- **First CI run green**: Linux has not run any check yet (the assembly
-  comparison was checked against Linux assembly by hand; the Vim checks
-  run with Ubuntu's Vim 9.1.0016, the editor checks with rustup's
-  rust-analyzer instead of the one they were written against). S.
 - **Publish**: `cargo publish --workspace` (it orders rsml-compiler,
   rsml-macros, rsml-fmt, rsml-lang), then tag `v0.1.0` and check the
   crates.io pages (README, links, keywords) and that docs.rs built
