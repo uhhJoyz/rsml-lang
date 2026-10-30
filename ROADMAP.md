@@ -29,7 +29,6 @@ Every change ends with `scripts/check_all.sh` (all 19 checks, not only
   rsml-macros, rsml-fmt, rsml-lang), then tag `v0.1.0` and check the
   crates.io pages (README, links, keywords) and that docs.rs built
   `rsml-lang`. S.
-- **Decision: copyright holder** in LICENSE (now `uhhJoyz`).
 
 ## 0.1.x: no change in what accepted code means
 
