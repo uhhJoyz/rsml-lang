@@ -84,14 +84,48 @@ fn sequencing_and_unit() {
 }
 
 #[test]
-fn labeled_arguments_are_positional() {
-    assert_eq!(ml! { Option::unwrap_or None ~default:3 }, 3);
-    let default = 4;
-    assert_eq!(ml! { Option::unwrap_or None ~default }, 4);
+fn labeled_arguments() {
     assert_eq!(
         ml! {
             let f ~x ~y = x - y in
             f ~x:5 ~y:2
+        },
+        3
+    );
+    // In any order, evaluated in the order written.
+    let mut log = Vec::new();
+    assert_eq!(
+        ml! {
+            let f ~x ~y = x - y in
+            let mut note c v =
+              log.push(c);
+              v
+            in
+            f ~y:(note 'y' 2) ~x:(note 'x' 5)
+        },
+        3
+    );
+    assert_eq!(log, ['y', 'x']);
+    // `~y` is `~y:y`; unlabeled arguments fill the parameters left.
+    let y = 2;
+    assert_eq!(
+        ml! {
+            let f ~x ~y = x - y in
+            f ~y 5
+        },
+        3
+    );
+    // Leaving out a parameter before a given one makes a function of it.
+    let minus_two = ml! {
+        let f ~x ~y = x - y in
+        f ~y:2
+    };
+    assert_eq!(minus_two(5), 3);
+    // `let f = fun ~x ~y -> ..` has labels too.
+    assert_eq!(
+        ml! {
+            let f = fun ~x ~y -> x - y in
+            f ~y:2 ~x:5
         },
         3
     );
@@ -104,7 +138,7 @@ fn strings() {
     assert_eq!(s, "abc");
     let name = "world";
     assert_eq!(ml! { "hello, " ^ name }, "hello, world");
-    assert_eq!(ml! { "abc".[1] }, 'b');
+    assert_eq!(ml! { "abc".as_bytes()[1] }, b'b');
     assert_eq!(
         ml! { format!("{:>5}|{:<3}|{:x}", "ab", 7, 255) },
         "   ab|7  |ff"
@@ -304,4 +338,25 @@ fn early_return_with_question_mark() {
     }
     assert_eq!(parse_sum("1", "2"), Ok(3));
     assert!(parse_sum("1", "x").is_err());
+}
+
+#[test]
+fn tail_recursion_runs_in_constant_stack() {
+    // A million calls deep, in a test thread's small stack: each
+    // function is a loop, not a recursive `fn`.
+    let xs: Vec<i32> = (0..1_000_000).collect();
+    let n = ml! {
+        let rec go (acc : i64) (l : &[i32]) : i64 =
+          match l with [] -> acc | _ :: rest -> go (acc + 1) rest
+        in
+        go 0 &xs
+    };
+    assert_eq!(n, 1_000_000);
+    let s = ml! {
+        let rec go ~(acc : u64) ~(k : u64) : u64 =
+          if k = 0 then acc else go ~k:(k - 1) ~acc:(acc + k)
+        in
+        go ~k:1_000_000 ~acc:0
+    };
+    assert_eq!(s, 500_000_500_000);
 }

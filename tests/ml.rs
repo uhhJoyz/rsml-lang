@@ -276,9 +276,10 @@ fn match_patterns() {
         1
     );
 
-    let c = 'q';
+    // Spaced or not, `..` leaves its end out, as in Rust.
+    let c = 'm';
     assert_eq!(
-        ml! { match c with 'a' .. 'm' -> 1 | 'n' .. 'z' -> 2 | _ -> 3 },
+        ml! { match c with 'a'..'m' -> 1 | 'm'..'z' -> 2 | _ -> 3 },
         2
     );
 

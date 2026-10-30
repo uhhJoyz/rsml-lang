@@ -70,6 +70,7 @@ const KEYWORDS: &[&str] = &[
     "or",
     "rec",
     "then",
+    "til",
     "to",
     "true",
     "type",
@@ -342,7 +343,7 @@ fn keyword_mark(kw: &str) -> Option<&'static str> {
         "then" | "when" => "if",
         "with" | "function" => "match",
         "done" => "break",
-        "to" | "downto" => "loop",
+        "to" | "downto" | "til" => "loop",
         "begin" | "end" | "fun" | "rec" | "and" | "open" | "external" => "let",
         _ => return None,
     })
@@ -983,10 +984,12 @@ impl Parser {
         }
     }
 
+    /// Parameters; a labeled one (`~x`, `~x:p`, `~(x : t)`) is a
+    /// [`Pat::Label`], which [`Parser::split_labels`] takes apart.
     fn parse_params(&mut self) -> R<Vec<Pat>> {
         let mut params = Vec::new();
         while self.can_start_param_at(0) {
-            if self.surface && self.peek_op("~") {
+            if self.peek_op("~") {
                 let span = self.span();
                 self.pos += 1;
                 let (label, pat) = if matches!(self.peek(), Some(Tok::Group(_))) {
@@ -1007,23 +1010,45 @@ impl Parser {
                 });
                 continue;
             }
-            if self.eat_op("~") {
-                // Labels are accepted but arguments stay positional.
-                if matches!(self.peek(), Some(Tok::Group(_))) {
-                    params.push(self.parse_pat_atom()?);
-                    continue;
-                }
-                let label = self.expect_ident()?;
-                if self.eat_op(":") {
-                    params.push(self.parse_pat_atom()?);
-                } else {
-                    params.push(Pat::Var(label));
-                }
-            } else {
-                params.push(self.parse_pat_atom()?);
-            }
+            params.push(self.parse_pat_atom()?);
         }
         Ok(params)
+    }
+
+    /// The patterns of `params` without their labels, and the label of
+    /// each: `~x` is `x` labeled `x`, `~x:p` is `p` labeled `x`, and
+    /// `~(x : t)` is `(x : t)` labeled `x`. A surface parse keeps the
+    /// labels in the patterns, for the formatter.
+    fn split_labels(&self, params: Vec<Pat>) -> R<(Vec<Pat>, Vec<Option<Ident>>)> {
+        if self.surface {
+            return Ok((params, Vec::new()));
+        }
+        let mut pats = Vec::new();
+        let mut labels = Vec::new();
+        for p in params {
+            let Pat::Label { label, pat, span } = p else {
+                pats.push(p);
+                labels.push(None);
+                continue;
+            };
+            let (label, pat) = match (label, pat) {
+                (Some(l), Some(p)) => (l, *p),
+                (Some(l), None) => (l.clone(), Pat::Var(l)),
+                (None, Some(p)) => match p.strip() {
+                    Pat::Var(l) => (l.clone(), *p),
+                    _ => {
+                        return Err(Error::new(
+                            span,
+                            "a labeled parameter is `~x`, `~x:p` or `~(x : t)`",
+                        ));
+                    }
+                },
+                (None, None) => unreachable!("`~` without a label or a pattern"),
+            };
+            pats.push(pat);
+            labels.push(Some(label));
+        }
+        Ok((pats, labels))
     }
 
     fn parse_binding(&mut self, rec_: bool) -> R<Binding> {
@@ -1037,7 +1062,7 @@ impl Parser {
                 return Err(e);
             }
             self.pos += 1;
-            let params = self.parse_params()?;
+            let (params, labels) = self.parse_params().and_then(|ps| self.split_labels(ps))?;
             let ty = if self.eat_op(":") {
                 Some(self.parse_type()?)
             } else {
@@ -1050,6 +1075,7 @@ impl Parser {
             let kind = BindKind::Func {
                 name: Name::Op(op),
                 params,
+                labels,
                 mutable: false,
             };
             return Ok(Binding {
@@ -1079,7 +1105,7 @@ impl Parser {
                 if rec_ {
                     self.scope.push(s);
                 }
-                let params = self.parse_params()?;
+                let (params, labels) = self.parse_params().and_then(|ps| self.split_labels(ps))?;
                 let ty = if self.eat_op(":") {
                     Some(self.parse_type()?)
                 } else {
@@ -1092,6 +1118,7 @@ impl Parser {
                 let kind = BindKind::Func {
                     name: Name::Ident(name),
                     params,
+                    labels,
                     mutable: m == 1,
                 };
                 return Ok(Binding {
@@ -1514,7 +1541,7 @@ impl Parser {
         if is_move {
             self.pos += 1;
         }
-        let params = self.parse_params()?;
+        let (params, labels) = self.parse_params().and_then(|ps| self.split_labels(ps))?;
         if params.is_empty() {
             return self.err("expected a parameter after `fun`");
         }
@@ -1525,6 +1552,7 @@ impl Parser {
         self.scope.truncate(len);
         Ok(Expr::Fun {
             params,
+            labels,
             body: Box::new(body),
             span,
             is_move,
@@ -1670,12 +1698,14 @@ impl Parser {
         let var = self.expect_ident()?;
         self.expect_op("=")?;
         let from = self.parse_expr()?;
-        let down = if self.eat_kw("to") {
-            false
+        let dir = if self.eat_kw("to") {
+            ForDir::To
         } else if self.eat_kw("downto") {
-            true
+            ForDir::Downto
+        } else if self.eat_kw("til") {
+            ForDir::Til
         } else {
-            return self.err("expected `to` or `downto`");
+            return self.err("expected `to`, `downto` or `til`");
         };
         let to = self.parse_expr()?;
         self.expect_kw("do")?;
@@ -1686,7 +1716,7 @@ impl Parser {
             var,
             from: Box::new(from),
             to: Box::new(to),
-            down,
+            dir,
             body: Box::new(body),
             span,
         })
@@ -1764,16 +1794,42 @@ impl Parser {
                 span,
             })));
         }
-        if self.eat_op("~") {
-            // `~label:e` / `~label`: labels are dropped, order is kept.
-            if matches!(self.peek(), Some(Tok::Group(_))) {
-                return self.parse_postfix();
-            }
-            let label = self.expect_ident()?;
-            if self.eat_op(":") {
-                return self.parse_postfix();
-            }
-            return Ok(Expr::Var(label));
+        if self.peek_op("~") {
+            // `~x:e`, `~x` (`~x:x`) or `~(x : t)` (`~x:(x : t)`): given to the
+            // callee's parameter labeled `x` (see `Cx::apply_labeled`).
+            let span = self.span();
+            self.pos += 1;
+            let (label, value) = if matches!(self.peek(), Some(Tok::Group(_))) {
+                let value = self.parse_postfix()?;
+                let name = match value.strip() {
+                    Expr::Var(l) => Some(l.clone()),
+                    Expr::Constraint(inner, _) => match inner.strip() {
+                        Expr::Var(l) => Some(l.clone()),
+                        _ => None,
+                    },
+                    _ => None,
+                };
+                let Some(label) = name else {
+                    return Err(Error::new(
+                        span,
+                        "a labeled argument is `~x:e`, `~x` or `~(x : t)`",
+                    ));
+                };
+                (label, value)
+            } else {
+                let label = self.expect_ident()?;
+                let value = if self.eat_op(":") {
+                    self.parse_postfix()?
+                } else {
+                    Expr::Var(label.clone())
+                };
+                (label, value)
+            };
+            return Ok(Expr::Labeled {
+                label,
+                value: Box::new(value),
+                span,
+            });
         }
         self.parse_postfix()
     }
@@ -1897,6 +1953,12 @@ impl Parser {
                         let i = sub.parse_expr()?;
                         sub.expect_end()?;
                         e = if g.delimiter() == Delimiter::Bracket {
+                            // OCaml's `s.[i]`, the byte at `i` as a character:
+                            // Rust strings are not indexed by position.
+                            self.recoverable(Error::new(
+                                g.span(),
+                                "strings are not indexed by position in Rust: write `s.as_bytes()[i]` for the byte, or `s.chars().nth(i)` for the character",
+                            ))?;
                             Expr::StrIndex(Box::new(e), Box::new(i))
                         } else {
                             Expr::Index(Box::new(e), Box::new(i), false)
@@ -3008,8 +3070,8 @@ impl Parser {
         }
     }
 
-    /// `lo .. hi` (OCaml) or `lo..=hi` (Rust) after a literal: both
-    /// include `hi`.
+    /// `lo..hi` or `lo..=hi` after a literal, as in Rust: `..` leaves `hi`
+    /// out (however it is spaced), `..=` includes it.
     fn finish_lit_pat(&mut self, lo: Pat) -> R<Pat> {
         let Some(op) = (match self.peek() {
             Some(Tok::Op(o)) => range_op(&o.text),

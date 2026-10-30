@@ -1,6 +1,6 @@
 # rsml roadmap
 
-What is left, as of 2026-10-29, grouped by the release it belongs to.
+What is left, as of 2026-10-30, grouped by the release it belongs to.
 Each item says what is known, how it could be done, and a rough size:
 **S** (an hour or two, one area), **M** (a day: parser or codegen plus
 formatter, docs, a toy and the editor checks), **L** (several days, or
@@ -10,21 +10,16 @@ call before work starts.
 Every change ends with `scripts/check_all.sh` (all 19 checks, not only
 `--quick`), as CI runs only part of it.
 
+**Convention** (the owner's rule, 2026-10-30): where OCaml and Rust give
+the same notation different meanings, rsml takes Rust's. So `..` is
+Rust's exclusive range in patterns too, and OCaml's `s.[i]` is an error.
+OCaml-only notations keep their OCaml meaning (`!r` dereferences, `^`
+concatenates, `for i = a to b` includes `b`; `til` is the exclusive
+form); `lsr` and `asr` are both Rust's `>>` (a documented limitation).
+Ask the owner when a new case comes up.
+
 ## 0.1.0: the first release
 
-- **Decision: `a..b` in patterns.** In a pattern `..` is OCaml's inclusive
-  range however it is spaced, so a Rust habit `0..10 -> ..` silently
-  matches 10 too (Rust's own exclusive range pattern would not). Options:
-  1. keep it (documented in notation.md and toy 075);
-  2. make the unspaced form an error asking for `a .. b` (OCaml) or
-     `a..=b` (Rust);
-  3. follow the adjacency rule and read unspaced `a..b` as Rust's
-     exclusive range.
-
-  Settle it before publishing: after 0.1.0, 1 → 3 silently changes what
-  existing matches do, while 2 can still become 1 or 3 later without
-  breaking anyone. Recommended: 2. Size S (parser `finish_lit_pat`, a
-  Rust-habit row, toy 075, completion/span cases if the error moves).
 - **Publish**: `cargo publish --workspace` (it orders rsml-compiler,
   rsml-macros, rsml-fmt, rsml-lang), then tag `v0.1.0` and check the
   crates.io pages (README, links, keywords) and that docs.rs built
@@ -92,6 +87,17 @@ Every change ends with `scripts/check_all.sh` (all 19 checks, not only
   type information. **Decision**, then M.
 
 ### Language (additions only)
+
+- **Mutual tail recursion**: `let rec f .. and g ..` stays recursive
+  (only a function calling itself in tail position is a loop). Several
+  functions could share one loop over an `enum` of their argument lists.
+  M.
+- **Labels for `external`**: `external f : x:int -> y:int -> int` could
+  declare labels for a Rust function the macro cannot see. Labels work
+  for `let`, `let rec`, `let f = fun ~x ..` and `fn`s of the same
+  `rsml!` today. S.
+- **OCaml's optional arguments** (`?x`, `?(x = 1)`) are not supported;
+  `Option` parameters are the Rust way. **Decision** if wanted.
 
 - **Loop labels** (`'outer: for i = 0 to n do .. done`, `break 'outer`,
   `continue 'outer`). Rust's lexer hands `'outer` over as a lifetime, so

@@ -96,6 +96,7 @@ fn expr_start(e: &Expr) -> usize {
             Surface::Begin { begin, .. } => *begin,
             Surface::Label { span, .. } => *span,
         },
+        Expr::Labeled { span, .. } | Expr::TailCall { span, .. } => *span,
     })
 }
 
@@ -502,6 +503,13 @@ impl<'a> Printer<'a> {
         concat(vec![before, text_doc("("), inside, text_doc(")"), after])
     }
 
+    /// The `.` written against the field or method `name`, with the
+    /// comments before it: in `x // c ⏎ .f`, `// c` stays before `.f`.
+    fn dot_before(&mut self, name: &Ident) -> Doc {
+        let at = start_of(name.span()).saturating_sub(1);
+        self.leaf(at..at + 1, ".")
+    }
+
     fn ident(&mut self, i: &Ident) -> Doc {
         self.leaf(range(i.span()), i.to_string())
     }
@@ -658,6 +666,7 @@ impl<'a> Printer<'a> {
                 name,
                 params,
                 mutable,
+                ..
             } => {
                 if *mutable {
                     head.push(text_doc("mut "));
@@ -891,6 +900,7 @@ impl<'a> Printer<'a> {
                 body,
                 span,
                 is_move,
+                ..
             } => self.lambda(params, body, *span, *is_move),
             Expr::Function { arms, span } => {
                 let kw = self.keyword(*span, "function");
@@ -1046,7 +1056,7 @@ impl<'a> Printer<'a> {
                 var,
                 from,
                 to,
-                down,
+                dir,
                 body,
                 span,
             } => {
@@ -1056,14 +1066,14 @@ impl<'a> Printer<'a> {
                 let t = self.expr(to);
                 let hug = self.hugs(body);
                 let b = self.expr(body);
-                let dir = if *down { " downto " } else { " to " };
+                let dir = format!(" {} ", dir.keyword());
                 group(concat(vec![
                     kw,
                     text_doc(" "),
                     v,
                     text_doc(" = "),
                     f,
-                    text_doc(dir),
+                    text_doc(&dir),
                     t,
                     text_doc(" do"),
                     loop_body(ind, hug, b),
@@ -1149,6 +1159,8 @@ impl<'a> Printer<'a> {
                 concat(vec![dot, f])
             }
             Expr::Surface(s) => self.surface(s),
+            Expr::Labeled { .. } => unreachable!("a surface parse keeps `Surface::Label`"),
+            Expr::TailCall { .. } => unreachable!("only the code generator makes tail calls"),
         }
     }
 
@@ -1669,7 +1681,10 @@ impl<'a> Printer<'a> {
 
     fn link(&mut self, e: &Expr) -> Doc {
         match e {
-            Expr::Field(_, name) => concat(vec![text_doc("."), self.ident(name)]),
+            Expr::Field(_, name) => {
+                let dot = self.dot_before(name);
+                concat(vec![dot, self.ident(name)])
+            }
             Expr::TupleIndex(_, idx) => {
                 let s: String = idx.iter().map(|(n, _)| format!(".{}", n)).collect();
                 let r = range(idx[0].1);
@@ -1681,6 +1696,7 @@ impl<'a> Printer<'a> {
                 args,
                 ..
             } => {
+                let dot = self.dot_before(name);
                 let n = self.ident(name);
                 let tf = match turbofish.as_ref().and_then(stream_range) {
                     Some(r) => concat(vec![text_doc("::"), self.verbatim(r, true)]),
@@ -1688,7 +1704,7 @@ impl<'a> Printer<'a> {
                 };
                 let close = self.args_close(name, turbofish);
                 let a = self.call_args(args, close);
-                concat(vec![text_doc("."), n, tf, a])
+                concat(vec![dot, n, tf, a])
             }
             Expr::Index(_, ie, rust) => {
                 let close = self.src.enclosing_close(expr_start(ie));
@@ -2403,18 +2419,19 @@ impl<'a> Printer<'a> {
                 let n = self.ident(name);
                 concat(vec![p, text_doc(" as "), n])
             }
-            Pat::Range(lo, hi, rust) => {
+            Pat::Range(lo, hi, inclusive) => {
                 // `0. ..=1.`, not `0...=1.`.
                 let float_dot =
                     matches!(&**lo, Pat::Lit { lit, .. } if lit.to_string().ends_with('.'));
                 let lo = self.pat(lo);
                 let hi = self.pat(hi);
-                let op = match (*rust, float_dot) {
-                    (true, false) => "..=",
-                    (true, true) => " ..=",
-                    (false, _) => " .. ",
+                let op = if *inclusive { "..=" } else { ".." };
+                let op = if float_dot {
+                    format!(" {}", op)
+                } else {
+                    op.to_string()
                 };
-                concat(vec![lo, text_doc(op), hi])
+                concat(vec![lo, text_doc(&op), hi])
             }
             Pat::Constraint(p, t) => {
                 let p = self.pat(p);

@@ -42,7 +42,7 @@ fn constructors() {
 }
 
 fn indexing() {
-    let a = ml! { v[0] + v [0] + m[&k] + f(x)[0] + x.f[1] + t.0[1] + grid[i][j] + a.(i) + s.[0] };
+    let a = ml! { v[0] + v [0] + m[&k] + f(x)[0] + x.f[1] + t.0[1] + grid[i][j] + a.(i) + s.as_bytes()[0] };
     let b = ml! { f [1; 2] [|3; 4|] f[|5; 6|] };
     let c = ml! { v[i] <- v[i] + 1; xs[1..]; xs[..n]; xs[..] };
 }
@@ -50,8 +50,8 @@ fn indexing() {
 fn method_sections() {
     let a = ml! { xs |> .iter() |> .map(fun x -> x * 2) |> .filter(fun x -> !x > 2) |> .sum::<i64>() };
     let b = ml! { .push(1) xs; .len () xs; .len (s); (.len)(x); .collect::<Vec<_>>() it };
-    let c = ml! { g (.map(f)) (.iter()) ~f: .len() };
-    let e = ml! { pairs |> .iter() |> .map(.0) |> .sum::<i64>() + (x |> .1) + .0.1 t + f ~k: .0 (! (.1)) [| .0 |] };
+    let c = ml! { let g a b ~f = a in g (.map(f)) (.iter()) ~f: .len() };
+    let e = ml! { let f ~k a b = k in pairs |> .iter() |> .map(.0) |> .sum::<i64>() + (x |> .1) + .0.1 t + f ~k: .0 (! (.1)) [| .0 |] };
     let d = ml! {
         items
         |> .into_iter()
@@ -90,7 +90,7 @@ fn ranges() {
 
 fn derefs() {
     let a = ml! { *self_ + **q + !*p + &*s + *x.len + !r + (*x) + f ( *a) + g(*a, b) + v.(*i) };
-    let b = ml! { .m(*x) y + - *x + [| *x |] + f ~k: !r ~i: *r; *p <- *p + 1; a..*b };
+    let b = ml! { let f ~k ~i = k in .m(*x) y + - *x + [| *x |] + f ~k: !r ~i: *r; *p <- *p + 1; a..*b };
 }
 
 fn jumps_and_blocks() {

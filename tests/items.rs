@@ -15,6 +15,15 @@ rsml! {
         go 0 l
     }
 
+    fn minus(x: i64, y: i64) -> i64 {
+        x - y
+    }
+
+    /// The parameters of a function of the same `rsml!` are labels.
+    fn labeled() -> i64 {
+        minus ~y:2 ~x:5
+    }
+
     /// Toplevel phrases work as in `ml!`.
     fn describe(n: i64) -> String {
         let sign = if n < 0 then "negative" else "non-negative"
@@ -76,6 +85,7 @@ fn functions_with_ocaml_bodies() {
     assert_eq!(length(&[1, 2, 3]), 3);
     assert_eq!(describe(-3), "negative and odd");
     assert_eq!(prepend(1, vec![2]), vec![1, 2]);
+    assert_eq!(labeled(), 3);
     assert_eq!(add_all(|a, b| a + b, vec![1, 2]), vec![11, 12]);
     assert_eq!(twice(|x| x * 3)(2), 18);
 }

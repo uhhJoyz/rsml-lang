@@ -13,7 +13,7 @@
 "   parentheses inside it, and not spaced as `( * c * )`, which the macros
 "   take for a comment too).
 " * The OCaml keywords that Rust does not have are colored: `then`, `when`,
-"   `with` and `function` as Conditional, `do`, `done`, `to` and `downto` as
+"   `with` and `function` as Conditional, `do`, `done`, `to`, `downto` and `til` as
 "   Repeat, `fun`, `rec`, `and`, `begin`, `end`, `open`, `external`, `not`
 "   and `assert` as Keyword, and `land`, `lor`, `lxor`, `lsl`, `lsr`, `asr`
 "   and `or` as Operator. Not after `.`, `::` or `r#` (`c.then(f)`,
@@ -53,7 +53,7 @@ syn region rsmlCodeNestedBrackets matchgroup=rsmlBracket start=/\[/ end=/]/ tran
 " OCaml keywords. Matches, not keywords, so that they can be told apart
 " from the same words as Rust names after `.`, `::` and `r#`.
 syn match rsmlConditional /\%(\.\|::\|r#\)\@<!\<\%(then\|when\|with\|function\)\>!\@!/ contained containedin=@rsmlCode
-syn match rsmlRepeat /\%(\.\|::\|r#\)\@<!\<\%(do\|done\|to\|downto\)\>!\@!/ contained containedin=@rsmlCode
+syn match rsmlRepeat /\%(\.\|::\|r#\)\@<!\<\%(do\|done\|to\|downto\|til\)\>!\@!/ contained containedin=@rsmlCode
 syn match rsmlKeyword /\%(\.\|::\|r#\)\@<!\<\%(fun\|rec\|and\|begin\|end\|open\|external\|not\|assert\)\>!\@!/ contained containedin=@rsmlCode
 syn match rsmlOperator /\%(\.\|::\|r#\)\@<!\<\%(land\|lor\|lxor\|lsl\|lsr\|asr\|or\)\>!\@!/ contained containedin=@rsmlCode
 

@@ -61,7 +61,7 @@ OCaml keywords that Rust has too (`let`, `in`, `if`, `else`, `match`,
 no Rust token in the expansion, so the expansion also starts with a
 `const _: () = { .. };` holding one for each: `if true {}` with its `if`
 at a `then` or `when`, `match () { .. }` for `with` and `function`,
-`loop { break }` for `done`, `to` and `downto`, `let _ = 0;` for `fun`,
+`loop { break }` for `done`, `to`, `downto` and `til`, `let _ = 0;` for `fun`,
 `rec`, `and`, `begin`, `end`, `open` and `external`. Control-flow
 keywords are thus colored as control flow, and the rest as keywords. The
 `|` of a match arm or or-pattern gets a `|` operator (`0 | 0`), and each
@@ -383,7 +383,7 @@ bodies of `ml!` and `rsml!` calls only (written with `{}`, `()` or `[]`):
   `( *x)` or `(*x)` (dereferences) are not comments (the macros also
   take `( * c * )`, spaced, for a comment; this does not);
 * `then`, `when`, `with` and `function` as conditionals; `do`, `done`,
-  `to` and `downto` as loops; `fun`, `rec`, `and`, `begin`, `end`, `open`,
+  `to`, `downto` and `til` as loops; `fun`, `rec`, `and`, `begin`, `end`, `open`,
   `external`, `not` and `assert` as keywords; and `land`, `lor`, `lxor`,
   `lsl`, `lsr`, `asr` and `or` as operators. A Rust name spelled the same
   stays as it is after `.`, `::` or `r#` (`c.then(f)`, `r#end`), as does a
@@ -845,6 +845,7 @@ it starts with `rsml!`, an item.
 | `for` body | `for i = 0 to n do ‸ done` | `i` |
 | `for` body without `done` | `for i = 0 to n do ‸` | `i` |
 | `downto` body | `for i = n downto 0 do ‸ done` | `i` |
+| `til` body | `for i = 0 til n do ‸ done` | `i` |
 | `while` condition | `while ‸ do () done` | `n` |
 | `while` body | `while n > 0 do ‸ done` | `n` |
 | `while` body without `done` | `while n > 0 do ‸` | `n` |

@@ -68,6 +68,9 @@ pub struct Block {
     pub group: Group,
     /// Names in scope (parameters of an `rsml!` function).
     pub params: Vec<String>,
+    /// For an `rsml!` function: its parameters with their shapes, and the
+    /// functions of the same `rsml!` it can call, as the macro expands it.
+    pub body: Option<rsml_compiler::items::FnBody>,
     /// `rsmlfmt:` directives of the enclosing `rsml!` block.
     inherited: Vec<Directive>,
 }
@@ -243,6 +246,7 @@ fn find_blocks(src: &str, ts: TokenStream, out: &mut Vec<Block>) {
                     kind: BlockKind::Ml,
                     group: g.clone(),
                     params: Vec::new(),
+                    body: None,
                     inherited: Vec::new(),
                 });
             } else {
@@ -250,8 +254,9 @@ fn find_blocks(src: &str, ts: TokenStream, out: &mut Vec<Block>) {
                 for f in rsml_compiler::items::fn_bodies(g.stream()) {
                     out.push(Block {
                         kind: BlockKind::FnBody,
-                        group: f.body,
-                        params: f.params.into_iter().map(|(n, _)| n).collect(),
+                        group: f.body.clone(),
+                        params: f.params.iter().map(|(n, _)| n.clone()).collect(),
+                        body: Some(f),
                         inherited: inherited.clone(),
                     });
                 }
@@ -320,10 +325,13 @@ fn format_block(src: &str, b: &Block, cfg: &Config) -> Result<Option<String>, St
 pub fn expansion_key(ts: TokenStream, b: &Block) -> String {
     let ts = match b.kind {
         BlockKind::Ml => rsml_compiler::expand(ts),
-        BlockKind::FnBody => {
-            let params: Vec<_> = b.params.iter().map(|p| (p.clone(), None)).collect();
-            rsml_compiler::expand_with(ts, &params)
-        }
+        BlockKind::FnBody => match &b.body {
+            Some(f) => rsml_compiler::expand_in(ts, &f.params, f.known.clone()),
+            None => {
+                let params: Vec<_> = b.params.iter().map(|p| (p.clone(), None)).collect();
+                rsml_compiler::expand_with(ts, &params)
+            }
+        },
     };
     let mut ts = without_markers(ts);
     // The markers come with a block around the expansion.

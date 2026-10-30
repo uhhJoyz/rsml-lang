@@ -86,6 +86,7 @@ ELIDED = {
     ("docs/notation.md", "`for i in 0..n do .. done`"): LOOP,
     ("docs/notation.md", "`for i = 0 to n do .. done`"): LOOP,
     ("docs/notation.md", "`for i = n downto 0 do .. done`"): LOOP,
+    ("docs/notation.md", "`for i = 0 til n do .. done`"): LOOP,
     ("docs/notation.md", "`for (k, v) in m do .. done`, `for k, v in m do .. done`"): LOOP,
     ("docs/notation.md", "`while c do .. done`"): LOOP,
     ("docs/notation.md", "`while true do .. done`"): LOOP,

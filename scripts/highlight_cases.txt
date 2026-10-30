@@ -38,8 +38,8 @@ let k = fun x -> x + 1 in k 2
 == begin end -> begin=keyword end=keyword
 begin f 1; f 2 end
 
-== for to downto do done -> for=keyword to=keyword downto=keyword do=keyword done=keyword
-for i = 0 to 3 do f i done; for j = 3 downto 0 do f j done
+== for to downto til do done -> for=keyword to=keyword downto=keyword til=keyword do=keyword done=keyword
+for i = 0 to 3 do f i done; for j = 3 downto 0 do f j done; for k = 0 til 3 do f k done
 
 == while do done -> while=keyword do=keyword done=keyword
 while false do () done

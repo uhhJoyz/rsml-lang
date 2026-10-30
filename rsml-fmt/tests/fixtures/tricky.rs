@@ -95,7 +95,7 @@ fn syntax() {
         let mut n = 0 in
         n <- n + 1;
         let t = (1, (2, 3)) in
-        let u = t.1.0 + a.(0) + u32::from s.[1] + .len xs + xs.len() + .count (.iter xs) in
+        let u = t.1.0 + a.(0) + u32::from s.as_bytes()[1] + .len xs + xs.len() + .count (.iter xs) in
         assert (u > 0);
         let neg = - (-n) - -. 1.0 in
         let bits = (n land 3) lor (n lsl 2) lxor (n asr 1) in
@@ -106,7 +106,8 @@ fn syntax() {
         let g = (f >> i64::abs) << i64::signum in
         let h = (( - ) _1 _0) 1 @@ g @@ 3 in
         let sec = (xs |> .iter |> .map _ (_ * 2), clamp 0 _ 10, f _1 _0 _, .len (_ : &str), ( * ) _0 _0) in
-        let dots = (- .len xs, [| .len xs |], g ~f:(.len) ~n: .len, .iter >> .count, .collect::<Vec<_>> it) in
+        let lab ~f ~n = n in
+        let dots = (- .len xs, [| .len xs |], lab ~f:(.len) ~n: .len, .iter >> .count, .collect::<Vec<_>> it) in
         let open std::cmp in
         let c = function 'a' .. 'z' as ch when ch <> 'q' -> 1 | 'A' | 'B' -> 2 | _ -> 3 in
         let k = (x : i64) in

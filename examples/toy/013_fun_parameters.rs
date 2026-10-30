@@ -12,8 +12,9 @@
 // * A tuple: `fun (name, qty) -> ..`, one parameter that is a pair.
 // * A reference pattern needs parentheses: `fun (&p) -> p * 2`;
 //   `fun &p -> p * 2` is an error: "expected a parameter after `fun`".
-// * Labels are dropped, as in calls: `fun ~x ~y:z -> x + z` is
-//   `move |x, z| x + z`.
+// * Labels name the parameters for calls by label (toy 004) when the
+//   closure is bound by `let`; the closure itself is plain:
+//   `fun ~x ~y:z -> x + z` is `move |x, z| x + z`.
 // * No parameters: `fun () -> ..`.
 //
 // Reference: [Lambdas: fun and function](../../docs/notation.md#lambdas-fun-and-function)
@@ -51,9 +52,9 @@ pub fn doubled_total(prices: &[u32]) -> u32 {
 /// A rectangle's area, with labelled parameters.
 pub fn labelled_area(w: u32, h: u32) -> u32 {
     ml! {
-        // The labels are for the reader: `area` takes two parameters.
+        // `area` takes its arguments by label, in any order.
         let area = fun ~width ~height -> width * height in
-        area w h
+        area ~height:h ~width:w
     }
 }
 
@@ -77,7 +78,7 @@ mod tests {
     }
 
     #[test]
-    fn labels_are_dropped() {
+    fn a_closure_has_plain_parameters() {
         let plus = ml! { fun ~x ~y:z -> x + z };
         assert_eq!(plus(1, 2), 3);
     }

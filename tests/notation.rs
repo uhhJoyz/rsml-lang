@@ -89,7 +89,13 @@ fn application() {
     ml! { Vec::push &mut xs 3 };
     assert_eq!(xs, [1, 2, 3]);
     let y = 2;
-    assert_eq!(ml! { f ~x:1 ~y }, 12);
+    assert_eq!(
+        ml! {
+            let g ~a ~b = f a b in
+            g ~b:y ~a:1
+        },
+        12
+    );
     // Unit.
     assert_eq!(ml! { zero () + takes_unit (()) + unit_and () 2 }, 3);
     // Constructors.
@@ -497,7 +503,7 @@ fn patterns() {
     );
     let c = 'q';
     assert_eq!(
-        ml! { match c with 'a' .. 'm' -> 1 | 'n'..='z' -> 2 | _ -> 3 },
+        ml! { match c with 'a'..'n' -> 1 | 'n'..='z' -> 2 | _ -> 3 },
         2
     );
 }

@@ -414,6 +414,9 @@ for i = 0 to n do $0
 == loops: `downto` body -> i
 for i = n downto 0 do $0 done
 
+== loops: `til` body -> i
+for i = 0 til n do $0 done
+
 == loops: `while` condition -> n
 while $0 do () done
 

@@ -12,7 +12,7 @@ pub mod lexer;
 pub mod parser;
 pub mod types;
 
-pub use codegen::{expand, expand_fn, expand_with};
+pub use codegen::{Scope, expand, expand_fn, expand_in, expand_with};
 #[doc(hidden)]
 pub use codegen::{force_editor_mode, without_markers};
 pub use items::expand_items;
@@ -988,6 +988,14 @@ mod tests {
             "for x in xs { { f(x); g(x) }; }",
         );
         check("for i in 0..n do f i done", "for i in 0..n { f(i); }");
+        // Counting loops: `to`/`downto` include the end (OCaml), `til` does not.
+        check("for i = 0 to n do f i done", "for i in 0..=n { f(i); }");
+        check(
+            "for i = n downto 0 do f i done",
+            "for i in (0..=n).rev() { f(i); }",
+        );
+        check("for i = 0 til n do f i done", "for i in 0..n { f(i); }");
+        check_error("let til = 1 in til", "unexpected keyword `til`");
         // The pattern is bound in the body only.
         check(
             "let h::t = l in for h in t do h::t done",
@@ -1019,14 +1027,59 @@ mod tests {
     }
 
     #[test]
-    fn range_patterns_are_inclusive() {
+    fn tail_recursion_is_a_loop() {
+        check(
+            "let rec go (acc : i64) (n : i64) : i64 = if n = 0 then acc else go (acc + n) (n - 1) in go 0 10",
+            "{ fn go(mut arg1: i64, mut arg2: i64) -> i64 { loop { let acc = arg1; let n = arg2; \
+             break if n == 0 { acc } else { (arg1, arg2) = (acc + n, n - 1); continue }; } } go(0, 10) }",
+        );
+        // A list parameter is matched without borrowing the variable, so
+        // that its tail can become the next value.
+        check(
+            "let rec go (acc : i64) (l : &[i32]) : i64 = match l with [] -> acc | _ :: rest -> go (acc + 1) rest in go 0 l",
+            "{ fn go(mut arg1: i64, mut arg2: &[i32]) -> i64 { loop { let acc = arg1; let l = arg2; \
+             break match ::rsml::__rt::as_slice(l) { [] => acc, [_, rest @ ..] => { (arg1, arg2) = (acc + 1, rest); continue } , }; } } go(0, l) }",
+        );
+        // Labeled self-calls assign in the order written; `function` too.
+        check(
+            "let rec f ~(x : i64) ~(y : i64) : i64 = if x = 0 then y else f ~y:(y + 1) ~x:(x - 1) in f 3 0",
+            "{ fn f(mut arg1: i64, mut arg2: i64) -> i64 { loop { let x = arg1; let y = arg2; \
+             break if x == 0 { y } else { (arg2, arg1) = (y + 1, x - 1); continue }; } } f(3, 0) }",
+        );
+        check(
+            "let rec down : u32 -> u32 = function 0 -> 0 | k -> down (k - 1) in down 3",
+            "{ fn down(mut arg1: u32) -> u32 { loop { let argument = arg1; \
+             break match argument { 0 => 0, k => { arg1 = k - 1; continue } , }; } } down(3) }",
+        );
+        // Not a tail call, used as a value, or mutually recursive: a `fn`.
+        check(
+            "let rec fact (n : i64) : i64 = if n = 0 then 1 else n * fact (n - 1) in fact 5",
+            "{ fn fact(n: i64) -> i64 { if n == 0 { 1 } else { n * fact(n - 1) } } fact(5) }",
+        );
+        check(
+            "let rec go (n : i64) : i64 = let g = go in if n = 0 then 0 else go (n - 1) in go 3",
+            "{ fn go(n: i64) -> i64 { let g = go; if n == 0 { 0 } else { go(n - 1) } } go(3) }",
+        );
+        check(
+            "let rec a (n : i64) : i64 = if n = 0 then 0 else b (n - 1) and b (n : i64) : i64 = a n in a 3",
+            "{ fn a(n: i64) -> i64 { if n == 0 { 0 } else { b(n - 1) } } fn b(n: i64) -> i64 { a(n) } a(3) }",
+        );
+    }
+
+    #[test]
+    fn range_patterns_are_rust_ranges() {
         check(
             "match n with 1..=3 -> 1 | -5..=-1 -> 2 | _ -> 0",
             "match n { 1..=3 => 1, -5..=-1 => 2, _ => 0, }",
         );
+        // `..` leaves the end out, as in Rust, however it is spaced.
         check(
             "match c with 'a' .. 'z' -> 1 | 'A'..'Z' -> 2 | _ -> 0",
-            "match c { 'a'..='z' => 1, 'A'..='Z' => 2, _ => 0, }",
+            "match c { 'a'..'z' => 1, 'A'..'Z' => 2, _ => 0, }",
+        );
+        check(
+            "match n with 0..10 -> 1 | -10..0 -> 2 | _ -> 0",
+            "match n { 0..10 => 1, -10..0 => 2, _ => 0, }",
         );
     }
 
@@ -1136,6 +1189,10 @@ mod tests {
                 "list items are separated by `;`: write `[1; 2]`, or `[(1, 2)]`",
             ),
             ("[|1, 2|]", "array items are separated by `;`"),
+            (
+                "s.[0]",
+                "strings are not indexed by position in Rust: write `s.as_bytes()[i]`",
+            ),
             (
                 "match l with [a, b] -> a | _ -> 0",
                 "list items are separated by `;`: write `[1; 2]`, or `[(1, 2)]`",

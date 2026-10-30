@@ -18,6 +18,7 @@ use proc_macro2::{Delimiter, Group, Ident, Literal, Span, TokenStream, TokenTree
 use quote::{quote, quote_spanned};
 
 use crate::ast::*;
+use crate::items::Known;
 use crate::lexer::{Op, ident_str, is_capitalized, lex, op_tokens, word};
 use crate::parser::{
     Error, MISSING, Mark, Parser, R, RESERVED, assign_op_error, bang_op_error, glued_section_error,
@@ -46,7 +47,7 @@ pub fn expand_fn(
 
 /// Like [`expand_fn`], with the functions known by name in a [`Scope`]
 /// shared by the bodies of one level of an `rsml!`.
-pub(crate) fn expand_in(
+pub fn expand_in(
     input: TokenStream,
     locals: &[(String, Option<Shape>)],
     known: Rc<Scope>,
@@ -91,16 +92,16 @@ impl Default for ScopeKind {
 }
 
 impl Scope {
-    fn defining(fns: Vec<(String, Shape)>) -> HashMap<String, Bind> {
+    fn defining(fns: Known) -> HashMap<String, Bind> {
         let mut own = HashMap::with_capacity(fns.len());
-        for (name, shape) in fns {
-            own.insert(name, Bind::Local(Some(shape)));
+        for (name, shape, labels) in fns {
+            own.insert(name, Bind::Local(Some(shape), labels));
         }
         own
     }
 
     /// Just these functions, later ones winning.
-    pub fn new(fns: Vec<(String, Shape)>) -> Scope {
+    pub fn new(fns: Known) -> Scope {
         Scope {
             own: Scope::defining(fns),
             ..Scope::default()
@@ -110,7 +111,7 @@ impl Scope {
     /// A module's functions (`own`, later ones winning), with `parent`'s
     /// names as its `use super::..`s bring them in.
     pub(crate) fn module(
-        own: Vec<(String, Shape)>,
+        own: Known,
         parent: &Rc<Scope>,
         aliases: Vec<(String, String)>,
         glob: Option<HashSet<String>>,
@@ -124,11 +125,7 @@ impl Scope {
 
     /// The associated functions of an `impl` or `trait` block, already
     /// named `Self::f`.
-    pub(crate) fn assoc(
-        own: Vec<(String, Shape)>,
-        parent: &Rc<Scope>,
-        ty: Option<String>,
-    ) -> Scope {
+    pub(crate) fn assoc(own: Known, parent: &Rc<Scope>, ty: Option<String>) -> Scope {
         Scope {
             own: Scope::defining(own),
             parent: Some(parent.clone()),
@@ -215,7 +212,11 @@ pub(crate) fn expand_for(
     known: &[(String, Shape)],
     editor: bool,
 ) -> TokenStream {
-    expand_scoped(input, locals, Rc::new(Scope::new(known.to_vec())), editor)
+    let known = known
+        .iter()
+        .map(|(n, s)| (n.clone(), s.clone(), None))
+        .collect();
+    expand_scoped(input, locals, Rc::new(Scope::new(known)), editor)
 }
 
 fn expand_scoped(
@@ -255,7 +256,7 @@ fn expand_located(
         ..Cx::default()
     };
     for (name, shape) in locals {
-        cx.bind(name.clone(), Bind::Local(shape.clone()));
+        cx.bind(name.clone(), Bind::Local(shape.clone(), None));
     }
     match cx.expr(&ast, true) {
         Ok(out) => {
@@ -359,8 +360,9 @@ impl Out {
 
 #[derive(Clone)]
 enum Bind {
-    /// An ml-bound value; `Some` shape for known functions.
-    Local(Option<Shape>),
+    /// An ml-bound value; `Some` shape for known functions, and the labels
+    /// its parameters can be given by.
+    Local(Option<Shape>, Labels),
     /// `let r = ref e`, compiled to a `let mut` local.
     RefCell,
     /// A user-defined or `external` operator, called as `path(a, b)`.
@@ -381,6 +383,12 @@ struct Cx {
     unmapped: Vec<Span>,
     /// Expanding for rust-analyzer (see [`expand_for`]).
     editor: bool,
+    /// In a `let rec` function made a loop: the variables holding its
+    /// parameters, which an [`Expr::TailCall`] assigns.
+    tail_vars: Vec<Ident>,
+    /// Positions in `env` of the parameters of such a function that are
+    /// shared references (see [`Cx::is_ref_param`]).
+    ref_params: Vec<usize>,
 }
 
 /// Rust spelling of an OCaml identifier: as written, but raw for a word
@@ -1022,7 +1030,40 @@ impl Cx {
         }
         let key: Vec<String> = p.segs.iter().map(|s| ident_str(&s.ident)).collect();
         match self.lookup(&key.join("::")) {
-            Some(Bind::Local(shape)) => shape.clone(),
+            Some(Bind::Local(shape, _)) => shape.clone(),
+            _ => None,
+        }
+    }
+
+    /// Whether `e` names a parameter of a `let rec` function made a loop
+    /// whose type is a shared reference. `match` on a list or a string
+    /// passes it to `as_slice`/`as_str` as it is: borrowing the variable
+    /// instead would tie the parts bound by the patterns to it, and the
+    /// loop could not assign them to its parameters.
+    fn is_ref_param(&self, e: &Expr) -> bool {
+        let (Expr::Var(i) | Expr::Tmp(i, _)) = e.strip() else {
+            return false;
+        };
+        let name = ident_str(i);
+        self.env
+            .iter()
+            .rposition(|(n, _)| *n == name)
+            .is_some_and(|k| self.ref_params.contains(&k))
+    }
+
+    /// The labels of the function `head` names, when it is one whose
+    /// parameters the macro sees (see [`Labels`]).
+    fn labels_of(&self, head: &Expr) -> Labels {
+        let key = match head.strip() {
+            Expr::Var(i) => ident_str(i),
+            Expr::Path(p) if !p.leading_colon && p.segs.len() >= 2 => {
+                let key: Vec<String> = p.segs.iter().map(|s| ident_str(&s.ident)).collect();
+                key.join("::")
+            }
+            _ => return None,
+        };
+        match self.lookup(&key) {
+            Some(Bind::Local(_, labels)) => labels.clone(),
             _ => None,
         }
     }
@@ -1044,7 +1085,7 @@ impl Cx {
         let mut names = Vec::new();
         p.names(&mut names);
         for n in names {
-            self.bind(ident_str(&n), Bind::Local(None));
+            self.bind(ident_str(&n), Bind::Local(None, None));
         }
     }
 
@@ -1082,7 +1123,7 @@ impl Cx {
     fn known_fn(&self, e: &Expr) -> bool {
         match e.strip() {
             Expr::Var(i) => match self.lookup(&ident_str(i)) {
-                Some(Bind::Local(s) | Bind::External(_, s)) => s.is_some(),
+                Some(Bind::Local(s, _) | Bind::External(_, s)) => s.is_some(),
                 Some(Bind::RefCell | Bind::Op(..)) => false,
                 None => is_special(&word(i)),
             },
@@ -1283,6 +1324,7 @@ impl Cx {
                 body,
                 is_move,
                 span,
+                ..
             } => self.fun_value(params, body, *is_move || (tail && !body.mutates()), *span),
             Expr::Function { arms, span } => {
                 let x = self.local_at("arg", "argument", *span);
@@ -1559,21 +1601,21 @@ impl Cx {
                 var,
                 from,
                 to,
-                down,
+                dir,
                 body,
                 span,
             } => {
                 let from = self.expr(from, false)?.operand();
                 let to = self.expr(to, false)?.operand();
                 let len = self.env.len();
-                self.bind(ident_str(var), Bind::Local(None));
+                self.bind(ident_str(var), Bind::Local(None, None));
                 let body = self.stmt_block(body)?;
                 self.env.truncate(len);
                 let v = rust_ident(var);
-                let range = if *down {
-                    quote!((#to..=#from).rev())
-                } else {
-                    quote!(#from..=#to)
+                let range = match dir {
+                    ForDir::To => quote!(#from..=#to),
+                    ForDir::Downto => quote!((#to..=#from).rev()),
+                    ForDir::Til => quote!(#from..#to),
                 };
                 let kw = mapped_keyword("for", *span);
                 Ok(Out::new(quote!(#kw #v in #range #body), Kind::Compound))
@@ -1699,6 +1741,26 @@ impl Cx {
                 "`_` stands for a parameter of the expression around it, but it is alone here",
             )),
             Expr::Surface(_) => unreachable!("surface syntax is only kept for the formatter"),
+            Expr::TailCall { args, span } => {
+                let mut places = Vec::new();
+                let mut vals = Vec::new();
+                for (k, e) in args {
+                    places.push(self.tail_vars[*k].clone());
+                    vals.push(self.expr(e, false)?.ts);
+                }
+                // All values first, then the parameters: `go b a` swaps.
+                let set = match (places.as_slice(), vals.as_slice()) {
+                    ([], _) => quote!(),
+                    ([p], [v]) => quote!(#p = #v;),
+                    _ => quote!((#(#places),*) = (#(#vals),*);),
+                };
+                let cont = quote_spanned!(*span=> continue);
+                Ok(Out::new(braced(quote!(#set #cont)), Kind::Compound))
+            }
+            Expr::Labeled { span, .. } => Err(Error::new(
+                *span,
+                "a labeled argument (`~x:e`) goes in an application of a function: `f ~x:e`",
+            )),
         }
     }
 
@@ -1727,7 +1789,9 @@ impl Cx {
     fn var(&mut self, i: &Ident) -> R<Out> {
         let name = ident_str(i);
         match self.lookup(&name).cloned() {
-            Some(Bind::Local(shape)) => return Ok(Out::new(ident_ts(i), Kind::Name).shaped(shape)),
+            Some(Bind::Local(shape, _)) => {
+                return Ok(Out::new(ident_ts(i), Kind::Name).shaped(shape));
+            }
             Some(Bind::RefCell) => {
                 let r = rust_ident(i);
                 let m = keyword("mut", i.span());
@@ -1849,6 +1913,9 @@ impl Cx {
                 all.extend(args.iter().copied());
                 return self.apply(h, &all, &g, hint, tail);
             }
+            _ if args.iter().any(|a| matches!(a, Expr::Labeled { .. })) => {
+                return self.apply_labeled(head, args, hint, tail);
+            }
             Expr::Fun { params, body, .. } if args.len() >= params.len() => {
                 return self.beta(params, body, args, groups, tail);
             }
@@ -1909,6 +1976,88 @@ impl Cx {
             .clone()
             .or_else(|| hint.map(|h| hinted(groups.lens(args.len()), h)));
         self.apply_call(callee, shape, args, groups, ctor_name(head), tail)
+    }
+
+    /// An application with labeled arguments (`f ~y:2 ~x:1`): a labeled
+    /// argument goes to the parameter of that label, and the others fill
+    /// the parameters left, in order. When that order is not the written
+    /// one, the arguments are evaluated first, as written. A parameter left
+    /// out before a given one makes a function of the missing ones: with
+    /// `let f ~x ~y = ..`, `f ~y:2` is `fun x -> f x 2`. Labels need a
+    /// callee whose parameters the macro sees by name (see [`Labels`]);
+    /// for rust-analyzer, other callees take the arguments as written, and
+    /// rustc's expansion is the error.
+    fn apply_labeled(
+        &mut self,
+        head: &Expr,
+        args: &[&Expr],
+        hint: Option<Shape>,
+        tail: bool,
+    ) -> R<Out> {
+        let value = |a: &Expr| match a {
+            Expr::Labeled { value, .. } => (**value).clone(),
+            a => a.clone(),
+        };
+        let Some(labels) = self.labels_of(head) else {
+            if self.editor {
+                let vals: Vec<Expr> = args.iter().map(|a| value(a)).collect();
+                let refs: Vec<&Expr> = vals.iter().collect();
+                return self.apply(head, &refs, &Groups::default(), hint, tail);
+            }
+            let span = args
+                .iter()
+                .find_map(|a| match a {
+                    Expr::Labeled { span, .. } => Some(*span),
+                    _ => None,
+                })
+                .unwrap_or_else(|| span_of(head));
+            return Err(Error::new(
+                span,
+                "a labeled argument needs a function whose parameters rsml sees by name: \
+                 one defined by `let f ~x .. =` or `let rec`, or a `fn` of the same `rsml!`",
+            ));
+        };
+        let (slots, extra) = label_slots(args, &labels)?;
+        let last = slots.iter().rposition(Option::is_some).unwrap_or(0);
+        let gaps = slots[..=last].iter().filter(|s| s.is_none()).count();
+        let order: Vec<usize> = slots.iter().flatten().chain(&extra).copied().collect();
+        let reordered = order.windows(2).any(|w| w[0] > w[1]);
+        let mut hoists = Vec::new();
+        let mut vals = Vec::with_capacity(args.len());
+        for a in args {
+            let v = value(a);
+            vals.push(if (reordered || gaps > 0) && !self.is_trivial(&v) {
+                self.hoist_value(&v, false, &mut hoists)?
+            } else {
+                v
+            });
+        }
+        if gaps == 0 {
+            let refs: Vec<&Expr> = order.iter().map(|&k| &vals[k]).collect();
+            let out = self.apply(head, &refs, &Groups::default(), hint, tail)?;
+            return Ok(with_hoists(hoists, out));
+        }
+        // `f _ v`: a function of the parameters left out, in order.
+        let sp = span_of(head);
+        let mut items = Vec::new();
+        let mut holes = 0;
+        for s in &slots[..=last] {
+            items.push(match s {
+                Some(k) => vals[*k].clone(),
+                None => {
+                    holes += 1;
+                    Expr::Hole {
+                        written: None,
+                        index: Some(holes - 1),
+                        span: sp,
+                    }
+                }
+            });
+        }
+        let body = Expr::App(Box::new(head.clone()), items);
+        let escapes = tail || !hoists.is_empty();
+        let out = self.section_value(&body, &vec![None; holes], escapes)?;
+        Ok(with_hoists(hoists, out))
     }
 
     fn apply_call(
@@ -2818,6 +2967,7 @@ impl Cx {
             BindKind::Func {
                 name,
                 params,
+                labels,
                 mutable,
             } => {
                 let len = self.env.len();
@@ -2846,7 +2996,12 @@ impl Cx {
                     Name::Ident(i) => {
                         let m = mutable.then(|| quote!(mut));
                         let i2 = rust_ident(i);
-                        (quote!(#m #i2), ident_str(i), Bind::Local(Some(shape)))
+                        let labels = shape_labels(&shape, labels);
+                        (
+                            quote!(#m #i2),
+                            ident_str(i),
+                            Bind::Local(Some(shape), labels),
+                        )
                     }
                     Name::Op(o) => {
                         self.unmapped.extend(&o.spans);
@@ -2907,7 +3062,7 @@ impl Cx {
                         ty,
                         value: out.ts,
                         els: quote!(),
-                        binds: vec![(ident_str(x), Bind::Local(None))],
+                        binds: vec![(ident_str(x), Bind::Local(None, None))],
                     });
                 }
                 let value = match pat_class(pat) {
@@ -2927,13 +3082,21 @@ impl Cx {
                     quote!()
                 };
                 let binds = match pat.strip() {
-                    Pat::Var(x) => vec![(ident_str(x), Bind::Local(out.shape.clone().or(hint)))],
+                    Pat::Var(x) => {
+                        let shape = out.shape.clone().or(hint);
+                        // `let f = fun ~x ~y -> ..` is `let f ~x ~y = ..`.
+                        let labels = match (&b.value.strip(), &shape) {
+                            (Expr::Fun { labels, .. }, Some(s)) => shape_labels(s, labels),
+                            _ => None,
+                        };
+                        vec![(ident_str(x), Bind::Local(shape, labels))]
+                    }
                     p => {
                         let mut names = Vec::new();
                         p.names(&mut names);
                         names
                             .iter()
-                            .map(|n| (ident_str(n), Bind::Local(None)))
+                            .map(|n| (ident_str(n), Bind::Local(None, None)))
                             .collect()
                     }
                 };
@@ -2961,12 +3124,40 @@ impl Cx {
     /// `let rec` compiles to nested `fn` items, which need full signatures.
     fn let_rec(&mut self, bindings: &[Binding], stmts: &mut Vec<TokenStream>) -> R<()> {
         let mut sigs = Vec::new();
+        let mut all_labels = Vec::new();
         for b in bindings {
             let sig = self.rec_signature(b)?;
-            self.bind(ident_str(&sig.name), Bind::Local(Some(sig.shape.clone())));
+            let labels = match &b.kind {
+                BindKind::Func { labels, .. } => shape_labels(&sig.shape, labels),
+                BindKind::Value { .. } => None,
+            };
+            all_labels.push(labels.clone());
+            self.bind(
+                ident_str(&sig.name),
+                Bind::Local(Some(sig.shape.clone()), labels),
+            );
             sigs.push(sig);
         }
-        for sig in sigs {
+        for (sig, labels) in sigs.into_iter().zip(all_labels) {
+            // A function calling itself only in tail position is a loop
+            // (rustc's expansion; rust-analyzer's types are the same).
+            let n = sig.shape.first().copied().unwrap_or(0);
+            if bindings.len() == 1 && !self.editor && (n == sig.params.len() || n == 0) {
+                let body = match &sig.body {
+                    RecBody::Expr(e) => e.clone(),
+                    RecBody::Function(arg, arms) => Expr::Match {
+                        scrut: Box::new(Expr::Tmp(arg.clone(), None)),
+                        arms: arms.clone(),
+                        span: sig.name.span(),
+                    },
+                };
+                let labels: Vec<Option<String>> =
+                    labels.map_or_else(|| vec![None; n], |l| l.to_vec());
+                if let Some(body) = tail_calls(&body, &ident_str(&sig.name), n, &labels) {
+                    stmts.push(self.rec_loop(&sig, &body)?);
+                    continue;
+                }
+            }
             let len = self.env.len();
             let mut generics = Vec::new();
             let mut params = Vec::new();
@@ -2994,6 +3185,68 @@ impl Cx {
             stmts.push(quote!(fn #name #generics (#(#params),*) -> #ret #body));
         }
         Ok(())
+    }
+
+    /// A `let rec` function whose calls of itself are all in tail position
+    /// (see [`tail_calls`]), as a loop: each parameter is kept in a `mut`
+    /// variable, bound to its pattern at the start of each turn, and a
+    /// tail call assigns the variables and goes round again.
+    ///
+    /// ```text
+    /// fn go(mut arg1: i64, mut arg2: &[i32]) -> i64 {
+    ///     loop {
+    ///         let acc = arg1;
+    ///         let l = arg2;
+    ///         break match ::rsml::__rt::as_slice(l) {
+    ///             [] => acc,
+    ///             [_, rest @ ..] => { (arg1, arg2) = (acc + 1, rest); continue }
+    ///         };
+    ///     }
+    /// }
+    /// ```
+    fn rec_loop(&mut self, sig: &RecSig, body: &Expr) -> R<TokenStream> {
+        fn shared_ref(t: &Type) -> bool {
+            match t {
+                Type::Paren(t) => shared_ref(t),
+                Type::Ref { mutable, .. } => !mutable,
+                _ => false,
+            }
+        }
+        let saved = (
+            std::mem::take(&mut self.tail_vars),
+            std::mem::take(&mut self.ref_params),
+        );
+        let len = self.env.len();
+        let mut generics = Vec::new();
+        let mut params = Vec::new();
+        let mut lets = Vec::new();
+        let mut vars = Vec::new();
+        for (k, (p, t)) in sig.params.iter().enumerate() {
+            let tt = t.emit(Ctx::Sig, &mut generics);
+            let v = self.local_at("p", &format!("arg{}", k + 1), sig.name.span());
+            params.push(quote!(mut #v: #tt));
+            let pt = self.pat(p)?;
+            lets.push(quote!(let #pt = #v;));
+            self.bind_pat(p);
+            if shared_ref(t) && matches!(p.strip(), Pat::Var(_)) {
+                self.ref_params.push(self.env.len() - 1);
+            }
+            vars.push(v);
+        }
+        self.tail_vars = vars;
+        let ret = sig.ret.emit(Ctx::Sig, &mut generics);
+        let out = self.expr(body, true);
+        self.env.truncate(len);
+        (self.tail_vars, self.ref_params) = saved;
+        let body = out?.ts;
+        let name = rust_ident(&sig.name);
+        let generics = if generics.is_empty() {
+            quote!()
+        } else {
+            quote!(<#(#generics),*>)
+        };
+        let lp = keyword("loop", sig.name.span());
+        Ok(quote!(fn #name #generics (#(#params),*) -> #ret { #lp { #(#lets)* break #body; } }))
     }
 
     fn rec_signature(&mut self, b: &Binding) -> R<RecSig> {
@@ -3188,7 +3441,7 @@ impl Cx {
             Class::Other => return Ok(o.ts),
         };
         let f = located(f, sp);
-        let amp = located(quote!(&), sp);
+        let amp = (!self.is_ref_param(e)).then(|| located(quote!(&), sp));
         let args = group(Delimiter::Parenthesis, quote!(#amp #v), sp);
         Ok(quote!(#f #args))
     }
@@ -3293,10 +3546,14 @@ impl Cx {
                     quote!(#n @ #i)
                 }
             }
-            Pat::Range(lo, hi, _) => {
+            Pat::Range(lo, hi, inclusive) => {
                 let lo = self.pat(lo)?;
                 let hi = self.pat(hi)?;
-                quote!(#lo..=#hi)
+                if *inclusive {
+                    quote!(#lo..=#hi)
+                } else {
+                    quote!(#lo..#hi)
+                }
             }
             Pat::Constraint(inner, _) => self.pat(inner)?,
             Pat::Ref(inner, sp) => {
@@ -3478,6 +3735,172 @@ fn tuple_classes(p: &Pat, classes: &mut [Class]) {
         Pat::Alias(p, _) => tuple_classes(p, classes),
         _ => {}
     }
+}
+
+/// Which argument each parameter gets in a call with labeled arguments
+/// (see [`Cx::apply_labeled`]): an index into `args` per parameter (`None`
+/// for one left out), and the indices of the arguments beyond them.
+fn label_slots(args: &[&Expr], labels: &[Option<String>]) -> R<(Vec<Option<usize>>, Vec<usize>)> {
+    let n = labels.len();
+    let mut slots: Vec<Option<usize>> = vec![None; n];
+    for (k, a) in args.iter().enumerate() {
+        let Expr::Labeled { label, span, .. } = a else {
+            continue;
+        };
+        let name = ident_str(label);
+        let Some(j) = labels
+            .iter()
+            .position(|l| l.as_deref() == Some(name.as_str()))
+        else {
+            let msg = format!("this function has no parameter labeled `~{}`", name);
+            return Err(Error::new(*span, msg));
+        };
+        if slots[j].is_some() {
+            let msg = format!("`~{}` is given twice", name);
+            return Err(Error::new(*span, msg));
+        }
+        slots[j] = Some(k);
+    }
+    let mut extra = Vec::new();
+    let mut next = 0;
+    for (k, a) in args.iter().enumerate() {
+        if matches!(a, Expr::Labeled { .. }) {
+            continue;
+        }
+        while next < n && slots[next].is_some() {
+            next += 1;
+        }
+        if next < n {
+            slots[next] = Some(k);
+        } else {
+            extra.push(k);
+        }
+    }
+    Ok((slots, extra))
+}
+
+/// The body of a `let rec` function `name` of `n` parameters (labeled
+/// `labels`) with its calls of itself in tail position (`f a b` with all
+/// `n` arguments, whose value is the function's: a branch of an `if` or
+/// `match`, the body of a `let`, the end of a sequence) made
+/// [`Expr::TailCall`]s; `None` unless there is one, and `name` is used
+/// nowhere else (as a value, in a closure, in a call whose value is used).
+fn tail_calls(body: &Expr, name: &str, n: usize, labels: &[Option<String>]) -> Option<Expr> {
+    fn binds(names: &[Ident], name: &str) -> bool {
+        names.iter().any(|i| ident_str(i) == name)
+    }
+    fn self_call(e: &Expr, name: &str, n: usize, labels: &[Option<String>]) -> Option<Expr> {
+        let (head, args) = match e {
+            Expr::App(h, a) => (h, a),
+            Expr::Call { func, args, .. } => (func, args),
+            _ => return None,
+        };
+        if !matches!(head.strip(), Expr::Var(i) if ident_str(i) == name) {
+            return None;
+        }
+        let span = span_of(e);
+        if n == 0 {
+            let unit = args.len() == 1 && matches!(args[0].strip(), Expr::Unit(_));
+            return unit.then(|| Expr::TailCall {
+                args: Vec::new(),
+                span,
+            });
+        }
+        let refs: Vec<&Expr> = args.iter().collect();
+        let (slots, extra) = if args.iter().any(|a| matches!(a, Expr::Labeled { .. })) {
+            label_slots(&refs, labels).ok()?
+        } else {
+            let slots = (0..n).map(|k| (k < args.len()).then_some(k)).collect();
+            (slots, (n..args.len()).collect())
+        };
+        if !extra.is_empty() || slots.iter().any(Option::is_none) {
+            return None;
+        }
+        let mut out = Vec::new();
+        for (k, a) in args.iter().enumerate() {
+            let j = slots.iter().position(|s| *s == Some(k))?;
+            let v = match a {
+                Expr::Labeled { value, .. } => (**value).clone(),
+                a => a.clone(),
+            };
+            out.push((j, v));
+        }
+        Some(Expr::TailCall { args: out, span })
+    }
+    fn mark(e: &mut Expr, name: &str, n: usize, labels: &[Option<String>], found: &mut usize) {
+        if let Some(t) = self_call(e, name, n, labels) {
+            *e = t;
+            *found += 1;
+            return;
+        }
+        match e {
+            Expr::Paren(x, _)
+            | Expr::Constraint(x, _)
+            | Expr::Seq(_, x)
+            | Expr::Open { body: x, .. }
+            | Expr::External { body: x, .. } => mark(x, name, n, labels, found),
+            Expr::If { then, els, .. } => {
+                mark(then, name, n, labels, found);
+                if let Some(x) = els {
+                    mark(x, name, n, labels, found);
+                }
+            }
+            Expr::Match { arms, .. } => {
+                for arm in arms {
+                    let mut names = Vec::new();
+                    arm.pat.names(&mut names);
+                    if !binds(&names, name) {
+                        mark(&mut arm.body, name, n, labels, found);
+                    }
+                }
+            }
+            Expr::Let { bindings, body, .. } => {
+                let mut names = Vec::new();
+                for b in bindings.iter() {
+                    match &b.kind {
+                        BindKind::Func {
+                            name: Name::Ident(i),
+                            ..
+                        } => names.push(i.clone()),
+                        BindKind::Func { .. } => {}
+                        BindKind::Value { pat, .. } => pat.names(&mut names),
+                    }
+                }
+                if !binds(&names, name) {
+                    mark(body, name, n, labels, found);
+                }
+            }
+            _ => {}
+        }
+    }
+    fn mentions(e: &mut Expr, name: &str) -> bool {
+        match e {
+            Expr::Var(i) => ident_str(i) == name,
+            Expr::Section { body, .. } => mentions(body, name),
+            Expr::Macro { group, .. } | Expr::Rust(group) => tokens_mention(group.stream(), name),
+            e => e.children_mut().into_iter().any(|c| mentions(c, name)),
+        }
+    }
+    fn tokens_mention(ts: TokenStream, name: &str) -> bool {
+        ts.into_iter().any(|t| match t {
+            TokenTree::Ident(i) => ident_str(&i) == name,
+            TokenTree::Group(g) => tokens_mention(g.stream(), name),
+            _ => false,
+        })
+    }
+    let mut out = body.clone();
+    let mut found = 0;
+    mark(&mut out, name, n, labels, &mut found);
+    (found > 0 && !mentions(&mut out, name)).then_some(out)
+}
+
+/// The labels of a function's parameters (see [`Labels`]), when it has
+/// some and they are the parameters of its first call group.
+fn shape_labels(shape: &Shape, labels: &[Option<Ident>]) -> Labels {
+    if labels.iter().all(Option::is_none) || shape.first() != Some(&labels.len()) {
+        return None;
+    }
+    Some(labels.iter().map(|l| l.as_ref().map(ident_str)).collect())
 }
 
 fn is_unary_section(op: &str) -> bool {

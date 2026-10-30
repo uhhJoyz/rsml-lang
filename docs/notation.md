@@ -57,10 +57,24 @@ argument it is given.
 | `Vec.new ()`               | `Vec::new()`               |
 | `String.from "a"`          | `String::from("a")`        |
 | `f &xs`, `f &mut xs`       | `f(&xs)`, `f(&mut xs)`     |
-| `f ~x:1 ~y`                | `f(1, y)`                  |
 
-Labels (`~x:e`, `~x`) are accepted and dropped: arguments stay in the order
-written.
+**Labels.** `~x:e` gives `e` to the parameter labeled `x`, and `~x`
+stands for `~x:x`. A function's labels are the names of its `~x` parameters (`let f
+~x ~y = ..`, `let rec`, `let f = fun ~x ~y -> ..`; `~x:p` labels the
+pattern `p`, and `~(x : t)` adds a type), and every parameter name of a
+`fn` of the same `rsml!`. Labeled arguments go to their parameters in any
+order; the others fill the parameters left, in order. The arguments are
+evaluated in the order written. A parameter left out before one that is
+given makes a function of it. A function the macro cannot see the
+parameters of (a Rust function from elsewhere, a closure parameter) takes
+no labels: `Option::unwrap_or None ~default:3` is an error.
+
+| OCaml                                          | Rust |
+|------------------------------------------------|------|
+| `let f ~x ~y = x - y in f ~y:1 ~x:3`           | `{ let f = \|x, y\| x - y; f(3, 1) }` |
+| `let f ~x ~y = x - y in f ~y:1 2`              | `{ let f = \|x, y\| x - y; f(2, 1) }` |
+| `let f ~x ~y = x - y in f ~y:(g a) ~x:(h b)`   | `{ let f = \|x, y\| x - y; { let value1 = g(a); let value2 = h(b); f(value2, value1) } }` |
+| `let f ~x ~y = x - y in f ~y:1`                | `{ let f = \|x, y\| x - y; move \|_0\| f(_0, 1) }` |
 
 **Unit.** `()` alone after a function means "no arguments"; anywhere else it
 is the unit value.
@@ -215,7 +229,10 @@ composition is a closure, unless it is applied right away.
 | `.iter >> .count`                           | `move \|argument\| argument.iter().count()` |
 
 `>>` and `<<` are always composition, never shifts; shifts are `lsl`,
-`lsr` and `asr`.
+`lsr` and `asr`. Both `lsr` and `asr` are Rust's `>>`, which the operand's
+type decides: arithmetic (sign-filling) for signed integers, logical for
+unsigned ones. OCaml's `lsr` is always logical; for that on a signed
+value, shift it as an unsigned type (`((x as u64) lsr 2) as i64`).
 
 **Completes at**: `add 1 >> ‸` (functions in scope), `xs |> (.iter >> .‸)`
 (methods of the iterator).
@@ -477,6 +494,9 @@ OCaml: `f (a, b)` passes one tuple, `f [1; 2]` a list.
   is `Some (x.unwrap ())`. rsml-fmt keeps a constructor's argument
   against it or spaced, as written, so it never changes which is meant.
 * `[|..|]` is always an array: `f[|1; 2|]` is `f [|1; 2|]`.
+* OCaml's `s.[i]` (the byte at `i` as a character) is an error: Rust
+  strings are not indexed by position. Write `s.as_bytes()[i]` for the
+  byte or `s.chars().nth(i)` for the character.
 * rsml-fmt never adds or removes the space before such a `(` or `[`.
 
 **Completes at**
@@ -607,6 +627,7 @@ is not a closure at all.
 | `let rec f : i64 -> i64 = function 0 -> 1 \| n -> n * f (n - 1) in f 5` | `{ fn f(argument: i64) -> i64 { match argument { 0 => 1, n => n * f(n - 1), } } f(5) }` |
 | `let rec even (n : u32) : bool = .. odd (n - 1) and odd (n : u32) : bool = .. in even 10` | `{ fn even(n: u32) -> bool { .. } fn odd(n: u32) -> bool { .. } even(10) }` |
 | `let rec id (x : 'a) : 'a = x in id 1` | `{ fn id<A>(x: A) -> A { x } id(1) }` |
+| `let rec go (acc : i64) (k : i64) : i64 = if k = 0 then acc else go (acc + k) (k - 1) in go 0 n` | `{ fn go(mut arg1: i64, mut arg2: i64) -> i64 { loop { let acc = arg1; let k = arg2; break if k == 0 { acc } else { (arg1, arg2) = (acc + k, k - 1); continue }; } } go(0, n) }` |
 | `let x = 1 let y = 2 ;; x + y` | `{ let x = 1; let y = 2; x + y }` |
 | `open std::cmp ;; max a b` | `{ use std::cmp::*; max(a, b) }` |
 | `let open std::cmp in max a b` | `{ use std::cmp::*; max(a, b) }` |
@@ -624,7 +645,13 @@ captures (Rust's `FnMut`) is called through a `mut` binding, so such a
 local function is `let mut f x = ..`, as rustc's error about it suggests.
 `let rec` is a nested `fn`, which
 needs annotations and cannot capture locals; `'a` in its signature is a
-generic parameter. The block is an OCaml toplevel: `let` without `in`,
+generic parameter. A function whose name is used only in calls of itself
+in tail position (with all its arguments, as its value: a branch of `if`
+or `match`, the body of `let`, the end of a sequence) is a loop instead:
+such a call assigns the parameters and goes round again, so it runs in
+constant stack space in every build. Rust does not guarantee that for a
+recursive `fn`, and a debug build does not do it. Functions defined
+together with `and` stay recursive. The block is an OCaml toplevel: `let` without `in`,
 `external`, `open` and `;;`-separated expressions, the last one being the
 value.
 
@@ -648,10 +675,12 @@ value.
 ## Patterns
 
 `match`, `function` and `let` take OCaml patterns: constructors, tuples,
-lists (as slice patterns), records, literals, ranges `'a' .. 'z'` (and
-Rust's `1..=3`), or-patterns, `as`, and guards with `when`. A range
-pattern includes its end either way: `..` is inclusive in patterns, as in
-OCaml, and exclusive in expressions, as in Rust (see [Ranges](#ranges)).
+lists (as slice patterns), records, literals, ranges `'a'..='z'` and
+`0..10`, or-patterns, `as`, and guards with `when`. Ranges are Rust's, in
+patterns as in expressions (see [Ranges](#ranges)): `..=` includes its end
+and `..` leaves it out, however it is spaced. OCaml's `'a' .. 'z'` would
+include `'z'`; here it does not (clippy's `almost_complete_range` lint
+points at it, as in Rust).
 
 | OCaml | Rust |
 |-------|------|
@@ -660,7 +689,8 @@ OCaml, and exclusive in expressions, as in Rust (see [Ranges](#ranges)).
 | `match ord with std::cmp::Ordering::Less -> -1 \| _ -> 0` | `match ord { std::cmp::Ordering::Less => -1, _ => 0, }` |
 | `match n with i32::MAX -> 1 \| _ -> 0` | `match n { i32::MAX => 1, _ => 0, }` |
 | `match p with Point { x; _ } -> x` | `match p { Point { x, .. } => x, }` |
-| `match c with 'a' .. 'z' -> 1 \| _ -> 0` | `match c { 'a'..='z' => 1, _ => 0, }` |
+| `match c with 'a'..='z' -> 1 \| _ -> 0` | `match c { 'a'..='z' => 1, _ => 0, }` |
+| `match n with 0..10 -> 1 \| _ -> 0`, `match n with 0 .. 10 -> 1 \| _ -> 0` | `match n { 0..10 => 1, _ => 0, }` |
 | `match n with 1..=3 -> 1 \| _ -> 0` | `match n { 1..=3 => 1, _ => 0, }` |
 
 A path in a pattern may start with a lowercase module (`std::cmp::Ordering::Less`,
@@ -720,8 +750,8 @@ Rust's ranges, with Rust's meaning: `a..b` stops before `b`.
 A range binds looser than arithmetic, `::`, `@`, `^` and `@@`, and tighter
 than comparisons, `|>`, `>>`, `&&` and `||`; ranges do not chain (`a..b..c` is
 an error). The end is left out when what follows cannot start an
-expression (`a..` before `)`, `do`, `|>`, ..). In patterns, `..` is OCaml's
-inclusive range: `'a' .. 'z'` includes `'z'` (see [Patterns](#patterns)).
+expression (`a..` before `)`, `do`, `|>`, ..). Patterns take the same
+`..` and `..=` (see [Patterns](#patterns)).
 
 **Completes at**: `0..‸`, `0..=‸` (values in scope), `(0..n).‸`
 (methods of the range).
@@ -738,6 +768,7 @@ does.
 | `begin a; b end` | `{ a; b }` |
 | `for i = 0 to n do .. done` | `for i in 0..=n { .. }` |
 | `for i = n downto 0 do .. done` | `for i in (0..=n).rev() { .. }` |
+| `for i = 0 til n do .. done` | `for i in 0..n { .. }` |
 | `for (k, v) in m do .. done`, `for k, v in m do .. done` | `for (k, v) in m { .. }` |
 | `while c do .. done` | `while c { .. }` |
 | `while true do .. done` | `loop { .. }` |

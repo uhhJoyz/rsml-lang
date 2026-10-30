@@ -186,19 +186,21 @@ fn ranges() {
     let mut squares = Vec::new();
     ml! { for i in 0..n do squares.push(i * i) done };
     assert_eq!(squares, [0, 1, 4, 9]);
-    // In patterns `..` is OCaml's inclusive range; `..=` is accepted too.
-    // Both spacings of `..` are on purpose: the formatter would make them one.
+    // In patterns, as in expressions, `..` leaves its end out and `..=`
+    // includes it. Both spacings of `..` are on purpose: the formatter would
+    // make them one.
     let classify = |c: char, n: i32| {
         ml! {
             // rsmlfmt: skip
             match (c, n) with
-            | ('a' .. 'z', 1..=3) -> "lower, small"
-            | ('a'..'z', _) -> "lower"
+            | ('a' .. 'n', 1..=3) -> "early, small"
+            | ('a'..'n', _) -> "early"
             | _ -> "other"
         }
     };
-    assert_eq!(classify('z', 3), "lower, small");
-    assert_eq!(classify('q', 9), "lower");
+    assert_eq!(classify('m', 3), "early, small");
+    assert_eq!(classify('n', 3), "other");
+    assert_eq!(classify('c', 9), "early");
     assert_eq!(classify('Q', 1), "other");
 }
 

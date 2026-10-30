@@ -56,11 +56,11 @@ every toy once with its `SUMMARY`, and that main.rs registers each.
 | 001 | [application](001_application.rs) | Juxtaposition: `area 3 4` calls `area` with two arguments | [Application](../../docs/notation.md#application) |
 | 002 | [parenthesized_arguments](002_parenthesized_arguments.rs) | Arguments are atoms: `f (x + 1) (g y)`, `f (-1)`, `f s.len()` | [Application](../../docs/notation.md#application) |
 | 003 | [associated_functions](003_associated_functions.rs) | Type functions: `Vec::with_capacity 10`, `Vec.new ()`, `String.from "a"` | [Application](../../docs/notation.md#application) |
-| 004 | [borrows_and_labels](004_borrows_and_labels.rs) | Borrowing `f &xs`, `f &mut xs`; labels `f ~x:1 ~y` are dropped | [Application](../../docs/notation.md#application) |
+| 004 | [borrows_and_labels](004_borrows_and_labels.rs) | Borrowing `f &xs`, `f &mut xs`; labels `f ~y ~x:1` in any order | [Application](../../docs/notation.md#application) |
 | 005 | [unit_rules](005_unit_rules.rs) | `f ()` calls with no arguments, `f (())` passes `()`, `Ok ()` | [Application](../../docs/notation.md#application) |
 | 006 | [let_in](006_let_in.rs) | `let x = e in body`: shadowing, patterns, types, `let _` | [Local functions and bindings](../../docs/notation.md#local-functions-and-bindings) |
 | 007 | [local_functions](007_local_functions.rs) | `let f x = .. in`: a local function is a Rust closure | [Local functions and bindings](../../docs/notation.md#local-functions-and-bindings) |
-| 008 | [let_rec](008_let_rec.rs) | `let rec f (n : t) : t = ..`: a recursive, nested `fn` | [Local functions and bindings](../../docs/notation.md#local-functions-and-bindings) |
+| 008 | [let_rec](008_let_rec.rs) | `let rec f (n : t) : t = ..`: a recursive, nested `fn` (a loop for tail calls) | [Local functions and bindings](../../docs/notation.md#local-functions-and-bindings) |
 | 009 | [let_rec_and](009_let_rec_and.rs) | Mutual recursion `let rec .. and ..`; `let a = .. and b = ..` | [Local functions and bindings](../../docs/notation.md#local-functions-and-bindings) |
 | 010 | [let_mut_function](010_let_mut_function.rs) | `let mut next () = ..`: a local function that changes its captures | [Local functions and bindings](../../docs/notation.md#local-functions-and-bindings) |
 | 011 | [toplevel_phrases](011_toplevel_phrases.rs) | Toplevel phrases: `let` without `in`, `;;`, the last is the value | [Local functions and bindings](../../docs/notation.md#local-functions-and-bindings) |
@@ -127,13 +127,13 @@ every toy once with its `SUMMARY`, and that main.rs registers each.
 | 072 | [or_patterns](072_or_patterns.rs) | Or-patterns: `'a' \| 'e' -> ..`, `Some 0 \| None -> ..`, `(0, k) \| (k, 0)` | [Patterns](../../docs/notation.md#patterns) |
 | 073 | [as_patterns](073_as_patterns.rs) | `as` patterns: `Some n as found`, `x :: _ as all` name the whole | [Patterns](../../docs/notation.md#patterns) |
 | 074 | [guards](074_guards.rs) | Guards: `s when s >= 90 -> "A"`, `(a, b) when a = b -> ..` | [Patterns](../../docs/notation.md#patterns) |
-| 075 | [range_patterns](075_range_patterns.rs) | Range patterns: `'a' .. 'z'`, `1..=3`, inclusive (unlike `..` in code) | [Patterns](../../docs/notation.md#patterns) |
+| 075 | [range_patterns](075_range_patterns.rs) | Range patterns: `'a'..='z'` includes its end, `0..10` leaves it out, as in Rust | [Patterns](../../docs/notation.md#patterns) |
 | 076 | [reference_patterns](076_reference_patterns.rs) | Reference patterns: `for &x in ..`, `fun (&x) -> ..`, `let &x = r in` | [Patterns](../../docs/notation.md#patterns) |
 | 077 | [literal_patterns](077_literal_patterns.rs) | Literal patterns: `"yes"` (on a String too), `-1`, `'\\n'`, `i32::MAX` | [Patterns](../../docs/notation.md#patterns) |
 | 078 | [if_then_else](078_if_then_else.rs) | `if c then a else b`, `else if` chains, `if` without `else` | [Control flow](../../docs/notation.md#control-flow) |
 | 079 | [sequences](079_sequences.rs) | `a; b`: steps in order, the last one is the value | [Control flow](../../docs/notation.md#control-flow) |
 | 080 | [begin_end](080_begin_end.rs) | `begin a; b end` and `( a; b )` group steps into one | [Control flow](../../docs/notation.md#control-flow) |
-| 081 | [for_to](081_for_to.rs) | `for i = 1 to n do .. done`: both ends included | [Control flow](../../docs/notation.md#control-flow) |
+| 081 | [for_to](081_for_to.rs) | `for i = 1 to n do .. done` includes `n`, `til` stops before it | [Control flow](../../docs/notation.md#control-flow) |
 | 082 | [for_downto](082_for_downto.rs) | `for i = 3 downto 1 do .. done`: a countdown, ends included | [Control flow](../../docs/notation.md#control-flow) |
 | 083 | [for_in](083_for_in.rs) | `for (k, v) in m do .. done`, `for (i, x) in xs.iter().enumerate()` | [Control flow](../../docs/notation.md#control-flow) |
 | 084 | [while_loops](084_while_loops.rs) | `while n > 1 do .. done`: loop while a condition holds | [Control flow](../../docs/notation.md#control-flow) |

@@ -652,10 +652,11 @@ register(
         "(0.. -1, x? .., [| ..b |])",
         "(0 .. -1, x? .., [| ..b |])",
     );
+    // Range patterns are Rust's, written as in Rust whatever the spacing.
     check(
         "",
-        "match n with 1..=3 -> a | 'a' .. 'z' -> b",
-        "match n with 1..=3 -> a | 'a' .. 'z' -> b",
+        "match n with 1..=3 -> a | 'a' .. 'z' -> b | -5 .. -1 -> c",
+        "match n with 1..=3 -> a | 'a'..'z' -> b | -5..-1 -> c",
     );
 }
 
@@ -1006,6 +1007,13 @@ fn check_stable(overrides: &str, input: &str, expected: &str) {
 }
 
 #[test]
+fn comment_before_a_dot() {
+    // The comment stays before the `.`, which stays against its name.
+    check_stable("", "x.f(1)\n// c\n.g y", "x.f(1)\n  // c\n  .g y");
+    check_stable("", "f t\n// c\n.len", "f t\n  // c\n  .len");
+}
+
+#[test]
 fn fuzz_glued_tokens() {
     // Two `&`s at the start of an argument stay apart: `f &&xs` is `f && xs`.
     check_stable("", "f & & xs", "f & &xs");
@@ -1049,7 +1057,7 @@ fn fuzz_glued_tokens() {
         "let f ~y: &(y : i64) = y in f",
         "let f ~y: &(y : i64) = y in\nf",
     );
-    check_stable("", "t.0 .(1) + t.0 .[1]", "t.0 .(1) + t.0 .[1]");
+    check_stable("", "t.0 .(1) + t.0 .(2)", "t.0 .(1) + t.0 .(2)");
     // `!1 .0` is `(!1).0`; `!1.0` would dereference the float.
     check_stable("", "!1 .0 + !1. .abs()", "!1 .0 + !1. .abs()");
     // `0...1.` would be `0 ... 1.`: a float ending in `.` keeps its space.

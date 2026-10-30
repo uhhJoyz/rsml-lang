@@ -21,14 +21,16 @@ use std::rc::Rc;
 
 use proc_macro2::{Delimiter, Group, Spacing, Span, TokenStream, TokenTree};
 
-use crate::ast::Shape;
+use crate::ast::{Labels, Shape};
 use crate::codegen::Scope;
 use crate::parser::Error;
 
-/// Shapes of functions known by name (`add`, `Self::new`, `Point::new`).
-pub type Known = Vec<(String, Shape)>;
+/// Shapes of functions known by name (`add`, `Self::new`, `Point::new`),
+/// with the names of their parameters, by which a call can label them.
+pub type Known = Vec<(String, Shape, Labels)>;
 
 /// A function with an OCaml body found inside `rsml! { .. }`.
+#[derive(Clone)]
 pub struct FnBody {
     /// Parameters bound to a plain name, with the shape of closure-typed ones.
     pub params: Vec<(String, Option<Shape>)>,
@@ -90,7 +92,7 @@ fn rewrite(
         Level::Assoc(ty) => {
             let own = own_fns(&toks)
                 .into_iter()
-                .map(|(n, s)| (format!("Self::{}", n), s))
+                .map(|(n, s, l)| (format!("Self::{}", n), s, l))
                 .collect();
             Scope::assoc(own, outer, ty.clone())
         }
@@ -192,8 +194,8 @@ fn module_scope(toks: &[TokenTree], parent: &Rc<Scope>) -> Scope {
         let item = &toks[item_start(toks, k)..k];
         if let Some((ty, false)) = impl_type(item) {
             let body: Vec<TokenTree> = g.stream().into_iter().collect();
-            for (n, s) in own_fns(&body) {
-                assoc.push((format!("{}::{}", ty, n), s));
+            for (n, s, l) in own_fns(&body) {
+                assoc.push((format!("{}::{}", ty, n), s, l));
             }
         }
     }
@@ -221,8 +223,9 @@ fn own_fns(toks: &[TokenTree]) -> Known {
                 _ => false,
             })
             .unwrap_or(toks.len());
-        if let Some(shape) = fn_shape(&toks[i + 2..end], is_async(&toks[..i])) {
-            out.push((crate::lexer::ident_str(name), shape));
+        let sig = &toks[i + 2..end];
+        if let Some(shape) = fn_shape(sig, is_async(&toks[..i])) {
+            out.push((crate::lexer::ident_str(name), shape, fn_labels(sig)));
         }
     }
     without_conflicts(out)
@@ -244,21 +247,23 @@ fn is_async(before: &[TokenTree]) -> bool {
     false
 }
 
+/// Names defined more than once (under different `#[cfg]`s) keep their
+/// shape if every definition has the same one, and their labels likewise.
 fn without_conflicts(entries: Known) -> Known {
-    let mut seen: HashMap<String, Option<Shape>> = HashMap::new();
-    for (n, s) in &entries {
+    let mut seen: HashMap<String, Option<(Shape, Labels)>> = HashMap::new();
+    for (n, s, l) in &entries {
         seen.entry(n.clone())
-            .and_modify(|old| {
-                if old.as_ref() != Some(s) {
-                    *old = None;
-                }
+            .and_modify(|old| match old {
+                Some((s0, _)) if s0 != s => *old = None,
+                Some((_, l0)) if l0.as_deref() != l.as_deref() => *l0 = None,
+                _ => {}
             })
-            .or_insert_with(|| Some(s.clone()));
+            .or_insert_with(|| Some((s.clone(), l.clone())));
     }
     let mut out = Vec::new();
-    for (n, _) in entries {
-        if let Some(Some(s)) = seen.remove(&n) {
-            out.push((n, s));
+    for (n, _, _) in entries {
+        if let Some(Some((s, l))) = seen.remove(&n) {
+            out.push((n, s, l));
         }
     }
     out
@@ -299,6 +304,35 @@ fn fn_shape(sig: &[TokenTree], is_async: bool) -> Option<Shape> {
         shape.extend(fn_groups(&ret[2..], &bounds));
     }
     Some(shape)
+}
+
+/// The names of the parameters of a signature (the tokens after the
+/// function's name), by which a call can label its arguments: `None` for
+/// a parameter that is a pattern rather than a name.
+fn fn_labels(sig: &[TokenTree]) -> Labels {
+    let mut rest = sig;
+    if rest.first().is_some_and(|t| is_punct(t, '<')) {
+        rest = &rest[(angle_close(rest) + 1).min(rest.len())..];
+    }
+    let Some(TokenTree::Group(list)) = rest.first() else {
+        return None;
+    };
+    let toks: Vec<TokenTree> = list.stream().into_iter().collect();
+    let labels: Vec<Option<String>> = split_top(&toks, ',')
+        .into_iter()
+        .map(|param| {
+            let param = skip_attributes(param);
+            let colon = (0..param.len()).find(|&k| is_lone_colon(param, k))?;
+            match &param[..colon] {
+                [TokenTree::Ident(n)] => Some(n),
+                [TokenTree::Ident(m), TokenTree::Ident(n)] if m == "mut" => Some(n),
+                _ => None,
+            }
+            .map(crate::lexer::ident_str)
+            .filter(|n| n != "_")
+        })
+        .collect();
+    labels.iter().any(Option::is_some).then(|| labels.into())
 }
 
 /// `self`, `mut self`, `&self`, `&'a mut self`, `self: Box<Self>`.

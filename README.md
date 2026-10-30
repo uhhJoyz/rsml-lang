@@ -365,13 +365,13 @@ OCaml body is not Rust.
 
 Expressions: `let .. in`, `let rec .. and ..`, `fun`, `function`, `match ..
 with` (guards, or-patterns, `as`, constructors, tuples, lists, ranges
-`'a' .. 'z'` and `1..=3`), `if then else`, `;` sequencing, `begin .. end`,
-`for .. to / downto .. do .. done`, `for p in e do .. done`, `while .. do
+`'a'..='z'` and `0..10`), `if then else`, `;` sequencing, `begin .. end`,
+`for .. to / downto / til .. do .. done`, `for p in e do .. done`, `while .. do
 .. done` (`while true` is Rust's `loop`), `return e`, `break e`, `continue`,
 ranges `a..b`, `a..=b`, `a..`, `..b`, `unsafe { .. }`, `async { .. }`,
 tuples, lists `[a; b]`, arrays `[|a; b|]`, `::`, `@`, `^`, records `Point {
 x = 1; y }` and `{ p with x = 2 }`, `ref` / `!` / `:=` / `incr` / `decr`,
-`not`, `assert`, labels `~x:e` (positional), `(e : t)`, placeholders,
+`not`, `assert`, labels `~x:e` (matched by name), `(e : t)`, placeholders,
 user-defined operators `let ( +! ) a b = ..`, `(* comments *)`.
 
 The block itself is an OCaml toplevel: `let` without `in`, `external`,
@@ -487,15 +487,18 @@ The macro changes syntax, not Rust's rules:
 * `let rec` compiles to a nested `fn`, which needs annotations and cannot
   capture local variables:
   `let rec fact (n : i64) : i64 = ..` or `let rec f : i64 -> i64 = function ..`.
+  One that calls itself only in tail position (`go (acc + 1) rest` as its
+  value) compiles to a loop instead, which runs in constant stack space in
+  debug builds too.
 * `let r = ref e` is a `let mut` local; `!r` reads it, `r := v` and
   `incr r` write it, and passing `r` passes `&mut r`.
 * `!` dereferences and `not` negates, in macro arguments too:
   `assert!(not (xs.is_empty()))`. `!` binds tighter than `.`, so Rust's
   `assert!(!xs.is_empty())` would assert the opposite; it is an error, as
   is `!` before a comparison or `true`.
-* `..` is OCaml's inclusive range in patterns (`'a' .. 'z'`, and `1..=3`
-  means the same) and Rust's exclusive one in expressions (`0..n` stops
-  before `n`).
+* Ranges are Rust's, in patterns too: `0..n` stops before `n` and
+  `'a'..='z'` includes `'z'` (OCaml's `'a' .. 'z'` would include it; here
+  it does not).
 * `assert false` is `::core::unreachable!("assert false")`. `try .. with` and `raise` are not
   supported; use `Result`, `match`, `?` and `panic!`.
 
@@ -621,6 +624,9 @@ write.
   `comments = "rust"`.
 * No modules, functors, objects, polymorphic variants, GADTs, `type`
   definitions, exceptions or `lazy`. Define types in Rust and match on them.
+* `lsr` and `asr` are both Rust's `>>`: on a signed integer `lsr` is an
+  arithmetic shift, not OCaml's logical one (cast to an unsigned type
+  first for that).
 * The expansions need edition 2018 or later: they name `::core::..`,
   which edition 2015 reads as a path from the crate root. Raw identifiers
   (`r#gen`) work in every edition.

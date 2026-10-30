@@ -12,6 +12,11 @@ use crate::types::Type;
 /// A group of `0` is a function taking `()`, compiled to a zero-argument call.
 pub type Shape = Vec<usize>;
 
+/// The labels a call may give a known function's arguments by (`f ~x:1`),
+/// one per parameter of its first call group: the names of OCaml's `~x`
+/// parameters, or of every parameter of a Rust signature in `rsml!`.
+pub type Labels = Option<std::rc::Rc<[Option<String>]>>;
+
 #[derive(Clone)]
 pub struct PathSeg {
     pub ident: Ident,
@@ -69,6 +74,8 @@ pub enum Expr {
     /// `fun p.. -> body`; `fun move p.. -> body` forces a `move` closure.
     Fun {
         params: Vec<Pat>,
+        /// As in [`BindKind::Func`]: kept for `let f = fun ~x -> ..`.
+        labels: Vec<Option<Ident>>,
         body: Box<Expr>,
         span: Span,
         is_move: bool,
@@ -190,7 +197,7 @@ pub enum Expr {
         var: Ident,
         from: Box<Expr>,
         to: Box<Expr>,
-        down: bool,
+        dir: ForDir,
         body: Box<Expr>,
         span: Span,
     },
@@ -261,6 +268,22 @@ pub enum Expr {
         params: Vec<Option<Type>>,
         span: Span,
     },
+    /// `~x:e`, or `~x` for `~x:x`: an argument given by label, matched with
+    /// the callee's parameter of that name. (A surface parse keeps
+    /// [`Surface::Label`] instead.)
+    Labeled {
+        label: Ident,
+        value: Box<Expr>,
+        span: Span,
+    },
+    /// A `let rec` function's call of itself whose value is the function's
+    /// (made by the code generator): a jump back to its start with these
+    /// arguments, each with the index of its parameter, in the order
+    /// written.
+    TailCall {
+        args: Vec<(usize, Expr)>,
+        span: Span,
+    },
     /// Only produced by a [surface](crate::parser::Parser::set_surface) parse.
     Surface(Box<Surface>),
 }
@@ -283,6 +306,25 @@ impl MacroArg {
     pub fn expr_mut(&mut self) -> &mut Expr {
         match self {
             MacroArg::Expr(e) | MacroArg::Named(_, e) => e,
+        }
+    }
+}
+
+/// How `for i = a .. b` counts: `to` and `downto` include `b`, as in
+/// OCaml; `til` leaves it out, as Rust's `a..b` does.
+#[derive(Clone, Copy, PartialEq)]
+pub enum ForDir {
+    To,
+    Downto,
+    Til,
+}
+
+impl ForDir {
+    pub fn keyword(self) -> &'static str {
+        match self {
+            ForDir::To => "to",
+            ForDir::Downto => "downto",
+            ForDir::Til => "til",
         }
     }
 }
@@ -388,6 +430,9 @@ pub enum BindKind {
     Func {
         name: Name,
         params: Vec<Pat>,
+        /// The label of each parameter (`~x`, `~x:p`, `~(x : t)`); empty
+        /// in a surface parse, which keeps [`Pat::Label`] in `params`.
+        labels: Vec<Option<Ident>>,
         mutable: bool,
     },
 }
@@ -432,7 +477,7 @@ pub enum Pat {
     CtorRecord(Path, Vec<(Ident, Option<Pat>)>, bool),
     Or(Vec<Pat>),
     Alias(Box<Pat>, Ident),
-    /// `'a' .. 'z'`, or `1..=3` written Rust style (`true`); both inclusive.
+    /// `'a'..'z'`, Rust's exclusive range, or `1..=3`, inclusive (`true`).
     Range(Box<Pat>, Box<Pat>, bool),
     Constraint(Box<Pat>, Type),
     /// `&p` (Rust extension)
@@ -533,6 +578,7 @@ impl Expr {
             | Expr::FieldRef { .. } => false,
             Expr::MethodRef { args, .. } => args.as_deref().is_some_and(any),
             Expr::StdMacro { args, .. } => args.iter().any(|a| a.expr().mutates()),
+            Expr::TailCall { .. } => true,
             Expr::Section { body, .. } => body.mutates(),
             Expr::Range { lo, hi, .. } => {
                 lo.as_ref().is_some_and(|e| e.mutates()) || hi.as_ref().is_some_and(|e| e.mutates())
@@ -551,6 +597,7 @@ impl Expr {
             | Expr::Constraint(e, _)
             | Expr::Cast(e, _)
             | Expr::Assert(e, _)
+            | Expr::Labeled { value: e, .. }
             | Expr::Fun { body: e, .. }
             | Expr::External { body: e, .. }
             | Expr::Open { body: e, .. } => e.mutates(),
@@ -628,6 +675,7 @@ impl Expr {
             | Expr::Section { .. } => Vec::new(),
             Expr::MethodRef { args, .. } => args.iter_mut().flatten().collect(),
             Expr::StdMacro { args, .. } => args.iter_mut().map(MacroArg::expr_mut).collect(),
+            Expr::TailCall { args, .. } => args.iter_mut().map(|(_, e)| e).collect(),
             Expr::Range { lo, hi, .. } => lo
                 .iter_mut()
                 .chain(hi.iter_mut())
@@ -647,6 +695,7 @@ impl Expr {
             | Expr::Constraint(e, _)
             | Expr::Cast(e, _)
             | Expr::Assert(e, _)
+            | Expr::Labeled { value: e, .. }
             | Expr::Fun { body: e, .. }
             | Expr::External { body: e, .. }
             | Expr::Open { body: e, .. } => vec![&mut **e],

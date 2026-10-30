@@ -75,7 +75,7 @@ pub fn rs_partial(xs: &[i32], k: i32) -> Vec<i32> {
     xs.iter().map(move |b| scale(k, b)).collect()
 }
 
-// Pattern matching on a list and recursion.
+// Pattern matching on a list and recursion: a tail call is a loop.
 #[unsafe(no_mangle)]
 #[inline(never)]
 pub fn ml_sum(xs: &[i64]) -> i64 {
@@ -90,10 +90,15 @@ pub fn ml_sum(xs: &[i64]) -> i64 {
 #[unsafe(no_mangle)]
 #[inline(never)]
 pub fn rs_sum(xs: &[i64]) -> i64 {
-    fn go(acc: i64, l: &[i64]) -> i64 {
-        match l {
-            [] => acc,
-            [x, rest @ ..] => go(acc + *x, rest),
+    fn go(mut acc: i64, mut l: &[i64]) -> i64 {
+        loop {
+            match l {
+                [] => return acc,
+                [x, rest @ ..] => {
+                    acc += *x;
+                    l = rest;
+                }
+            }
         }
     }
     go(0, xs)
