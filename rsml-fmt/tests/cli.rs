@@ -71,6 +71,29 @@ fn bad_input_writes_nothing() {
 }
 
 #[test]
+fn keep_on_error_writes_the_input_back() {
+    let d = temp("keep");
+    for (args, input) in [
+        (
+            &["--rustfmt", "--keep-on-error"][..],
+            "fn main( { ml! { 1 } \n",
+        ),
+        (&["--keep-on-error"][..], "fn main() { let s = \"open; }\n"),
+        (&["--ml", "--keep-on-error"][..], "let x = in\n"),
+    ] {
+        let (code, out, err) = run(args, &d, input);
+        assert_eq!(code, 2, "{:?}: {}", args, err);
+        assert_eq!(out, input, "{:?}", args);
+        assert!(!err.is_empty(), "{:?}", args);
+    }
+    // Input that formats is formatted as without the option.
+    let (code, out, _) = run(&["--rustfmt", "--keep-on-error"], &d, MESSY);
+    assert_eq!(code, 0);
+    assert_eq!(out, run(&["--rustfmt"], &d, MESSY).1);
+    let _ = std::fs::remove_dir_all(&d);
+}
+
+#[test]
 fn stdin_filepath_finds_the_configs() {
     let d = temp("configs");
     std::fs::write(

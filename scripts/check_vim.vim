@@ -61,22 +61,22 @@ call s:Check(s:messy !=# s:expected, 'the sample needs formatting')
 " ----- the filter and 'formatprg' -------------------------------------------
 
 call s:Open('messy.rs', 'filter.rs')
-silent %!rsml-fmt --rustfmt --stdin-filepath %:p 2>/dev/null
+silent %!rsml-fmt --rustfmt --keep-on-error --stdin-filepath %:p 2>/dev/null
 call s:Check(getline(1, '$') ==# s:expected,
-      \ ':%!rsml-fmt --rustfmt --stdin-filepath %:p 2>/dev/null formats like the command line',
+      \ ':%!rsml-fmt --rustfmt --keep-on-error --stdin-filepath %:p 2>/dev/null formats like the command line',
       \ s:Diff(getline(1, '$'), s:expected))
 
 call s:Open('messy.rs', 'formatprg.rs')
-setlocal formatprg=rsml-fmt\ --rustfmt\ --stdin-filepath\ %:p\ 2>/dev/null
+setlocal formatprg=rsml-fmt\ --rustfmt\ --keep-on-error\ --stdin-filepath\ %:p\ 2>/dev/null
 silent normal! gggqG
 call s:Check(getline(1, '$') ==# s:expected,
       \ "'formatprg' and gggqG format like the command line",
       \ s:Diff(getline(1, '$'), s:expected))
 
 " `gq` on part of the file: a function is formatted as a file of its own,
-" a statement (not valid Rust alone) is replaced with nothing.
+" a statement (not valid Rust alone) is left as it is.
 call s:Open('messy.rs', 'part.rs')
-setlocal formatprg=rsml-fmt\ --rustfmt\ --stdin-filepath\ %:p\ 2>/dev/null
+setlocal formatprg=rsml-fmt\ --rustfmt\ --keep-on-error\ --stdin-filepath\ %:p\ 2>/dev/null
 let s:start = search('^fn   shout')
 let s:end = search('^}', 'W')
 let s:want = systemlist('rsml-fmt --rustfmt --stdin-filepath ' . shellescape(expand('%:p'))
@@ -88,17 +88,24 @@ call s:Check(s:start > 0 && v:shell_error == 0
       \ 'gq on a function formats it as a file of its own',
       \ s:Diff(getline(s:start, s:start + len(s:want) - 1), s:want))
 let s:line = search('^    let   total')
-let s:before = line('$')
+let s:lines = getline(1, '$')
 execute 'silent normal! ' . s:line . 'Ggq' . s:line . 'G'
-call s:Check(s:line > 0 && line('$') == s:before - 1,
-      \ 'gq on a statement replaces it with nothing', 'lines: ' . line('$') . ', was ' . s:before)
+call s:Check(s:line > 0 && getline(1, '$') ==# s:lines,
+      \ 'gq on a statement leaves it as it is', s:Diff(getline(1, '$'), s:lines))
 
 call s:Open('broken.rs', 'broken-filter.rs')
+silent %!rsml-fmt --rustfmt --keep-on-error --stdin-filepath %:p 2>/dev/null
+call s:Check(getline(1, '$') ==# s:broken,
+      \ 'the filter on a file that is not Rust leaves the buffer as it was',
+      \ s:Diff(getline(1, '$'), s:broken))
+
+" Without --keep-on-error, Vim replaces the lines with nothing.
+call s:Open('broken.rs', 'broken-filter-bare.rs')
 silent %!rsml-fmt --rustfmt --stdin-filepath %:p 2>/dev/null
 let s:emptied = getline(1, '$') ==# ['']
 silent undo
 call s:Check(s:emptied && getline(1, '$') ==# s:broken,
-      \ 'the filter on a file that is not Rust leaves the buffer empty, and u restores it')
+      \ 'without --keep-on-error the filter empties the buffer, and u restores it')
 
 " ----- format on save, as docs/editors.md has it --------------------------
 

@@ -6,6 +6,8 @@ rust-version = "1.88"
 description = "The OCaml-to-Rust translator behind rsml's macros: lexer, parser and code generator"
 license = "MIT"
 repository = "https://github.com/uhhJoyz/rsml-lang"
+keywords = ["ocaml", "parser", "transpiler", "macro"]
+categories = ["compilers", "parser-implementations"]
 
 [dependencies]
 # `span-locations` lets the lexer see whitespace between tokens, which is how

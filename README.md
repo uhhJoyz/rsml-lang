@@ -25,9 +25,9 @@ fn sum_of_odd_squares(xs: &[i64]) -> i64 {
 assert_eq!(sum_of_odd_squares(&[1, 2, 3, 4, 5]), 35);
 ```
 
-This page is an overview. [docs/notation.md](docs/notation.md) is the
+This page is an overview. [docs/notation.md](https://github.com/uhhJoyz/rsml-lang/blob/main/docs/notation.md) is the
 reference for every functional notation, with its expansion and where an
-editor completes it; [docs/editors.md](docs/editors.md) covers editor
+editor completes it; [docs/editors.md](https://github.com/uhhJoyz/rsml-lang/blob/main/docs/editors.md) covers editor
 support.
 
 ## Quick start
@@ -55,7 +55,7 @@ rsml! {
 assert_eq!(shifted_odds(&[1, 2, 3]), vec![11, 13]);
 ```
 
-[examples/toy](examples/toy/README.md) has a small commented program for
+[examples/toy](https://github.com/uhhJoyz/rsml-lang/blob/main/examples/toy/README.md) has a small commented program for
 every notation, in reading order: `cargo run --example toy` runs them.
 
 The formatter, and the editor setup:
@@ -66,13 +66,13 @@ cargo install rsml-fmt              # `rsml-fmt` on the PATH
 
 * Format on save, OCaml included, wherever rust-analyzer formats (VS Code's
   `settings.json`; the same setting for Neovim and others is in
-  [docs/editors.md](docs/editors.md#formatting-on-save)):
+  [docs/editors.md](https://github.com/uhhJoyz/rsml-lang/blob/main/docs/editors.md#formatting-on-save)):
   `"rust-analyzer.rustfmt.overrideCommand": ["rsml-fmt", "--rustfmt"]`
 * Neovim, to color `(* *)` comments as comments (from the checkout;
-  [details](docs/editors.md#neovim-coloring---comments)):
+  [details](https://github.com/uhhJoyz/rsml-lang/blob/main/docs/editors.md#neovim-coloring---comments)):
   `mkdir -p ~/.config/nvim/after/queries/rust && cp editors/nvim/queries/rust/highlights.scm ~/.config/nvim/after/queries/rust/`
 * Vim, to format the buffer
-  ([format on save and highlighting](docs/editors.md#vim)):
+  ([format on save and highlighting](https://github.com/uhhJoyz/rsml-lang/blob/main/docs/editors.md#vim)):
   `:%!rsml-fmt --rustfmt --stdin-filepath %:p 2>/dev/null`
 
 Working on rsml itself: `scripts/check_all.sh` runs every check (`--quick`
@@ -302,7 +302,7 @@ A file can be one flush-left `rsml::rsml! { .. }` holding all its items:
 assert on OCaml expressions, and `#[rust]` functions where Rust reads
 better. Only the file's own `//!` comments and `#![..]` attributes stay
 outside, as a macro call cannot hold them.
-[examples/whole_file.rs](examples/whole_file.rs) is one; `cargo test` runs
+[examples/whole_file.rs](https://github.com/uhhJoyz/rsml-lang/blob/main/examples/whole_file.rs) is one; `cargo test` runs
 its tests, and rustfmt and `rsml-fmt` leave it as it is.
 
 ```rust
@@ -355,7 +355,7 @@ Measured, one `rsml!` around a file is fine up to about 1500 lines (under
 100 ms a completion, against about 10 ms in plain Rust); beyond that, write
 one `rsml!` per group of related items, and each completion costs about
 what it costs in plain Rust
-([docs/editors.md](docs/editors.md#big-files) has the numbers).
+([docs/editors.md](https://github.com/uhhJoyz/rsml-lang/blob/main/docs/editors.md#big-files) has the numbers).
 
 This is a function-like macro rather than an attribute because rustc parses
 the item under an attribute macro as Rust before the macro runs, and an
@@ -560,7 +560,7 @@ completion work inside OCaml code: methods after `xs.`, `xs |> .` and
 fields and types, including in unfinished code (`if ‸`, `match o with ‸`).
 Every OCaml keyword is colored as a keyword (`then`, `with`, `done`,
 `fun`, ..) and every operator as an operator. rustc's errors point at the
-OCaml code they are about. [docs/editors.md](docs/editors.md) explains
+OCaml code they are about. [docs/editors.md](https://github.com/uhhJoyz/rsml-lang/blob/main/docs/editors.md) explains
 how, with setup notes for Neovim and blink.cmp, Vim, and the list of
 positions `scripts/check_completion.py` checks.
 
@@ -570,9 +570,9 @@ positions `scripts/check_completion.py` checks.
 rustfmt leaves alone, and has rustfmt format the Rust inside `rsml!`.
 `rsml-fmt --rustfmt` runs rustfmt on the rest of the file too, so one
 command formats everything; editors can run it in place of rustfmt
-([docs/editors.md](docs/editors.md#formatting-on-save) has the setup for
+([docs/editors.md](https://github.com/uhhJoyz/rsml-lang/blob/main/docs/editors.md#formatting-on-save) has the setup for
 rust-analyzer, VS Code and Neovim). Every layout decision is configurable
-in `rsmlfmt.toml`; see [`rsml-fmt/README.md`](rsml-fmt/README.md).
+in `rsmlfmt.toml`; see [`rsml-fmt/README.md`](https://github.com/uhhJoyz/rsml-lang/blob/main/rsml-fmt/README.md).
 
 ```sh
 cargo run -p rsml-fmt -- --rustfmt src tests
@@ -580,8 +580,8 @@ cargo run -p rsml-fmt -- --rustfmt src tests
 
 ## Crates
 
-* `rsml`: the macros, re-exported with the few helpers their expansions
-  call. The only dependency you need.
+* `rsml-lang` (imported as `rsml`): the macros, re-exported with the few
+  helpers their expansions call. The only dependency you need.
 * `rsml-macros`: the procedural macros, a thin layer over `rsml-compiler`.
 * `rsml-compiler`: lexer, parser and code generator, as an ordinary library.
 * `rsml-fmt`: the formatter, which uses `rsml-compiler`'s parser.
@@ -602,6 +602,9 @@ assembly comparison; the formatter's corpus test under every config and a
 long fuzz run; and, where rust-analyzer, Neovim
 and Vim are installed, the completion, highlighting, error-span, editor
 formatting, latency and Vim checks. `--quick` leaves out the slow ones.
+CI (`.github/workflows/ci.yml`) runs `--quick` on Linux and macOS, the
+rust-analyzer and Vim checks, the tests on Rust 1.88 (the oldest
+supported), and once a week the corpus and fuzz runs.
 
 When a table in the documentation shows an expansion,
 `python3 scripts/check_docs.py --expand 'x |> f a'` prints the one to

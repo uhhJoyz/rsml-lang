@@ -438,7 +438,7 @@ argument, `*` multiplies: `f *x` is `f * x`.
 ## Rust-style calls and indexing: `f(a, b)`, `v[i]`
 
 A `(` written right after a function (a name, a path, its generic
-arguments, or a closing `)` or `]`) is a Rust call: each item between the
+arguments, a closing `)` or `]`, or the `?` of `x?`) is a Rust call: each item between the
 parentheses is one argument, and a full expression of its own for
 placeholders. A `[` written there is Rust indexing. With a space, both are
 OCaml: `f (a, b)` passes one tuple, `f [1; 2]` a list.
@@ -458,6 +458,7 @@ OCaml: `f (a, b)` passes one tuple, `f [1; 2]` a list.
 | `f Some(x) y`, `f Some (x) y`           | `f(Some(x), y)`, `f(Some, x, y)` |
 | `Some (x).unwrap()`                     | `Some(x.unwrap())` |
 | `v[i]`, `m[&k]`, `f(x)[0]`, `xs[1..]`   | `v[i]`, `m[&k]`, `f(x)[0]`, `xs[1..]` |
+| `f(x)?[0]`, `x?(1, 2)`, `x? (1, 2)`     | `f(x)?[0]`, `(x?)(1, 2)`, `(x?)((1, 2))` |
 | `f [1; 2]`, `f[\|1; 2\|]`                | `f(::std::vec![1, 2])`, `f([1, 2])` |
 
 * For a function whose arity the macro knows (a local `let`, a
@@ -856,7 +857,7 @@ that says what to write instead.
 | `match x { p => e }`                  | `match x with p -> e \| ..`            |
 | `x += e`, `x -= e`, `x *= e`, ..      | `x <- x + e` (`incr r` or `r := !r + e` for a `ref`) |
 | `{ a; b }`, `{ f x }`                 | `begin .. end` or `( .. )`             |
-| `[1, 2]`, `[\|1, 2\|]`                 | `[1; 2]`, or `[(1, 2)]` for a list of one pair |
+| `[1, 2]`, `[\|1, 2\|]`, `function [a, b] -> a` | `[1; 2]`, or `[(1, 2)]` for a list of one pair |
 | `let x = e; more`                     | `let x = e in ..`                      |
 | `let loop = ..`, `fn x`, `p.type`, .. | a raw identifier (`r#loop`) for a name |
 | `fn f x = ..`                         | `let f x = .. in ..` (a closure is `fun x -> e`) |

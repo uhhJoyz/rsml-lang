@@ -569,6 +569,8 @@ mod tests {
         // A trailing comma is kept for an editor only.
         check("f(a,)", "f(a)");
         assert_eq!(expand_editor("f(a,)"), norm("{ f(a,) }"));
+        check("xs.push(a,)", "xs.push(a)");
+        assert_eq!(expand_editor("xs.push(a,)"), norm("{ xs.push(a,) }"));
     }
 
     #[test]
@@ -605,6 +607,12 @@ mod tests {
         // With a space, or `[|..|]`, it is a list or array argument.
         check("f [1; 2]", "f(::std::vec![1, 2])");
         check("f[|1; 2|]", "f([1, 2])");
+        // After `?`, as in Rust; spaced, OCaml.
+        check("f(x)?[0]", "f(x)?[0]");
+        check("x?(1, 2)", "(x?)(1, 2)");
+        check("x?.len()", "x?.len()");
+        check("g x? [0]", "g(x?, ::std::vec![0])");
+        check("x? (1, 2)", "(x?)((1, 2))");
     }
 
     #[test]
@@ -1128,6 +1136,14 @@ mod tests {
                 "list items are separated by `;`: write `[1; 2]`, or `[(1, 2)]`",
             ),
             ("[|1, 2|]", "array items are separated by `;`"),
+            (
+                "match l with [a, b] -> a | _ -> 0",
+                "list items are separated by `;`: write `[1; 2]`, or `[(1, 2)]`",
+            ),
+            (
+                "match l with [|a, b|] -> a | _ -> 0",
+                "array items are separated by `;`",
+            ),
             ("let x = 1; x + 1", "write `let x = e in ..`"),
             ("f (let x = 1; x)", "write `let x = e in ..`"),
             ("let x = 1; let y = 2; x + y", "write `let x = e in ..`"),
@@ -1148,6 +1164,10 @@ mod tests {
             "{ let mut operator1 = |a, b| a + b; operator1(x, 1) }",
         );
         check("[(1, 2)]", "::std::vec![(1, 2)]");
+        check(
+            "match l with [(a, b)] -> a | _ -> 0",
+            "match ::rsml::__rt::as_slice(&l) { [(a, b)] => a, _ => 0, }",
+        );
         check("let () = a; b", "{ let () = { a; b }; () }");
         check(
             "let log msg = print msg; flush () ;; log 1",
@@ -1158,7 +1178,11 @@ mod tests {
             "{ let x = { a; b }; let y = 1; y }",
         );
         // Under rust-analyzer the code still parses as before, with the error last.
-        for src in ["[1, 2]", "let x = 1; x + 1"] {
+        for src in [
+            "[1, 2]",
+            "let x = 1; x + 1",
+            "match l with [a, b] -> a | _ -> 0",
+        ] {
             let out = expand_editor(src);
             assert!(out.contains("compile_error"), "\n  ml: {}", src);
             assert!(!out.starts_with("::core::compile_error"), "\n  ml: {}", src);

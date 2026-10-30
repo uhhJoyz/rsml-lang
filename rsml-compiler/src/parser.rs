@@ -1872,12 +1872,13 @@ impl Parser {
                             let Some(Tok::Group(g)) = self.bump() else {
                                 unreachable!()
                             };
-                            let (args, _) = self.parse_call_args(&g)?;
+                            let (args, trailing_comma) = self.parse_call_args(&g)?;
                             e = Expr::Method {
                                 recv: Box::new(e),
                                 name,
                                 turbofish,
                                 args,
+                                trailing_comma,
                             };
                         } else if turbofish.is_some() {
                             return self.err("expected `(` after turbofish");
@@ -1964,7 +1965,8 @@ impl Parser {
         };
         let callee = match prev {
             Tok::Ident(i) => !is_keyword(&word(i)),
-            Tok::Op(o) => o.text.ends_with('>'),
+            // `f::<T>(x)`, and `x?(a)` / `f(x)?[0]` (the `?` of `Expr::Try`).
+            Tok::Op(o) => o.text.ends_with('>') || (o.text == "?" && matches!(e, Expr::Try(..))),
             Tok::Group(p) => matches!(p.delimiter(), Delimiter::Parenthesis | Delimiter::Bracket),
             Tok::Lit(_) => matches!(e, Expr::TupleIndex(..)),
             Tok::TyVar(..) => false,
@@ -2624,19 +2626,8 @@ impl Parser {
         while !self.at_end() {
             let start = self.pos;
             let item = self.parse_expr_noseq()?;
-            // `[1, 2]` is the list of one pair `[(1, 2)]` in OCaml, which a
-            // Rust reader would not guess.
-            if matches!(item, Expr::Tuple(_))
-                && let Some(Tok::Op(comma)) = self.toks[start..self.pos]
-                    .iter()
-                    .find(|t| matches!(t, Tok::Op(o) if o.text == ","))
-            {
-                let msg = if array {
-                    "array items are separated by `;`: write `[|1; 2|]`, or `[|(1, 2)|]` for an array of one pair"
-                } else {
-                    "list items are separated by `;`: write `[1; 2]`, or `[(1, 2)]` for a list of one pair"
-                };
-                self.recoverable(Error::new(comma.span(), msg))?;
+            if matches!(item, Expr::Tuple(_)) {
+                self.comma_in_list(start, array)?;
             }
             items.push(item);
             if !self.eat_op(";") {
@@ -2645,6 +2636,24 @@ impl Parser {
         }
         self.expect_end()?;
         Ok(items)
+    }
+
+    /// `[1, 2]` is the list of one pair `[(1, 2)]` in OCaml, which a Rust
+    /// reader would not guess: an error at the first comma after `start`
+    /// (the item just parsed, a tuple), in expressions and patterns alike.
+    fn comma_in_list(&self, start: usize, array: bool) -> R<()> {
+        let Some(Tok::Op(comma)) = self.toks[start..self.pos]
+            .iter()
+            .find(|t| matches!(t, Tok::Op(o) if o.text == ","))
+        else {
+            return Ok(());
+        };
+        let msg = if array {
+            "array items are separated by `;`: write `[|1; 2|]`, or `[|(1, 2)|]` for an array of one pair"
+        } else {
+            "list items are separated by `;`: write `[1; 2]`, or `[(1, 2)]` for a list of one pair"
+        };
+        self.recoverable(Error::new(comma.span(), msg))
     }
 
     fn parse_brace(&mut self, g: &Group) -> R<Expr> {
@@ -2973,7 +2982,12 @@ impl Parser {
                     let mut sub = self.sub_toks(inner, g.span_close());
                     let mut items = Vec::new();
                     while !sub.at_end() {
-                        items.push(sub.parse_pattern()?);
+                        let start = sub.pos;
+                        let item = sub.parse_pattern()?;
+                        if matches!(item, Pat::Tuple(_)) {
+                            sub.comma_in_list(start, array)?;
+                        }
+                        items.push(item);
                         if !sub.eat_op(";") {
                             break;
                         }

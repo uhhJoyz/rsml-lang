@@ -29,6 +29,10 @@ OPTIONS:
     --check               Write nothing; list files that would change and
                           exit with status 1 if there are any
     --stdout              Print formatted files instead of writing them
+    --keep-on-error       With stdin: if it cannot be formatted, write it
+                          back unchanged (the exit status is still 2), for
+                          filters that replace the text with whatever comes
+                          out (Vim's `:%!` and `gq`)
     --ml                  Stdin is bare OCaml (a block's contents), not Rust
     --config FILE         Use FILE instead of the nearest rsmlfmt.toml
     --set KEY=VALUE       Override an option, e.g. --set max_width=80
@@ -47,6 +51,7 @@ struct Args {
     edition: Option<String>,
     check: bool,
     stdout: bool,
+    keep_on_error: bool,
     ml: bool,
     config: Option<PathBuf>,
     sets: Vec<String>,
@@ -61,6 +66,7 @@ fn parse_args() -> Result<Args, String> {
         edition: None,
         check: false,
         stdout: false,
+        keep_on_error: false,
         ml: false,
         config: None,
         sets: Vec::new(),
@@ -88,6 +94,7 @@ fn parse_args() -> Result<Args, String> {
                 args.stdin_filepath = Some(s["--stdin-filepath=".len()..].into());
             }
             "--stdout" => args.stdout = true,
+            "--keep-on-error" => args.keep_on_error = true,
             "--ml" => args.ml = true,
             "--config" => {
                 args.config = Some(it.next().ok_or("--config needs a file")?.into());
@@ -170,6 +177,31 @@ fn format_file(
     Ok(out.unwrap())
 }
 
+/// Formats `input` (stdin) and prints it; on an error, prints nothing.
+fn format_stdin(args: &Args, cwd: &Path, input: &str) -> Result<bool, String> {
+    let (name, dir) = match &args.stdin_filepath {
+        Some(p) => {
+            let p = cwd.join(p);
+            let dir = p.parent().map_or(cwd.to_path_buf(), Path::to_path_buf);
+            (p.display().to_string(), dir)
+        }
+        None => ("<stdin>".to_string(), cwd.to_path_buf()),
+    };
+    let cfg = load_config(args, &dir)?;
+    if args.ml {
+        print!("{}", rsml_fmt::format_ml(input.trim_end(), &cfg)?);
+        println!();
+        return Ok(true);
+    }
+    let env = env_for(args, &dir);
+    let out = format_file(args, &cfg, &env, input).map_err(|e| format!("{}: {}", name, e))?;
+    for w in &out.warnings {
+        eprintln!("{}:{}: {}", name, w.line, w.message);
+    }
+    print!("{}", out.text);
+    Ok(true)
+}
+
 fn rust_files(path: &Path, out: &mut Vec<PathBuf>) -> std::io::Result<()> {
     if path.is_file() {
         out.push(path.to_path_buf());
@@ -210,27 +242,11 @@ fn run() -> Result<bool, String> {
         std::io::stdin()
             .read_to_string(&mut input)
             .map_err(|e| e.to_string())?;
-        let (name, dir) = match &args.stdin_filepath {
-            Some(p) => {
-                let p = cwd.join(p);
-                let dir = p.parent().map_or(cwd.clone(), Path::to_path_buf);
-                (p.display().to_string(), dir)
-            }
-            None => ("<stdin>".to_string(), cwd.clone()),
-        };
-        let cfg = load_config(&args, &dir)?;
-        if args.ml {
-            print!("{}", rsml_fmt::format_ml(input.trim_end(), &cfg)?);
-            println!();
-            return Ok(true);
+        let result = format_stdin(&args, &cwd, &input);
+        if result.is_err() && args.keep_on_error {
+            print!("{}", input);
         }
-        let env = env_for(&args, &dir);
-        let out = format_file(&args, &cfg, &env, &input).map_err(|e| format!("{}: {}", name, e))?;
-        for w in &out.warnings {
-            eprintln!("{}:{}: {}", name, w.line, w.message);
-        }
-        print!("{}", out.text);
-        return Ok(true);
+        return result;
     }
 
     let mut files = Vec::new();

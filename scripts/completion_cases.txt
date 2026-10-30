@@ -585,6 +585,9 @@ add($0)
 == rust calls: later argument -> n
 add(1, $0)
 
+== rust calls: later argument of a method, ranked by its parameter's type -> n<xs
+xs.insert(0, $0)
+
 == rust calls: argument being typed -> n
 add(n$0, 1)
 

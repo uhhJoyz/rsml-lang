@@ -258,13 +258,13 @@ NONE`), by `scripts/check_vim.sh`, except for the plugins of
 `rsml-fmt --rustfmt` works as a filter on the whole buffer:
 
 ```vim
-:%!rsml-fmt --rustfmt --stdin-filepath %:p 2>/dev/null
+:%!rsml-fmt --rustfmt --keep-on-error --stdin-filepath %:p 2>/dev/null
 ```
 
 or, for `gq`, as `'formatprg'`, and `gggqG` formats the file:
 
 ```vim
-setlocal formatprg=rsml-fmt\ --rustfmt\ --stdin-filepath\ %:p\ 2>/dev/null
+setlocal formatprg=rsml-fmt\ --rustfmt\ --keep-on-error\ --stdin-filepath\ %:p\ 2>/dev/null
 ```
 
 Both format the file exactly as `rsml-fmt --rustfmt` does on the command
@@ -275,12 +275,14 @@ does not parse) would end up in the buffer: Vim's filters read what a
 command writes to stderr too (for sh-like shells, `'shellredir'`
 defaults to `>%s 2>&1`; on Windows, write `2>nul`). Two things to know:
 
-* If the file is not valid Rust, rsml-fmt writes nothing and exits with
-  status 2, and Vim replaces the lines with that nothing: `u` brings them
-  back.
+* If the file is not valid Rust, rsml-fmt exits with status 2 (Vim says
+  "shell returned 2"), and `--keep-on-error` makes it write the file back
+  as it was: Vim replaces the lines with whatever the command writes, so
+  without the option they would be replaced with nothing (`u` brings them
+  back).
 * `gq` on part of the file (`gqip`) hands rsml-fmt only those lines, which
   it formats as a file of their own, or, when they are not valid Rust on
-  their own, replaces with nothing as above.
+  their own, leaves as they are.
 
 To format on save, put this in your vimrc. It runs rsml-fmt on the whole
 buffer and, if that succeeds, replaces only the lines from the first to
@@ -911,6 +913,7 @@ it starts with `rsml!`, an item.
 |---|---|---|
 | first argument | `add(‸)` | `n`, `xs` |
 | later argument | `add(1, ‸)` | `n` |
+| later argument of a method, ranked by its parameter's type | `xs.insert(0, ‸)` | `n` before `xs` |
 | argument being typed | `add(n‸, 1)` | `n` |
 | result called again | `std::convert::identity(add)(1, ‸)` | `n` |
 

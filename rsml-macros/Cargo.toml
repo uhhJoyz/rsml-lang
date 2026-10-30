@@ -6,6 +6,8 @@ rust-version = "1.88"
 description = "Procedural macros for rsml (use the `rsml-lang` crate instead)"
 license = "MIT"
 repository = "https://github.com/uhhJoyz/rsml-lang"
+keywords = ["ocaml", "macro", "functional"]
+categories = ["rust-patterns"]
 
 [lib]
 proc-macro = true

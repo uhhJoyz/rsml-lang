@@ -17,8 +17,11 @@ examples/toy/README.md:
 * Every inline claim "`a` is `b`" (also "is always", "becomes"): `b` is
   either the expansion of `a`, or OCaml with the same expansion up to the
   names of closure parameters.
-* Every relative link: the file exists, and so does the heading its
-  `#anchor` names.
+* Every relative link, and every link into the repository on GitHub
+  (REPO): the file exists, and so does the heading its `#anchor` names.
+  The READMEs that crates.io and docs.rs show (PUBLISHED) link to other
+  files through REPO only: docs.rs would resolve a relative link against
+  its own page.
 * Every code span with a cursor (`‸`): a case of
   scripts/completion_cases.txt has that code (`..` standing for anything),
   and the rows of docs/editors.md's "Every checked position" are exactly
@@ -56,6 +59,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CRATE = os.path.join(ROOT, "target", "doc-check")
 FILES = ["README.md", "docs/notation.md", "docs/editors.md", "rsml-fmt/README.md",
          "examples/toy/README.md"]
+REPO = "https://github.com/uhhJoyz/rsml-lang/blob/main/"
+PUBLISHED = ["README.md", "rsml-fmt/README.md"]
 
 # ----- what is not checked, and why -----------------------------------------
 
@@ -751,17 +756,25 @@ def anchors(path):
 
 
 def links(checks):
-    """Every relative link goes to a file that exists, and its `#anchor` to
-    a heading there."""
+    """Every relative link and link into REPO goes to a file that exists,
+    and its `#anchor` to a heading there."""
     for path in FILES:
         for n, text in prose(path) + [(i, l) for i, l in enumerate(unfenced_lines(path), 1)
                                       if l.startswith("|")]:
             for target in re.findall(r"\]\(([^)\s]+)\)", text):
-                if re.match(r"^[a-z]+:", target):
-                    continue
                 where = "%s:%d (%s)" % (path, n, target)
-                file, _, anchor = target.partition("#")
-                full = os.path.normpath(os.path.join(os.path.dirname(path), file)) if file else path
+                if target.startswith(REPO):
+                    file, _, anchor = target[len(REPO):].partition("#")
+                    full = os.path.normpath(file)
+                elif re.match(r"^[a-z]+:", target):
+                    continue
+                else:
+                    file, _, anchor = target.partition("#")
+                    full = os.path.normpath(os.path.join(os.path.dirname(path), file)) if file else path
+                    if file and path in PUBLISHED:
+                        checks.fail(where, "docs.rs cannot follow a relative link: write %s%s"
+                                    % (REPO, full))
+                        continue
                 if not os.path.exists(os.path.join(ROOT, full)):
                     checks.fail(where, "no such file")
                 elif anchor and (not full.endswith(".md") or anchor not in anchors(full)):

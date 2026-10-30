@@ -891,13 +891,19 @@ fn method_call(
     name: &Ident,
     turbofish: &Option<TokenStream>,
     args: &[TokenStream],
+    trailing_comma: bool,
 ) -> TokenStream {
     if name == "await" && args.is_empty() {
         return quote!(#recv.#name);
     }
     let n = rust_ident(name);
     let tf = turbofish.as_ref().map(|g| quote!(:: #g));
-    let g = group(Delimiter::Parenthesis, quote!(#(#args),*), name.span());
+    let comma = trailing_comma.then(|| quote!(,));
+    let g = group(
+        Delimiter::Parenthesis,
+        quote!(#(#args),* #comma),
+        name.span(),
+    );
     quote!(#recv.#n #tf #g)
 }
 
@@ -1368,11 +1374,17 @@ impl Cx {
                 name,
                 turbofish,
                 args,
+                trailing_comma,
             } => {
                 // Adapters like `.map(f)` keep their receiver, so it escapes too.
                 let r = self.expr(recv, tail)?.operand();
                 let a = self.exprs(args.iter(), false)?;
-                Ok(Out::new(method_call(r, name, turbofish, &a), Kind::Call))
+                // A trailing comma is kept for an editor only, as in a call.
+                let comma = *trailing_comma && self.editor;
+                Ok(Out::new(
+                    method_call(r, name, turbofish, &a, comma),
+                    Kind::Call,
+                ))
             }
             Expr::Index(a, i, _) => {
                 let a = self.expr(a, false)?.operand();
@@ -1671,7 +1683,7 @@ impl Cx {
                     }
                     None => (Vec::new(), false),
                 };
-                let call = method_call(quote!(#r), name, turbofish, &a);
+                let call = method_call(quote!(#r), name, turbofish, &a, false);
                 let mv = mv.then(|| keyword("move", *span));
                 let bars = closure_bars(&[quote!(#r)], *span);
                 Ok(Out::new(quote!(#mv #bars #call), Kind::Compound).shaped(Some(vec![1])))
@@ -1871,7 +1883,7 @@ impl Cx {
                         (self.exprs(args[1..end].iter().copied(), false)?, end)
                     }
                 };
-                let out = Out::new(method_call(recv, name, turbofish, &a), Kind::Call);
+                let out = Out::new(method_call(recv, name, turbofish, &a, false), Kind::Call);
                 if used == args.len() {
                     return Ok(out);
                 }

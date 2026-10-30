@@ -5,7 +5,7 @@ function bodies inside `rsml! { .. }`, and the Rust inside `rsml! { .. }`
 (which it hands to rustfmt). rustfmt itself never enters a macro, so the
 two tools don't overlap. `--rustfmt` runs rustfmt on the rest of the file
 first, so one command formats everything, which is what an editor wants
-(see [docs/editors.md](../docs/editors.md#formatting-on-save)). A block
+(see [docs/editors.md](https://github.com/uhhJoyz/rsml-lang/blob/main/docs/editors.md#formatting-on-save)). A block
 that formatting breaks onto lines of its own changes how rustfmt lays out
 the call around it (`assert_eq!(ml! { .. }, 3)`), so the two passes run in
 turn until neither changes anything: formatting twice changes nothing.
@@ -24,6 +24,9 @@ rsml-fmt --rustfmt < src/main.rs                # a Rust file on stdin, for edit
 With no path, a Rust file is read from stdin and written to stdout; if it
 is not valid Rust (it does not lex, or rustfmt rejects it), nothing is
 written and the exit status is 2, so an editor keeps its buffer.
+`--keep-on-error` writes the input back unchanged instead (the status is
+still 2), for filters that replace the text with whatever comes out, as
+Vim's `:%!` and `gq` do.
 `--stdin-filepath PATH` says which file stdin holds: `rsmlfmt.toml`,
 `rustfmt.toml` / `.rustfmt.toml` and `Cargo.toml` are then looked for from
 its directory instead of the current one, and warnings name it. The

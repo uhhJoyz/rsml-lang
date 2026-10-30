@@ -135,6 +135,8 @@ pub enum Expr {
         name: Ident,
         turbofish: Option<TokenStream>,
         args: Vec<Expr>,
+        /// Written with a `,` after the last argument.
+        trailing_comma: bool,
     },
     /// `a.(i)`, or `a[i]` written Rust style (`true`).
     Index(Box<Expr>, Box<Expr>, bool),
