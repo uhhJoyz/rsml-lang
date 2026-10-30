@@ -1,0 +1,340 @@
+# Error span cases for scripts/check_spans.py.
+#
+# `== name -> text` starts a case: the code after it (Rust items, using
+# `ml!` / `rsml!`) must make rustc report an error whose primary span is
+# exactly `text`. The code may use the items of PRELUDE in the script:
+# `add(a, b)`, `Point { x, y }`.
+#
+# The script also checks that no message shows a `__rsml_` name. The cases
+# at the end have errors that name a generated local, which rustc sees
+# named for what it stands for (`_0`, `receiver`, `argument`, `record`,
+# `value1`, `function1`) and located at the code it stands for.
+
+== pipeline result -> len
+fn case(xs: Vec<i64>) {
+    let _g: String = ml! { xs |> .len };
+}
+
+== pipeline glued to its section (`|>.len`) -> len
+fn case(xs: Vec<i64>) {
+    let _g: String = ml! { xs |>.len };
+}
+
+== pipeline into a function -> add
+fn case(n: i64) -> String {
+    ml! { n |> add 1 }
+}
+
+== if branch -> "a"
+fn case(c: bool) -> i64 {
+    ml! { if c then 1 else "a" }
+}
+
+== match arm -> "a"
+fn case(o: Option<i64>) -> i64 {
+    ml! { match o with Some x -> x | None -> "a" }
+}
+
+== method-ref call -> len
+fn case(xs: Vec<i64>) {
+    let _n: String = ml! { .len xs };
+}
+
+== partial application -> add
+fn case() {
+    let _f: i64 = ml! { let add x y = x + y in add 1 };
+}
+
+== partial application of a sibling -> add2
+rsml! {
+    fn add2(a: i64, b: i64) -> i64 { a + b }
+    fn case() -> i64 { add2 1 }
+}
+
+== wrong argument type to a local function -> "a"
+fn case() -> i64 {
+    ml! { let add (x : i64) (y : i64) = x + y in add 1 "a" }
+}
+
+== over-application -> go
+fn case() -> i64 {
+    ml! { let rec go (n : i64) : i64 = if n = 0 then 0 else go (n - 1) "x" in go 3 }
+}
+
+== unknown name -> foo
+fn case() -> i64 {
+    ml! { foo 1 }
+}
+
+== unknown method via `.name x` -> lenn
+fn case(xs: Vec<i64>) -> usize {
+    ml! { .lenn xs }
+}
+
+== missing match arm -> o
+fn case(o: Option<i64>) -> i64 {
+    ml! { match o with Some x -> x }
+}
+
+== missing match arm on a list -> l
+fn case(l: Vec<i64>) -> i64 {
+    ml! { match l with x :: _ -> !x }
+}
+
+== closure -> fun
+fn case() -> i64 {
+    ml! { fun x -> x + 1 }
+}
+
+== result of a Rust-style call -> f
+fn case(f: fn(i64) -> i64) -> String {
+    ml! { f(1) }
+}
+
+== sum of an iterator -> sum
+fn case(xs: Vec<i64>) -> i64 {
+    ml! { xs |> .iter() |> .map(fun x -> x + 1) |> .sum::<usize>() }
+}
+
+== tuple -> (1, 2)
+fn case() -> i64 {
+    ml! { (1, 2) }
+}
+
+== a let block's value -> "a"
+fn case() -> i64 {
+    ml! { let x = 1 in x; "a" }
+}
+
+== record literal -> 2
+fn case() -> i64 {
+    ml! { Point { x = 1; y = 2 } }
+}
+
+== operator section -> +
+fn case() -> i64 {
+    ml! { ( + ) }
+}
+
+== std macro argument -> "a"
+fn case() {
+    ml! { assert_eq!(add 1 "a", 2) }
+}
+
+== composition -> add 1 >> add
+fn case() -> i64 {
+    ml! { add 1 >> add 2 }
+}
+
+== placeholder section -> add
+fn case() -> i64 {
+    ml! { add _ 1 }
+}
+
+== list literal -> [1; 2]
+fn case() -> i64 {
+    ml! { [1; 2] }
+}
+
+== cons -> ::
+fn case() -> String {
+    ml! { 1 :: [2] }
+}
+
+== sequence value -> "a"
+fn case() -> i64 {
+    ml! { add 1 2; "a" }
+}
+
+== loop bound -> "a"
+fn case(n: i64) {
+    ml! { for i = 1 to "a" do () done }
+}
+
+== while condition -> 1
+fn case() {
+    ml! { while 1 do () done }
+}
+
+== if condition -> 1
+fn case() -> i64 {
+    ml! { if 1 then 2 else 3 }
+}
+
+== result of a sibling -> add2
+rsml! {
+    fn add2(a: i64, b: i64) -> i64 { a + b }
+    fn case() -> String { add2 1 2 }
+}
+
+== result of a method call -> len
+fn case(xs: Vec<i64>) -> String {
+    ml! { xs.len() }
+}
+
+== function section -> function Some x -> x | None -> 0
+fn case() -> i64 {
+    ml! { function Some x -> x | None -> 0 }
+}
+
+== field section -> .
+fn case() -> i64 {
+    ml! { .0 }
+}
+
+== rsml! body -> len
+rsml! {
+    fn case(xs: Vec<i64>) -> String { xs |> .len }
+}
+
+== string concatenation -> ^
+fn case() -> i64 {
+    ml! { "a" ^ "b" }
+}
+
+== pattern of the wrong type -> Some
+fn case(n: i64) -> i64 {
+    ml! { match n with Some x -> x | _ -> 0 }
+}
+
+== list pattern on a non-list -> n
+fn case(n: i64) -> i64 {
+    ml! { match n with x :: _ -> 1 | _ -> 0 }
+}
+
+== record pattern of the wrong type -> Point
+fn case(n: i64) -> i64 {
+    ml! { match n with Point { x; _ } -> x | _ -> 0 }
+}
+
+== assignment -> "a"
+fn case() {
+    ml! { let mut x = 1 in x <- "a" }
+}
+
+== method section on a shared reference (`receiver`) -> .
+fn case(vs: Vec<Vec<i64>>) {
+    ml! { vs |> .iter() |> .for_each(.push(1)) }
+}
+
+== placeholder on a shared reference (`_0`) -> _
+fn case(vs: Vec<Vec<i64>>) {
+    ml! { vs |> .iter() |> .for_each(_.push(1)) }
+}
+
+== placeholder receiver on a shared reference (`_0`) -> _
+fn case(vs: Vec<Vec<i64>>) {
+    ml! { vs |> .iter() |> .for_each(.push _ 1) }
+}
+
+== composition on a shared reference (`argument`) -> .
+fn ignore<T>(_: T) {}
+fn case(vs: Vec<Vec<i64>>) {
+    ml! { vs |> .iter() |> .for_each _ (.push(1) >> ignore) }
+}
+
+== record update through a shared reference (`record`) -> p
+fn case(p: &Point) {
+    ml! { let _q = { p with x = 1 } in () }
+}
+
+== field section moving out of a reference (`tuple`) -> .
+fn case(v: Vec<(String, i64)>) -> Vec<String> {
+    ml! { v |> .iter() |> .map(.0) |> .collect() }
+}
+
+== method section moving out of a reference -> .
+fn case(v: Vec<String>) -> Vec<Vec<u8>> {
+    ml! { v |> .iter() |> .map(.into_bytes) |> .collect() }
+}
+
+== placeholder returning a reference to itself -> _
+fn case() {
+    ml! { let _f = (_ : String).as_str() in () }
+}
+
+== partial application called twice, moving its argument (`value1`) -> f
+fn take(a: String, _b: i64) -> String { a }
+fn case() -> String {
+    ml! { external take : String -> i64 -> String ;; let f = take (String::from "a") in let _x = f 1 in f 2 }
+}
+
+== placeholder section called twice, moving its operand (`value1`) -> f
+fn take(a: String, _b: i64) -> String { a }
+fn case() -> String {
+    ml! { let f = take (String::new ()) _ in let _a = f 1 in f 2 }
+}
+
+== composition called twice, moving its operand (`value1`) -> g
+fn take(a: String, _b: i64) -> String { a }
+fn case() -> String {
+    ml! { external take : String -> i64 -> String ;; let g = take (String::new ()) >> String::from in let _a = g 1 in g 2 }
+}
+
+== partial application of a lambda called twice (`function1`) -> g
+fn case() -> String {
+    ml! { let s = String::new () in let g = (fun move (_a : i64) (_b : i64) -> s) 1 in let _x = g 2 in g 3 }
+}
+
+== argument hoisted for a partial application -> s
+fn s() -> String { String::new() }
+fn case() -> i64 {
+    ml! { let add (x : i64) (y : i64) = x + y in let f = add (s ()) in f 1 }
+}
+
+== section mutating a captured variable needs `let mut` -> f
+fn case() -> usize {
+    ml! { let mut v = Vec::new () in let f = .push v _ in f 1; v.len() }
+}
+
+== section mutating its hoisted receiver needs `let mut` -> f
+fn case() -> usize {
+    ml! { let f = .push (Vec::new ()) _ in f 1; 0 }
+}
+
+== partial application of a mutating lambda needs `let mut` -> g
+fn case() -> i64 {
+    ml! { let mut n = 0 in let g = (fun (a : i64) (b : i64) -> n <- n + a + b) 1 in g 2; n }
+}
+
+== local function mutating a captured variable needs `let mut` -> f
+fn case() -> i64 {
+    ml! { let mut n = 0 in let f (a : i64) = n <- n + a in f 1; f 2; n }
+}
+
+== argument of a `function` section -> 1
+fn case() -> i64 {
+    ml! { let f = function Some x -> x | None -> 0 in f 1 }
+}
+
+== annotated expression -> 1
+fn case() -> String {
+    ml! { (1 : String) }
+}
+
+== record update value -> "a"
+fn case(p: Point) -> Point {
+    ml! { { p with x = "a" } }
+}
+
+== method section on the wrong type -> len
+fn case() -> usize {
+    ml! { let f = .len (_ : i64) in f 1 }
+}
+
+== placeholder of unknown type -> _
+fn case() -> usize {
+    ml! { let f = (_.len()) in f "a" }
+}
+
+== value moved into a partial application -> s
+fn take(a: String, b: i64) -> usize { a.len() + b as usize }
+fn case() -> usize {
+    ml! { external take : String -> i64 -> usize ;; let s = String::from "a" in let f = take s in f 1 + s.len() }
+}
+
+== value moved into a placeholder section -> s
+fn take(a: String, b: i64) -> usize { a.len() + b as usize }
+fn case() -> usize {
+    ml! { let s = String::from "a" in let f = take s _ in f 1 + s.len() }
+}

@@ -1,0 +1,21 @@
+[package]
+name = "rsml-edition2021"
+version = "0.0.0"
+edition = "2021"
+rust-version = "1.88"
+publish = false
+description = "rsml's tests compiled as edition 2021: the macros cannot see their caller's edition, so what they generate must work in every edition"
+
+[dependencies]
+rsml-lang = { path = "../.." }
+
+# The examples with tests, as in the main crate.
+[[example]]
+name = "whole_file"
+path = "../../examples/whole_file.rs"
+test = true
+
+[[example]]
+name = "toy"
+path = "../../examples/toy/main.rs"
+test = true

@@ -1,0 +1,33 @@
+[package]
+# `rsml` is taken on crates.io; the library keeps the name (see [lib]).
+name = "rsml-lang"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+description = "OCaml expression syntax inside Rust function bodies, lowered at compile time to plain Rust"
+license = "MIT"
+repository = "https://github.com/uhhJoyz/rsml-lang"
+# The library, its tests and examples, and what the README links to; the
+# scripts check this repository and are not part of the crate.
+include = ["/src", "/tests/*.rs", "/examples", "/docs", "/editors", "/README.md", "/LICENSE"]
+
+# Code says `rsml::ml!`, and the macros expand to `::rsml::__rt` paths.
+[lib]
+name = "rsml"
+
+[workspace]
+members = ["rsml-compiler", "rsml-fmt", "rsml-macros", "tests/edition2021"]
+
+[dependencies]
+rsml-macros = { path = "rsml-macros", version = "0.1.0" }
+
+# The whole-file example has tests of its own: `cargo test` runs them.
+[[example]]
+name = "whole_file"
+test = true
+
+# The toy examples, examples/toy: `cargo run --example toy` runs them, and
+# `cargo test` runs their tests.
+[[example]]
+name = "toy"
+test = true

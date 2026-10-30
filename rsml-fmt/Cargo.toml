@@ -1,0 +1,19 @@
+[package]
+name = "rsml-fmt"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+description = "Formatter for the OCaml in rsml's `ml!` and `rsml!` blocks"
+license = "MIT"
+repository = "https://github.com/uhhJoyz/rsml-lang"
+# These tests format every block of the repository, which a package of the
+# formatter alone does not have.
+exclude = ["/tests/corpus.rs", "/tests/fuzz.rs", "/tests/fixtures"]
+
+[dependencies]
+# `span-locations` gives tokens byte offsets, which is how comments and
+# blank lines are found and put back.
+proc-macro2 = { version = "1.0.95", features = ["span-locations"] }
+rsml-compiler = { path = "../rsml-compiler", version = "0.1.0" }
+serde = { version = "1.0", features = ["derive"] }
+toml = "1.0"

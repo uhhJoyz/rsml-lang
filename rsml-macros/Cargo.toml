@@ -1,0 +1,15 @@
+[package]
+name = "rsml-macros"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+description = "Procedural macros for rsml (use the `rsml-lang` crate instead)"
+license = "MIT"
+repository = "https://github.com/uhhJoyz/rsml-lang"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = "1.0.95"
+rsml-compiler = { path = "../rsml-compiler", version = "0.1.0" }

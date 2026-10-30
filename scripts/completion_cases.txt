@@ -1,0 +1,819 @@
+# Completion cases for scripts/check_completion.py.
+#
+# `== name -> label ..` starts a case: the labels rust-analyzer must offer.
+# The lines after it are the code, `$0` marking the cursor. Code is the body
+# of `ml! { .. }` in a function with these locals:
+#
+#   xs: Vec<i64>, s: &str, word: String, p: Point, o: Option<String>,
+#   n: i64, shape: Shape, ord: std::cmp::Ordering
+#
+# (and the items of PRELUDE in the script: Point { x, y } with `norm`,
+# Shape::{Circle, Rect}, add, twice, geometry::{area, ORIGIN}). Code that
+# starts with `rsml!` is an item instead.
+
+== names: local being typed -> total
+let total = 1 in tot$0
+
+== names: after `in` -> total
+let total = 1 in $0
+
+== names: parameter of an rsml! function -> items
+rsml! { fn f(items: Vec<i64>) -> usize { ite$0 } }
+
+== names: empty rsml! body -> items
+rsml! { fn f(items: Vec<i64>) -> usize { $0 } }
+
+== names: other rsml! functions -> helper_one
+rsml! {
+    fn helper_one() -> i64 { 1 }
+    fn f() -> i64 { help$0 }
+}
+
+== names: a raw identifier (labelled without its `r#`) -> type
+let r#type = 1 in r#ty$0
+
+== names: a word Rust reserves -> gen
+let gen = 1 in ge$0
+
+== paths: `Type::` -> new with_capacity
+Vec::$0
+
+== paths: `Type.` -> new with_capacity
+Vec.$0
+
+== paths: module -> area ORIGIN
+geometry::$0
+
+== paths: nested std module -> max min Ordering
+std::cmp::$0
+
+== paths: being typed -> max
+std::cmp::ma$0
+
+== paths: leading `::` -> cmp
+::std::$0
+
+== paths: enum variants -> Circle Rect
+Shape::$0
+
+== paths: enum variants, OCaml style -> Circle Rect
+Shape.$0
+
+== paths: after generic arguments -> new
+Vec::<i64>::$0
+
+== paths: head of an application -> area
+geometry::ar$0 &shape
+
+== paths: empty head of an application -> area
+geometry::$0 &shape
+
+== paths: empty head with two arguments -> max min
+std::cmp::$0 1 2
+
+== methods: after a value -> len iter push
+xs.$0
+
+== methods: being typed -> iter
+xs.it$0
+
+== methods: after a call -> map filter
+xs.iter().$0
+
+== methods: chain broken across lines -> map filter
+xs
+  .iter()
+  .$0
+
+== methods: name before Rust-style arguments -> push
+xs.pu$0(1)
+
+== methods: fields and methods of a struct -> x y norm
+p.$0
+
+== methods: on an Option -> unwrap_or is_some
+o.$0
+
+== methods: on a parenthesized expression -> abs pow
+(n + 1).$0
+
+== methods: on an annotated expression -> abs
+(n : i64).$0
+
+== method refs: `.name receiver` -> len iter push
+.$0 xs
+
+== method refs: `.name receiver`, name being typed -> iter
+.it$0 xs
+
+== method refs: `.name receiver argument` -> push insert
+.$0 xs 1
+
+== method refs: being typed, with an argument -> push
+.pu$0 xs 1
+
+== method refs: receiver in parentheses -> len trim
+.$0 (s.trim())
+
+== method refs: struct receiver -> norm
+.$0 p
+
+== method refs: after `|>` -> len iter
+xs |> .$0
+
+== method refs: after `|>`, being typed -> iter
+xs |> .it$0
+
+== method refs: further down a pipeline -> map filter
+xs |> .iter |> .$0
+
+== method refs: in the middle of a pipeline -> map filter
+xs |> .iter |> .$0 |> .sum::<i64>
+
+== method refs: with placeholder arguments -> map
+xs |> .iter |> .ma$0 _ (fun x -> x)
+
+== method refs: as an argument whose type is known -> abs pow
+twice (.$0) 1
+
+== method refs: Option in a pipeline -> is_some unwrap_or
+o |> .$0
+
+== method refs: composed -> map filter
+xs |> (.iter >> .$0)
+
+== method refs: glued to `|>` -> len iter
+xs |>.$0
+
+== method refs: glued to `|>`, being typed -> iter
+xs |>.it$0
+
+== method refs: glued, further down a pipeline -> map filter
+xs |>.iter() |>.$0
+
+== method refs: glued, in the middle of a pipeline -> map filter
+xs |>.iter |>.$0 |>.sum::<i64>
+
+== method refs: glued, before `in` -> len iter
+let k = xs |>.$0 in k
+
+== method refs: glued to `>>` -> map filter
+xs |> (.iter >>.$0)
+
+== application: function being typed -> add
+ad$0 1 2
+
+== application: first argument -> n xs
+add $0
+
+== application: later argument -> n
+add 1 $0
+
+== application: argument before others -> n
+add $0 2
+
+== application: argument in parentheses -> n
+add (n$0 + 1) 2
+
+== application: labeled argument -> n
+add ~a:n$0 2
+
+== application: placeholder section -> n
+add _ $0
+
+== application: numbered placeholders -> n
+add _1 $0
+
+== application: operator section -> n
+( + ) $0
+
+== application: Rust-style method arguments -> n
+xs.push($0)
+
+== application: Rust macro arguments -> n word
+println!("{}", $0)
+
+== application: argument of a `.name` call -> n
+.push xs $0
+
+== operators: arithmetic -> n
+n + $0
+
+== operators: arithmetic, inner operand -> n
+n + $0 * 2
+
+== operators: `mod` -> n
+n mod $0
+
+== operators: `|>` function -> add twice
+xs |> $0
+
+== operators: `|>` argument -> n
+$0 |> add 1
+
+== operators: `@@` -> n
+add 1 @@ $0
+
+== operators: `>>` -> add twice
+add 1 >> $0
+
+== operators: `::` -> xs
+n :: $0
+
+== operators: `@` -> xs
+[1] @ $0
+
+== operators: `^` -> word
+word ^ $0
+
+== operators: comparison -> n
+n = $0
+
+== operators: `&&` -> n
+n > 0 && $0
+
+== operators: `not` -> n
+not $0
+
+== operators: unary minus -> n
+-$0
+
+== operators: `!` -> n
+!$0
+
+== operators: `&` -> xs
+&$0
+
+== operators: `&mut` -> xs
+&mut $0
+
+== operators: `:=` -> n
+let r = ref 0 in r := $0
+
+== operators: `<-` -> n
+let mut m = 0 in m <- $0
+
+== operators: `as` -> f64 i32
+n as $0
+
+== let: value at toplevel -> n
+let x = $0
+
+== let: value before `in` -> n
+let x = $0 in x
+
+== let: function body -> a n
+let f a = a + $0 in f 1
+
+== let: function body at toplevel -> a
+let f a = $0
+
+== let: `let rec` body -> k go
+let rec go (k : i64) : i64 = $0 in go 1
+
+== let: `let rec` parameter type -> i64 String
+let rec go (k : $0) : i64 = k in go 1
+
+== let: `let rec` result type -> i64 String
+let rec go (k : i64) : $0 = k in go 1
+
+== let: annotated value type -> i64 String
+let x : $0 = 1 in x
+
+== let: tuple pattern -> a b
+let (a, b) = (1, 2) in $0
+
+== let: `and` -> n
+let a = 1 and b = $0 in a + b
+
+== let: next toplevel phrase -> x
+let x = 1
+let y = x$0
+
+== let: next `let .. in` -> x
+let x = 1 in
+let y = $0 in y
+
+== let: `let open` -> max min
+let open std::cmp in $0
+
+== let: `open` phrase -> max min
+open std::cmp ;; $0
+
+== let: module of `open` -> cmp
+open std::$0
+
+== let: module of `let open` -> cmp
+let open std::$0 in max 1 2
+
+== let: `external` name -> add
+external add : i64 -> i64 -> i64 ;; ad$0 1
+
+== fun: body -> x
+fun x -> $0
+
+== fun: operand in body -> x n
+fun x -> x + $0
+
+== fun: annotated parameter -> len trim
+fun (x : &str) -> x.$0
+
+== fun: parameter type -> str String i64
+fun (x : $0) -> x
+
+== fun: `fun move` -> x
+fun move x -> $0
+
+== fun: closure argument of a method ref -> abs pow
+xs |> .iter |> .map _ (fun x -> x.$0)
+
+== fun: `function` body -> x
+function Some x -> $0 | None -> 0
+
+== fun: `function` pattern -> Some None
+function $0
+
+== match: scrutinee -> o
+match $0 with Some x -> 1 | None -> 0
+
+== match: case body -> x
+match o with Some x -> $0 | None -> 0
+
+== match: method in a case body -> len
+match o with Some x -> x.$0 | None -> 0
+
+== match: last case body -> n
+match o with Some x -> 1 | None -> $0
+
+== match: first pattern -> Some None
+match o with $0
+
+== match: path pattern -> Some None
+match o with Option::$0
+
+== match: next pattern -> None
+match o with Some x -> 1 | $0
+
+== match: guard -> x
+match o with Some x when $0 -> 1 | _ -> 0
+
+== match: enum variant patterns -> Circle Rect
+match shape with Shape::$0
+
+== match: enum variant patterns, OCaml style -> Circle Rect
+match shape with Shape.$0
+
+== match: lowercase path pattern -> Less Equal Greater
+match ord with std::cmp::Ordering::$0
+
+== match: literal case body -> n
+match n with 0 -> $0 | _ -> 1
+
+== if: condition -> n
+if $0 then 1 else 0
+
+== if: `then` branch -> n
+if n > 0 then $0 else 0
+
+== if: `else` branch -> n
+if n > 0 then 1 else $0
+
+== if: `then` without `else` -> n
+if n > 0 then $0
+
+== if: condition, nothing after -> n
+if $0
+
+== if: unfinished condition -> n
+if n > $0
+
+== sequence: after `;` -> n
+println!("a"); $0
+
+== sequence: `begin .. end` -> n
+begin $0 end
+
+== sequence: second item in `begin .. end` -> n
+begin println!("a"); $0 end
+
+== sequence: `begin` without `end` -> n
+begin $0
+
+== loops: `for` bound -> n
+for i = 0 to $0 do () done
+
+== loops: `for` start -> n
+for i = $0 to n do () done
+
+== loops: `for` body -> i
+for i = 0 to n do $0 done
+
+== loops: `for` body without `done` -> i
+for i = 0 to n do $0
+
+== loops: `downto` body -> i
+for i = n downto 0 do $0 done
+
+== loops: `while` condition -> n
+while $0 do () done
+
+== loops: `while` body -> n
+while n > 0 do $0 done
+
+== loops: `while` body without `done` -> n
+while n > 0 do $0
+
+== loops: `while` condition, nothing after -> n
+while $0
+
+== collections: list item -> n
+[n; $0]
+
+== collections: first list item -> n
+[$0]
+
+== collections: array item -> n
+[|n; $0|]
+
+== collections: tuple item -> n
+(n, $0)
+
+== records: field value -> n
+Point { x = $0; y = 0 }
+
+== records: field names -> y
+Point { x = 1; $0 }
+
+== records: field names of an empty record -> x y
+Point { $0 }
+
+== records: method in a field value -> x y
+Point { x = n; y = p.$0 }
+
+== records: `with` value -> n
+{ p with x = $0 }
+
+== records: `with` field names -> x y
+{ p with $0 }
+
+== rust: closure in a Rust-style call -> abs pow
+xs.iter().map(fun x -> x.$0)
+
+== rust: turbofish type -> Vec
+xs.iter().cloned().collect::<$0>()
+
+== types: annotation -> i64 String
+(n : $0)
+
+== types: annotated placeholder -> i64 String
+add (_ : $0) 1
+
+== items: `self.` in a method -> x y norm
+rsml! {
+    impl Point {
+        fn twice_x(&self) -> i64 { self.$0 }
+    }
+}
+
+== items: `Self::` in a method -> norm
+rsml! {
+    impl Point {
+        fn twice_x(&self) -> i64 { Self::$0 }
+    }
+}
+
+== items: `self |> .` in a method -> norm
+rsml! {
+    impl Point {
+        fn twice_x(&self) -> i64 { self |> .$0 }
+    }
+}
+
+== items: trait default method -> describe
+rsml! {
+    trait Describe {
+        fn describe(&self) -> String;
+        fn shout(&self) -> String { self.$0 }
+    }
+}
+
+== items: closure-typed parameter -> f x
+rsml! { fn apply<F: Fn(i64) -> i64>(f: F, x: i64) -> i64 { $0 } }
+
+== application: empty head before arguments -> add twice
+$0 1 2
+
+== application: `Type.name` head being typed -> with_capacity
+Vec.wi$0 10
+
+== application: `Type::name` head being typed -> with_capacity
+Vec::wi$0 10
+
+== application: trait method path in a pipeline -> map filter
+xs.iter() |> Iterator::$0 _ (fun x -> x)
+
+== application: constructor argument -> n
+Some $0
+
+== application: constructor tuple argument -> n
+Some (n, $0)
+
+== application: enum constructor argument -> n
+Shape::Circle $0
+
+== application: `assert` -> n
+assert $0
+
+== application: `incr` -> r
+let r = ref 0 in incr $0
+
+== method refs: turbofish type -> Vec
+xs.into_iter() |> .collect::<$0>
+
+== method refs: after a match case arrow -> len trim
+match o with Some x -> x |> .$0 | None -> 0
+
+== placeholders: method on a placeholder -> abs pow
+xs |> .iter |> .map _ (_.$0)
+
+== fun: lambda applied with `|>` -> abs pow
+n |> fun y -> y.$0
+
+== fun: lambda applied directly -> abs pow
+(fun y -> y.$0) n
+
+== fun: `let rec .. = function` case body -> rest x
+let rec go : &[i64] -> i64 = function [] -> 0 | x :: rest -> $0 in go &xs
+
+== match: tuple pattern -> len trim
+match (n, o) with (0, Some x) -> x.$0 | _ -> 0
+
+== let: record pattern -> x y
+let Point { x; y } = p in $0
+
+== loops: macro in a loop body -> i
+for i = 0 to n do println!("{}", $0) done
+
+== loops: after `done` -> n
+while n > 0 do () done; $0
+
+== if: method in an unfinished condition -> is_some
+if o.$0
+
+== rust: after a Rust-style chain with an OCaml closure -> sum collect
+xs.iter().map(fun x -> x + 1).$0
+
+== items: `Self { .. }` field value -> by self
+rsml! {
+    impl Point {
+        fn shifted(&self, by: i64) -> Point { Self { x = self.x + $0; y = self.y } }
+    }
+}
+
+== items: closure parameter partially applied, argument being typed -> n
+rsml! { fn apply(f: impl Fn(i64, i64) -> i64, n: i64) -> impl Fn(i64) -> i64 { f n$0 } }
+
+== items: closure parameter, first argument with nothing after it -> n<w
+rsml! { fn apply(g: impl Fn(i64, i64) -> i64, n: i64, w: String) -> i64 { g $0 } }
+
+== items: closure parameter, first argument with nothing after it, in a sequence -> n
+rsml! { fn apply(g: impl Fn(i64, i64) -> i64, n: i64) -> i64 { g $0; n } }
+
+== rust calls: first argument -> n xs
+add($0)
+
+== rust calls: later argument -> n
+add(1, $0)
+
+== rust calls: argument being typed -> n
+add(n$0, 1)
+
+== rust calls: result called again -> n
+std::convert::identity(add)(1, $0)
+
+== method sections: argument -> n
+xs |> .map($0)
+
+== method sections: further down a pipeline -> map filter
+xs |> .iter() |> .$0
+
+== method sections: closure argument -> abs pow
+xs |> .iter() |> .map(fun x -> x.$0)
+
+== method sections: name being typed -> map
+xs |> .iter() |> .ma$0(fun x -> x)
+
+== index: inside the brackets -> n
+xs[$0]
+
+== index: method on an element -> abs pow
+xs[0].$0
+
+== for in: iterated expression -> xs
+for x in $0
+
+== for in: body without `done` -> x
+for x in xs do $0
+
+== for in: body -> x
+for x in xs do $0 done
+
+== for in: tuple pattern -> i x
+for (i, x) in xs.iter().enumerate() do $0 done
+
+== ranges: end -> n
+0..$0
+
+== ranges: inclusive end -> n
+0..=$0
+
+== ranges: method on a range -> rev map
+(0..n).$0
+
+== jumps: `return` value -> n
+return $0
+
+== jumps: `break` value in an endless loop -> n
+while true do break $0 done
+
+== blocks: `unsafe` -> n
+unsafe { $0 }
+
+== blocks: `async` -> n
+async { $0 }
+
+== std macros: argument after a format string -> n word
+format!("{} {}", n, $0)
+
+== std macros: method section in an argument -> len
+println!("{}", xs |> .$0)
+
+== std macros: argument of an application -> n
+assert_eq!(add $0, 3)
+
+== std macros: name being typed -> n
+format!("{}", n$0)
+
+== std macros: named argument -> n
+println!("{v}", v = $0)
+
+== std macros: `vec!` count -> n
+vec![n; $0]
+
+== std macros: `vec!` items -> n
+vec![n, $0]
+
+== std macros: assertion -> is_empty
+assert!(xs.$0, "empty")
+
+== field sections: after `.map(.0)` -> sum collect
+let pairs = [(1, 2)] in pairs |> .iter() |> .map(.0) |> .$0
+
+== field sections: applied -> x y
+let q = (p, 1) |> .0 in q.$0
+
+== deref: field of a dereferenced place -> x y
+*p.$0
+
+== siblings: argument after a sibling being typed -> n
+rsml! {
+    fn add2(a: i64, b: i64) -> i64 { a + b }
+    fn f(n: i64) -> i64 { add2 n$0 2 }
+}
+
+== siblings: method on a sibling's result -> abs pow
+rsml! {
+    fn add2(a: i64, b: i64) -> i64 { a + b }
+    fn f(n: i64) -> i64 { (add2 n 2).$0 }
+}
+
+== siblings: associated function -> new_point
+rsml! {
+    struct Q { x: i64 }
+    impl Q {
+        fn new_point(x: i64) -> Q { Q { x = x } }
+        fn f() -> Q { Self::new_$0 1 }
+    }
+}
+
+== rust attribute: body stays Rust -> len
+rsml! {
+    #[rust]
+    fn f(xs: Vec<i64>) -> usize { let n = xs.$0; n }
+}
+
+== whole file: test using a sibling -> n
+rsml! {
+    fn double(n: i64) -> i64 { n * 2 }
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        #[test]
+        fn doubles() { let n = 2 in assert_eq!(double n$0, 4) }
+    }
+}
+
+== siblings: later argument -> n
+rsml! {
+    fn add2(a: i64, b: i64) -> i64 { a + b }
+    fn f(n: i64) -> i64 { add2 1 $0 }
+}
+
+== siblings: first argument before others -> n
+rsml! {
+    fn add2(a: i64, b: i64) -> i64 { a + b }
+    fn f(n: i64) -> i64 { add2 $0 2 }
+}
+
+== siblings: Rust-style arguments -> n
+rsml! {
+    fn add2(a: i64, b: i64) -> i64 { a + b }
+    fn f(n: i64) -> i64 { add2(1, $0) }
+}
+
+== siblings: one parameter -> n
+rsml! {
+    fn inc(a: i64) -> i64 { a + 1 }
+    fn f(n: i64) -> i64 { inc $0 }
+}
+
+== siblings: first argument with nothing after it -> n<w
+rsml! {
+    fn add2(a: i64, b: i64) -> i64 { a + b }
+    fn f(n: i64, w: String) -> i64 { add2 $0 }
+}
+
+== siblings: first argument with nothing after it, in a sequence -> n
+rsml! {
+    fn add2(a: i64, b: i64) -> i64 { a + b }
+    fn f(n: i64) -> i64 { add2 $0; n }
+}
+
+== siblings: first argument with nothing after it, as an argument -> n
+rsml! {
+    fn add2(a: i64, b: i64) -> i64 { a + b }
+    fn f(n: i64) -> i64 { twice (add2 $0) n }
+}
+
+== siblings: associated function, first argument with nothing after it -> n<w
+rsml! {
+    struct Q { x: i64 }
+    impl Q {
+        fn make(a: i64, b: i64) -> Q { Q { x = a + b } }
+        fn f(n: i64, w: String) -> Q { Self::make $0 }
+    }
+}
+
+== siblings: associated function, first argument with nothing after it, as an argument -> n
+rsml! {
+    struct Q { x: i64 }
+    impl Q {
+        fn make(a: i64, b: i64) -> Q { Q { x = a + b } }
+        fn f(n: i64) -> Option<Q> { Some (Self::make $0) }
+    }
+}
+
+== arity: local function, Rust-style first argument -> n
+let plus x y = x + y in plus($0)
+
+== arity: local function, Rust-style later argument -> n
+let plus x y = x + y in plus(1, $0)
+
+== arity: local function, first argument being typed -> n
+let plus x y = x + y in plus n$0
+
+== arity: local function, first argument before others -> n
+let plus x y = x + y in plus $0 2
+
+== arity: local function, later argument -> n
+let plus x y = x + y in plus 1 $0
+
+== arity: local function of one argument -> n
+let inc x = x + 1 in inc $0
+
+== arity: local function, first argument with nothing after it -> n
+let plus x y = x + y in plus $0
+
+== arity: local function, first argument with nothing after it, in a sequence -> n
+let plus x y = x + y in plus $0; n
+
+== arity: local function, first argument with nothing after it, as an argument -> n
+let plus x y = x + y in twice (plus $0) 1
+
+== arity: first argument, ranked by its parameter's type -> s<n
+let f (a : &str) (b : i64) = b in f $0
+
+== arity: middle argument, ranked by its parameter's type -> n<s
+let f (a : &str) (b : i64) (c : &str) = b in f "a" $0
+
+== arity: argument after a variable argument, three parameters -> n
+let f a b c = a + b + c in f n $0
+
+== arity: function of `()`, argument with nothing typed -> n
+let f () = 1 in f $0
+
+== arity: last argument after a constant, long function name -> n
+let fairly_long_name (a : &str) (b : i64) = b in fairly_long_name "x" $0
+
+== constructors: method of a constructed value -> unwrap map
+Some(n).$0

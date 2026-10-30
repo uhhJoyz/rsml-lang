@@ -1,0 +1,111 @@
+# Highlighting cases for scripts/check_highlight.py.
+#
+# `== name -> text=type ..` starts a case: rust-analyzer must give every
+# token of the code with that text the semantic token type (`keyword`,
+# `operator`, `boolean`, `macro`, ..). Multi-character operators are
+# tokens of one character each (`|>` is `|` and `>`). The lines after it
+# are the code: the body of `ml! { .. }` in a function with these locals
+#
+#   xs: Vec<i64>, n: i64, o: Option<i64>, p: Point, a: bool, b: bool,
+#   r: Result<i64, String>, f: fn(i64) -> i64, g: fn(i64) -> i64
+#
+# (and the items of PRELUDE in the script: Point { x, y }). Code that
+# starts with `rsml!` is an item instead.
+
+== let and in -> let=keyword in=keyword ==operator
+let x = 1 in x
+
+== let rec, and -> let=keyword rec=keyword and=keyword in=keyword
+let rec even (k : i64) : bool = if k = 0 then true else odd (k - 1)
+and odd (k : i64) : bool = if k = 0 then false else even (k - 1)
+in even n
+
+== if then else -> if=keyword then=keyword else=keyword
+if a then 1 else 2
+
+== match with when, arms -> match=keyword with=keyword when=keyword |=operator -=operator >=operator
+match o with | Some x when x > 0 -> x | Some 0 | None -> 0 | _ -> 1
+
+== function -> function=keyword |=operator -=operator >=operator
+(function Some x -> x | None -> 0) o
+
+== fun -> fun=keyword -=operator >=operator
+let k = fun x -> x + 1 in k 2
+
+== fun with a typed parameter -> fun=keyword -=operator >=operator
+(fun (y : i64) -> y) n
+
+== begin end -> begin=keyword end=keyword
+begin f 1; f 2 end
+
+== for to downto do done -> for=keyword to=keyword downto=keyword do=keyword done=keyword
+for i = 0 to 3 do f i done; for j = 3 downto 0 do f j done
+
+== while do done -> while=keyword do=keyword done=keyword
+while false do () done
+
+== Rust-style for in -> for=keyword in=keyword do=keyword done=keyword
+for x in xs do f x done
+
+== open -> let=keyword open=keyword in=keyword
+let open std::cmp in max 1 2
+
+== external -> external=keyword -=operator >=operator
+external sq : i64 -> i64 = "f" ;; sq 2
+
+== record update with -> with=keyword
+{ p with x = 1 }
+
+== booleans -> true=boolean false=boolean
+(true, false)
+
+== assert -> assert=macro
+assert (n = 1)
+
+== as -> as=keyword
+n as i32
+
+== jumps -> return=keyword break=keyword continue=keyword
+while true do if a then break; if b then continue; if n > 0 then return () done
+
+== keyword operators -> mod=operator land=operator lor=operator lxor=operator lsl=operator lsr=operator asr=operator
+(n mod 2, n land 1, n lor 1, n lxor 1, n lsl 2, n lsr 1, n asr 1)
+
+== boolean operators -> &=operator |=operator or=operator not=operator
+(a && b || not a, a or b)
+
+== comparisons -> ==operator <=operator >=operator !=operator
+(n = 1, n <> 2, n == 3, n != 4, n < 5, n > 6, n <= 7, n >= 8)
+
+== arithmetic -> +=operator -=operator *=operator /=operator .=operator
+(n + 1 - 2 * 3 / 4, 2.0 +. 1.0 -. 3.0 *. 4.0 /. 5.0, 2.0 ** 3.0, - n, -. (1.0 +. 2.0))
+
+== pipes and composition -> |=operator >=operator @=operator <=operator
+(n |> f |> g, f @@ g @@ n, (f >> g) n, (f << g) n)
+
+== lists and strings -> :=operator @=operator ^=operator
+(1 :: [2] @ [3], "a" ^ "b")
+
+== references -> ref=keyword :=operator ==operator !=operator incr=operator decr=operator <=operator -=operator
+let c = ref 0 in c := !c + 1; incr c; decr c; let mut m = 0 in m <- !c; m
+
+== borrows and derefs -> &=operator *=operator !=operator
+let v = &xs in (*v, !v, &mut n)
+
+== operator sections -> +=operator -=operator
+(( + ) 1 2, ( - ) 1)
+
+== ranges and try -> .=operator ?=operator
+(0..3, 0..=3, r?)
+
+== method and field sections -> .=operator
+(xs |> .len, (p, 1) |> .1)
+
+== sections glued to pipes -> |=operator >=operator .=operator @=operator
+(xs |>.len, (p, 1) |>.1, (.iter >>.count) xs, Some @@.len xs)
+
+== a raw identifier -> r#type=variable
+let r#type = 1 in r#type + 1
+
+== a word Rust reserves -> gen=variable
+let gen = 1 in gen + 1
