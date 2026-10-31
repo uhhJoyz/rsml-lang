@@ -10,10 +10,10 @@
 //
 // How to write it:
 // * `if c then begin a; b end else c`, or `if c then (a; b) else c`.
-// * Rust's braces are not a block in OCaml: `{ a; b }` is an error:
-//   "`{ .. }` is not a block in OCaml: write `begin .. end` or `( .. )`"
+// * Rust's braces are not a block in rsml code: `{ a; b }` is an error:
+//   "`{ .. }` is not a block in rsml: write `begin .. end` or `( .. )`"
 //   (toy 130).
-// * The braces of `unsafe { .. }` and `async { .. }` hold OCaml as
+// * The braces of `unsafe { .. }` and `async { .. }` hold rsml code as
 //   `begin .. end` does (toys 120, 121).
 //
 // Reference: [Control flow](../../docs/notation.md#control-flow)
@@ -23,38 +23,34 @@ use rsml::ml;
 pub const SUMMARY: &str = "`begin a; b end` and `( a; b )` group steps into one";
 
 /// A withdrawal: when it is allowed, log it and lower the balance.
-pub fn withdraw(balance: u32, amount: u32) -> (u32, Vec<String>) {
-    ml! {
-        let mut log = Vec.new () in
-        let left =
-          if amount <= balance then begin
-            log.push(format!("withdrew {amount}"));
-            balance - amount
-          end
-          else begin
-            log.push(String.from "refused");
-            balance
-          end
-        in
-        (left, log)
-    }
-}
+pub fn withdraw(balance: u32, amount: u32) -> (u32, Vec<String>) { ml! {
+    let mut log = Vec.new () in
+    let left =
+      if amount <= balance then begin
+        log.push(format!("withdrew {amount}"));
+        balance - amount
+      end
+      else begin
+        log.push(String.from "refused");
+        balance
+      end
+    in
+    (left, log)
+}}
 
 /// The same choice, grouped with parentheses.
-pub fn deposit(balance: u32, amount: u32) -> (u32, usize) {
-    ml! {
-        let mut count = 0 in
-        // `( count <- count + 1; balance + amount )` is one branch.
-        let total =
-          if amount > 0 then
-            (count <- count + 1;
-             balance + amount)
-          else
-            balance
-        in
-        (total, count)
-    }
-}
+pub fn deposit(balance: u32, amount: u32) -> (u32, usize) { ml! {
+    let mut count = 0 in
+    // `( count <- count + 1; balance + amount )` is one branch.
+    let total =
+      if amount > 0 then
+        (count <- count + 1;
+         balance + amount)
+      else
+        balance
+    in
+    (total, count)
+}}
 
 pub fn run() {
     println!("withdraw 100 30 = {:?}", withdraw(100, 30));

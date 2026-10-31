@@ -116,7 +116,7 @@ fn stdin_filepath_finds_the_configs() {
     assert_eq!(code, 0, "{}", err);
     assert_eq!(
         out,
-        "use x::{a10, a9};\nfn long_function_name(\n    first: i64,\n    second: i64,\n) -> i64 {\n    ml! {\n        first_argument\n        |> some_function\n        |> another\n    }\n}\n"
+        "use x::{a10, a9};\nfn long_function_name(\n    first: i64,\n    second: i64,\n) -> i64 { ml! {\n    first_argument\n    |> some_function\n    |> another\n}}\n"
     );
     // Inside `rsml!` too, rustfmt's options apply.
     let (_, out, _) = run(
@@ -164,7 +164,7 @@ fn rustfmt_and_ocaml_agree() {
     assert_eq!(code, 0, "{}", err);
     assert_eq!(
         once,
-        "#[test]\nfn t() {\n    assert_eq!(\n        ml! {\n            let x = 1 in\n            let y = x + 1 in\n            x + y\n        },\n        3\n    );\n}\n"
+        "#[test]\nfn t() {\n    assert_eq!(\n        ml! {\n        let x = 1 in\n        let y = x + 1 in\n        x + y\n        },\n        3\n    );\n}\n"
     );
     let (_, twice, _) = run(&["--rustfmt"], &d, &once);
     assert_eq!(twice, once);

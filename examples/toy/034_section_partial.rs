@@ -20,39 +20,31 @@ use rsml::ml;
 pub const SUMMARY: &str = "`( + ) 1` and `( - ) 10`: the argument is the left operand";
 
 /// Every score raised by a bonus.
-pub fn with_bonus(scores: &[i64], bonus: i64) -> Vec<i64> {
-    ml! {
-        // `( + ) bonus` is `move |rhs| bonus + rhs`.
-        scores |> .iter() |> .copied() |> .map(( + ) bonus) |> .collect()
-    }
-}
+pub fn with_bonus(scores: &[i64], bonus: i64) -> Vec<i64> { ml! {
+    // `( + ) bonus` is `move |rhs| bonus + rhs`.
+    scores |> .iter() |> .copied() |> .map(( + ) bonus) |> .collect()
+}}
 
 /// How many points each score is short of 10.
-pub fn short_of_ten(scores: &[i64]) -> Vec<i64> {
-    ml! {
-        // `( - ) 10` is `move |rhs| 10 - rhs`: ten minus the score.
-        scores |> .iter() |> .copied() |> .map(( - ) 10) |> .collect()
-    }
-}
+pub fn short_of_ten(scores: &[i64]) -> Vec<i64> { ml! {
+    // `( - ) 10` is `move |rhs| 10 - rhs`: ten minus the score.
+    scores |> .iter() |> .copied() |> .map(( - ) 10) |> .collect()
+}}
 
 /// Every score minus 10: the placeholder puts the score on the left.
-pub fn minus_ten(scores: &[i64]) -> Vec<i64> {
-    ml! {
-        // `(_ - 10)` is `move |_0| _0 - 10`.
-        scores |> .iter() |> .copied() |> .map(_ - 10) |> .collect()
-    }
-}
+pub fn minus_ten(scores: &[i64]) -> Vec<i64> { ml! {
+    // `(_ - 10)` is `move |_0| _0 - 10`.
+    scores |> .iter() |> .copied() |> .map(_ - 10) |> .collect()
+}}
 
 /// The scores above a threshold.
-pub fn above(scores: &[i64], threshold: i64) -> Vec<i64> {
-    ml! {
-        // `( < ) threshold` is `move |rhs| threshold < rhs`: "is the score
-        // above the threshold", read with the threshold on the left.
-        let is_above = ( < ) threshold in
-        // `filter` passes a reference: `!s` is the score itself.
-        scores |> .iter() |> .copied() |> .filter(fun s -> is_above !s) |> .collect()
-    }
-}
+pub fn above(scores: &[i64], threshold: i64) -> Vec<i64> { ml! {
+    // `( < ) threshold` is `move |rhs| threshold < rhs`: "is the score
+    // above the threshold", read with the threshold on the left.
+    let is_above = ( < ) threshold in
+    // `filter` passes a reference: `!s` is the score itself.
+    scores |> .iter() |> .copied() |> .filter(fun s -> is_above !s) |> .collect()
+}}
 
 pub fn run() {
     let scores = [4, 9, 12];

@@ -1,6 +1,6 @@
 // Toy 070: list patterns, `[]`, `[x]`, `[a; b]`, `x :: rest`.
 //
-// What it is: OCaml's list patterns, matched against a slice: `[]` is
+// What it is: list patterns, matched against a slice: `[]` is
 // empty, `[a; b]` has exactly two elements, `x :: rest` has a first
 // element `x` and any number after it, as the slice `rest`.
 //
@@ -22,38 +22,32 @@ use rsml::ml;
 pub const SUMMARY: &str = "List patterns: `[]`, `[x]`, `[a; b]`, `x :: rest` on slices and Vecs";
 
 /// A list of names, the way people say it.
-pub fn names(people: &[&str]) -> String {
-    ml! {
-        // `match xs with [] -> 0 | _ :: rest -> rest.len()` is
-        // `match ::rsml::__rt::as_slice(&xs) { [] => 0, [_, rest @ ..] => rest.len(), }`.
-        match people with
-        | [] -> String.from "nobody"
-        | [one] -> one.to_string()
-        | [a; b] -> format!("{a} and {b}")
-        | first :: rest -> format!("{first} and {} others", rest.len())
-    }
-}
+pub fn names(people: &[&str]) -> String { ml! {
+    // `match xs with [] -> 0 | _ :: rest -> rest.len()` is
+    // `match ::rsml::__rt::as_slice(&xs) { [] => 0, [_, rest @ ..] => rest.len(), }`.
+    match people with
+    | [] -> String.from "nobody"
+    | [one] -> one.to_string()
+    | [a; b] -> format!("{a} and {b}")
+    | first :: rest -> format!("{first} and {} others", rest.len())
+}}
 
 /// The sum of the prices, by recursion over the slice.
-pub fn total(prices: &[u32]) -> u32 {
-    ml! {
-        let rec go (xs : &[u32]) : u32 =
-          // `x` has type `&u32`, so `!x` reads it; `rest` has type `&[u32]`.
-          match xs with [] -> 0 | x :: rest -> !x + go rest
-        in
-        go prices
-    }
-}
+pub fn total(prices: &[u32]) -> u32 { ml! {
+    let rec go (xs : &[u32]) : u32 =
+      // `x` has type `&u32`, so `!x` reads it; `rest` has type `&[u32]`.
+      match xs with [] -> 0 | x :: rest -> !x + go rest
+    in
+    go prices
+}}
 
 /// The first two scores of a `Vec`, if it has two.
-pub fn podium(scores: Vec<u32>) -> Option<(u32, u32)> {
-    ml! {
-        // Two elements, then anything:
-        // `match v with x :: y :: _ -> 2 | _ -> 0` is
-        // `match ::rsml::__rt::as_slice(&v) { [x, y, ..] => 2, _ => 0, }`.
-        match scores with x :: y :: _ -> Some (!x, !y) | _ -> None
-    }
-}
+pub fn podium(scores: Vec<u32>) -> Option<(u32, u32)> { ml! {
+    // Two elements, then anything:
+    // `match v with x :: y :: _ -> 2 | _ -> 0` is
+    // `match ::rsml::__rt::as_slice(&v) { [x, y, ..] => 2, _ => 0, }`.
+    match scores with x :: y :: _ -> Some (!x, !y) | _ -> None
+}}
 
 pub fn run() {
     for people in [

@@ -2,7 +2,7 @@
 //
 // What it is: a module in one flush-left `rsml!` (toy 124) can hold its
 // own `#[cfg(test)] mod tests`. The tests are functions of the same
-// `rsml!`, so their bodies are OCaml, and so are the arguments of
+// `rsml!`, so their bodies are rsml code, and so are the arguments of
 // `assert_eq!` and the other std macros (toy 106). `#[rust]` on an item
 // keeps its bodies Rust (toy 118).
 //
@@ -19,7 +19,7 @@
 
 rsml::rsml! {
 
-pub const SUMMARY: &str = "A whole file whose tests are OCaml, with a `#[rust]` function";
+pub const SUMMARY: &str = "A whole file whose tests are rsml code, with a `#[rust]` function";
 
 /// The letter grade of a score out of 100.
 pub fn grade(score: u32) -> char {
@@ -67,7 +67,7 @@ mod tests {
         assert_eq!(average &[||], 0)
     }
 
-    /// A test in Rust, among the OCaml ones.
+    /// A test in Rust, among the rsml ones.
     #[rust]
     #[test]
     fn the_hash_sees_the_order() {

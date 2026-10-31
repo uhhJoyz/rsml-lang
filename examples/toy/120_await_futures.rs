@@ -1,10 +1,10 @@
 // Toy 120: `.await`, `async fn` and `async { .. }`.
 //
-// What it is: Rust's futures, from OCaml code. `e.await` waits for the
+// What it is: Rust's futures, from rsml code. `e.await` waits for the
 // future `e`, inside an `async fn` or an `async` block; `.await` is also a
 // method reference (toy 045), so `.await fut` and `fut |> .await` work
 // too. `async { e }` and `async move { e }` are futures whose body is
-// OCaml, as the braces of `begin .. end` would hold.
+// rsml code, as the braces of `begin .. end` would hold.
 //
 // When to use it: with any async Rust code. The futures here never wait,
 // so one poll runs them to their end; real programs use an executor.
@@ -27,37 +27,35 @@ use std::task::{Context, Poll, Waker};
 pub const SUMMARY: &str = "`price(item).await`, `fut |> .await`, `async move { e }`";
 
 rsml! {
-    /// A price, as an asynchronous lookup (a database, a web shop) gives it.
-    async fn price(item: &str) -> u32 {
-        match item with "tea" -> 4 | "cake" -> 6 | _ -> 0
-    }
+/// A price, as an asynchronous lookup (a database, a web shop) gives it.
+async fn price(item: &str) -> u32 {
+    match item with "tea" -> 4 | "cake" -> 6 | _ -> 0
+}
 
-    /// The total of an order: each price is awaited in turn.
-    async fn order_total(items: &[&str]) -> u32 {
-        let mut total = 0 in
-        for item in items do total <- total + price(item).await done;
-        total
-    }
+/// The total of an order: each price is awaited in turn.
+async fn order_total(items: &[&str]) -> u32 {
+    let mut total = 0 in
+    for item in items do total <- total + price(item).await done;
+    total
+}
 
-    /// The cheaper of two items, with `.await` as a method reference.
-    async fn cheaper(a: &str, b: &str) -> u32 {
-        // `price a |> .await` is `price(a).await`.
-        let pa = price a |> .await in
-        // `.await (price b)` is `price(b).await`.
-        let pb = .await (price b) in
-        std::cmp::min pa pb
-    }
+/// The cheaper of two items, with `.await` as a method reference.
+async fn cheaper(a: &str, b: &str) -> u32 {
+    // `price a |> .await` is `price(a).await`.
+    let pa = price a |> .await in
+    // `.await (price b)` is `price(b).await`.
+    let pb = .await (price b) in
+    std::cmp::min pa pb
+}
 }
 
 /// Futures made by `async` blocks, one per total: none runs until it is
 /// polled.
-pub fn with_tips(totals: &[u32]) -> Vec<impl Future<Output = u32>> {
-    ml! {
-        // `async move { t + t / 10 }` is `async move { t + (t / 10) }`;
-        // `move` takes `t` into the future, which outlives the closure.
-        totals |> .iter() |> .map(fun (&t) -> async move { t + t / 10 }) |> .collect()
-    }
-}
+pub fn with_tips(totals: &[u32]) -> Vec<impl Future<Output = u32>> { ml! {
+    // `async move { t + t / 10 }` is `async move { t + (t / 10) }`;
+    // `move` takes `t` into the future, which outlives the closure.
+    totals |> .iter() |> .map(fun (&t) -> async move { t + t / 10 }) |> .collect()
+}}
 
 /// Runs a future to its end with one poll: these never wait for anything.
 /// `Waker::noop()` is a waker that does nothing when woken.

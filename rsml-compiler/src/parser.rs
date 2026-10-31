@@ -7,6 +7,7 @@ use std::rc::Rc;
 use proc_macro2::{Delimiter, Group, Ident, Literal, Span, TokenStream};
 use quote::quote_spanned;
 
+use crate::arms;
 use crate::ast::*;
 use crate::lexer::{Op, Tok, adjacent, ident_str, is_capitalized, lex, to_stream, word};
 use crate::types::{GenericArg, Type};
@@ -66,7 +67,6 @@ const KEYWORDS: &[&str] = &[
     "mod",
     "module",
     "of",
-    "open",
     "or",
     "rec",
     "then",
@@ -137,17 +137,17 @@ fn is_keyword_field(i: &Ident) -> bool {
 fn rust_keyword_error(i: &Ident) -> Error {
     let kw = i.to_string();
     let hint = match kw.as_str() {
-        "fn" => "; a closure is `fun x -> e`".to_string(),
-        "move" => "; a `move` closure is `fun move x -> e`".to_string(),
+        "fn" => "; a closure is `|x| e`".to_string(),
+        "move" => "; a `move` closure is `move |x| e`".to_string(),
         "loop" => "; an endless loop is `while true do .. done`".to_string(),
-        "use" => "; import with `open path`".to_string(),
+        "use" => "; `use path;` starts an expression or a toplevel phrase".to_string(),
         "await" => "; write `e.await`".to_string(),
         "ref" => {
             "; `ref e` makes a mutable local, and matching on `&e` binds by reference".to_string()
         }
         "unsafe" | "async" => format!("; a block is `{} {{ e }}`", kw),
         "const" | "static" | "struct" | "enum" | "trait" | "impl" | "extern" | "pub" => {
-            "; Rust items go outside the OCaml code (or in `rsml!`)".to_string()
+            "; Rust items go outside the rsml code (or in `rsml!`)".to_string()
         }
         _ => String::new(),
     };
@@ -171,7 +171,7 @@ pub fn bang_op_error(op: &Op) -> Option<Error> {
     Some(Error::new(
         op.span(),
         format!(
-            "`{0}` cannot be an operator: one starting with `!` is a prefix operator (as in OCaml), \
+            "`{0}` cannot be an operator: one starting with `!` is a prefix operator, \
              and here `!` before an expression is a dereference (`!r` is `*r`), so `{0}` could \
              never be used; define a function instead",
             op.text
@@ -205,7 +205,7 @@ pub fn assign_op_error(op: &Op) -> Option<Error> {
     Some(Error::new(
         op.span(),
         format!(
-            "OCaml has no `{0}`: write `x <- x {1} e`{2}, or define the operator with `let ( {0} ) a b = ..`",
+            "rsml has no `{0}`: write `x <- x {1} e`{2}, or define the operator with `let ( {0} ) a b = ..`",
             text, ocaml, r
         ),
     ))
@@ -323,6 +323,10 @@ pub struct Parser {
     /// Holes parsed and not yet in a section (shared with sub-parsers): while
     /// there are none, [`Parser::close_holes`] has nothing to look for.
     open_holes: Rc<Cell<usize>>,
+    /// The `match`es and `function`s whose cases are being parsed, innermost
+    /// last, with `None` for a barrier (see [`crate::arms`]). Brackets are
+    /// barriers too: a sub-parser starts with none.
+    levels: Vec<Option<arms::Level>>,
 }
 
 /// A keyword or symbol of the OCaml code (`then`, the `|` of a match arm)
@@ -344,7 +348,7 @@ fn keyword_mark(kw: &str) -> Option<&'static str> {
         "with" | "function" => "match",
         "done" => "break",
         "to" | "downto" | "til" => "loop",
-        "begin" | "end" | "fun" | "rec" | "and" | "open" | "external" => "let",
+        "begin" | "end" | "fun" | "rec" | "and" | "external" => "let",
         _ => return None,
     })
 }
@@ -364,6 +368,7 @@ impl Parser {
             marks: Rc::default(),
             touch: RefCell::default(),
             open_holes: Rc::default(),
+            levels: Vec::new(),
         }
     }
 
@@ -474,6 +479,7 @@ impl Parser {
             marks: self.marks.clone(),
             touch: RefCell::default(),
             open_holes: self.open_holes.clone(),
+            levels: Vec::new(),
         }
     }
 
@@ -738,10 +744,49 @@ impl Parser {
         len
     }
 
+    // ----- nested cases --------------------------------------------------
+
+    /// Parses `f` behind a barrier: a case after it cannot leave for an
+    /// enclosing `match` (see [`crate::arms`]), as the text after `f`'s
+    /// expression must be a keyword (`in`, `then`, `with`, `do`, ..).
+    fn barrier<T>(&mut self, f: impl FnOnce(&mut Parser) -> R<T>) -> R<T> {
+        self.levels.push(None);
+        let r = f(self);
+        self.levels.pop();
+        r
+    }
+
+    /// Whether the cases of a `match` or `function` are being parsed here,
+    /// with no barrier in between: a `|` may then start the next case.
+    fn in_cases(&self) -> bool {
+        matches!(self.levels.last(), Some(Some(_)))
+    }
+
+    /// At the `|` before a case: whether that case belongs to an enclosing
+    /// `match` rather than the innermost one (see [`crate::arms`]). The
+    /// pattern is parsed ahead and the position restored.
+    fn case_belongs_outside(&mut self) -> bool {
+        // Only an enclosing `match` with no barrier in between can take it.
+        if !matches!(self.levels.iter().rev().nth(1), Some(Some(_))) {
+            return false;
+        }
+        let save = self.pos;
+        let recovered_len = self.recovered.borrow().len();
+        let marks_len = self.marks.borrow().len();
+        let unmapped_len = self.unmapped.borrow().len();
+        self.pos += 1;
+        let pat = self.parse_pattern();
+        self.pos = save;
+        self.recovered.borrow_mut().truncate(recovered_len);
+        self.marks.borrow_mut().truncate(marks_len);
+        self.unmapped.borrow_mut().truncate(unmapped_len);
+        pat.is_ok_and(|p| arms::belongs_outside(&self.levels, &p))
+    }
+
     // ----- top level -----------------------------------------------------
 
     /// The body of `ml! { .. }`: a sequence of OCaml toplevel phrases
-    /// (`let` without `in`, `external`, `open`, `;;`-separated expressions).
+    /// (`let` without `in`, `external`, `use`, `;;`-separated expressions).
     pub fn parse_toplevel(&mut self) -> R<Expr> {
         while self.eat_op(";;") {}
         if self.at_end() {
@@ -765,16 +810,17 @@ impl Parser {
                 span,
             });
         }
-        if self.eat_kw("open") {
-            let module = self.parse_module_path()?;
+        if self.peek_kw("use") {
+            let (tree, semi) = self.parse_use()?;
             let body = self.parse_toplevel()?;
-            return Ok(Expr::Open {
-                module,
+            return Ok(Expr::Use {
+                tree,
                 body: Box::new(body),
                 span,
+                semi,
             });
         }
-        if self.peek_kw("let") && !matches!(self.peek_at(1), Some(Tok::Ident(i)) if i == "open") {
+        if self.peek_kw("let") {
             let save = self.pos;
             let scope_len = self.scope.len();
             let recovered_len = self.recovered.borrow().len();
@@ -876,13 +922,12 @@ impl Parser {
                 }
                 continue;
             }
-            if self.eat_kw("open") {
-                let module = self.parse_module_path()?;
-                out.push(Phrase::Open { module, span });
+            if self.peek_kw("use") {
+                let (tree, _) = self.parse_use()?;
+                out.push(Phrase::Use { tree, span });
                 continue;
             }
-            if self.peek_kw("let") && !matches!(self.peek_at(1), Some(Tok::Ident(i)) if i == "open")
-            {
+            if self.peek_kw("let") {
                 let save = self.pos;
                 let scope_len = self.scope.len();
                 let recovered_len = self.recovered.borrow().len();
@@ -912,18 +957,45 @@ impl Parser {
         }
     }
 
-    /// The path after `open`: `std::cmp`, `::std::cmp` or `Std.Cmp`.
-    fn parse_module_path(&mut self) -> R<Path> {
-        let leading_colon = self.eat_op("::");
-        let first = match self.peek() {
-            Some(Tok::Ident(i)) if !is_keyword(&word(i)) => {
-                let i = i.clone();
-                self.pos += 1;
-                i
+    /// `use tree;`, from the `use`: the use tree as Rust tokens (checked by
+    /// rustc), and the span of the `;`.
+    fn parse_use(&mut self) -> R<(TokenStream, Span)> {
+        let kw = self.span();
+        self.pos += 1;
+        let start = self.pos;
+        while let Some(t) = self.peek() {
+            if matches!(t, Tok::Op(o) if o.text.starts_with(';')) {
+                break;
             }
-            _ => self.missing(Error::new(self.span(), "expected a module path"))?,
+            let ok = use_tree_token(t);
+            if !ok && self.pos == start {
+                return self.err("expected a Rust path after `use` (`use std::cmp::max;`)");
+            }
+            if !ok {
+                return self.err("expected `;` after the `use` (`use std::cmp::max;`)");
+            }
+            self.pos += 1;
+        }
+        let mut tree = to_stream(&self.toks[start..self.pos]);
+        // Unfinished: `use`, `use std::` (while a name is being typed).
+        let unfinished = match self.toks[start..self.pos].last() {
+            None => Some(kw),
+            Some(Tok::Op(o)) if o.text.ends_with("::") => Some(o.span()),
+            _ => None,
         };
-        self.parse_path(first, leading_colon)
+        if let Some(at) = unfinished {
+            let name = self.missing(Error::new(at, "expected a path after `use`"))?;
+            tree.extend(quote::quote!(#name));
+        }
+        let semi = self.span();
+        if self.peek_op(";") || self.peek_op(";;") {
+            self.pos += 1;
+        } else if self.recover && self.at_end() {
+            self.missing(Error::new(semi, "expected `;` after the `use`"))?;
+        } else {
+            return self.err("expected `;` after the `use`");
+        }
+        Ok((tree, semi))
     }
 
     fn parse_name(&mut self) -> R<Name> {
@@ -963,7 +1035,7 @@ impl Parser {
         let len = self.scope.len();
         let mut bindings = Vec::new();
         loop {
-            bindings.push(self.parse_binding(rec_)?);
+            bindings.push(self.barrier(|p| p.parse_binding(rec_))?);
             if !self.eat_kw("and") {
                 break;
             }
@@ -1177,6 +1249,18 @@ impl Parser {
     // ----- expressions ---------------------------------------------------
 
     pub fn parse_expr(&mut self) -> R<Expr> {
+        // `use tree; e`: Rust's `use`, for the rest of the expression.
+        if self.peek_kw("use") {
+            let span = self.span();
+            let (tree, semi) = self.parse_use()?;
+            let body = self.parse_expr()?;
+            return Ok(Expr::Use {
+                tree,
+                body: Box::new(body),
+                span,
+                semi,
+            });
+        }
         let e = self.parse_expr_noseq()?;
         if self.peek_op(";") {
             let semi = self.span();
@@ -1294,6 +1378,9 @@ impl Parser {
                     )
             }
             Some(Tok::Lit(_)) | Some(Tok::Group(_)) => true,
+            // A closure; among cases, `|` is the next case's (`return` and
+            // `a;` end there), so a closure after them needs parentheses.
+            Some(Tok::Op(o)) if closure_bar(&o.text) => o.text == "||" || !self.in_cases(),
             Some(Tok::Op(o)) => {
                 matches!(o.text.as_str(), "-" | "-." | "::" | ".")
                     || o.text.chars().all(|c| matches!(c, '!' | '*' | '&'))
@@ -1428,6 +1515,17 @@ impl Parser {
             let e = self.parse_bin(POW)?;
             return Ok(Expr::Neg(Box::new(e), o));
         }
+        if self.closure_at(0) {
+            if !self.in_cases() || self.peek_op("||") {
+                return self.parse_closure();
+            }
+            // Among cases, a `|` with no body before it may be the next
+            // case's (`Some x -> ‸ | None -> 0`, being written): a closure
+            // only if one parses, with no `->` or guard after it.
+            if let Some(e) = self.closure_among_cases() {
+                return Ok(e);
+            }
+        }
         if let Some(Tok::Ident(i)) = self.peek() {
             match word(i).as_str() {
                 "let" => return self.parse_let_expr(),
@@ -1448,7 +1546,7 @@ impl Parser {
                             "this is Rust's `match x { p => e }`: write `match x with p -> e | ..`",
                         ));
                     }
-                    let scrut = self.parse_expr()?;
+                    let scrut = self.barrier(Parser::parse_expr)?;
                     self.expect_kw("with")?;
                     let arms = self.parse_arms()?;
                     return Ok(Expr::Match {
@@ -1461,7 +1559,7 @@ impl Parser {
                 "while" => {
                     let span = self.span();
                     self.pos += 1;
-                    let cond = self.parse_expr()?;
+                    let cond = self.barrier(Parser::parse_expr)?;
                     self.expect_kw("do")?;
                     let body = self.parse_loop_body()?;
                     return Ok(Expr::While {
@@ -1503,16 +1601,6 @@ impl Parser {
     fn parse_let_expr(&mut self) -> R<Expr> {
         let span = self.span();
         self.pos += 1;
-        if self.eat_kw("open") {
-            let module = self.parse_module_path()?;
-            self.expect_kw("in")?;
-            let body = self.parse_expr()?;
-            return Ok(Expr::Open {
-                module,
-                body: Box::new(body),
-                span,
-            });
-        }
         let (rec_, bindings) = self.parse_bindings()?;
         if !self.peek_kw("in")
             && !(self.recover && self.at_end())
@@ -1556,10 +1644,117 @@ impl Parser {
             body: Box::new(body),
             span,
             is_move,
+            bars: None,
         })
     }
 
+    /// Whether a Rust-style closure starts at `peek_at(n)`: `|x| e`, `|| e`,
+    /// `move |x| e`.
+    fn closure_at(&self, n: usize) -> bool {
+        match self.peek_at(n) {
+            Some(Tok::Op(o)) => closure_bar(&o.text),
+            Some(Tok::Ident(i)) if i == "move" => {
+                matches!(self.peek_at(n + 1), Some(Tok::Op(o)) if closure_bar(&o.text))
+            }
+            _ => false,
+        }
+    }
+
+    /// `|p, q: t| body`, `|| body` or `move |p| body`: the same closure as
+    /// `fun p (q : t) -> body`, its body reaching as far.
+    fn parse_closure(&mut self) -> R<Expr> {
+        let span = self.span();
+        let is_move = self.peek_kw("move");
+        if is_move {
+            self.pos += 1;
+        }
+        let open = self.span();
+        let mut params = Vec::new();
+        let close = if self.peek_op("||") {
+            self.pos += 1;
+            open
+        } else {
+            self.split_op_prefix("|");
+            self.pos += 1;
+            while !self.peek_op_starts("|") && !self.at_end() {
+                let p = self.parse_pat_cons()?;
+                let p = if self.eat_op(":") {
+                    Pat::Constraint(Box::new(p), self.parse_type()?)
+                } else {
+                    p
+                };
+                params.push(p);
+                if !self.eat_op(",") {
+                    break;
+                }
+            }
+            let close = self.span();
+            if self.split_op_prefix("|") {
+                self.pos += 1;
+            } else if self.recover && self.at_end() {
+                self.missing(Error::new(close, "expected `|`"))?;
+            } else {
+                return self.err("expected `,` or the `|` that closes the closure's parameters");
+            }
+            close
+        };
+        if params.is_empty() {
+            params.push(Pat::Unit(open));
+        }
+        if self.peek_op("->") {
+            return self.err(
+                "a closure's body comes right after its parameters: `|x| e` (or `fun x -> e`)",
+            );
+        }
+        let len = self.push_pat_names(&params);
+        let body = self.parse_expr()?;
+        self.scope.truncate(len);
+        Ok(Expr::Fun {
+            labels: vec![None; params.len()],
+            params,
+            body: Box::new(body),
+            span,
+            is_move,
+            bars: Some((open, close)),
+        })
+    }
+
+    /// [`Parser::parse_closure`] where a `|` could start the next case: the
+    /// closure, or `None` (and the position unchanged) if what follows is
+    /// no closure or reads as a case (`| A | B -> e`).
+    fn closure_among_cases(&mut self) -> Option<Expr> {
+        let save = self.pos;
+        let scope_len = self.scope.len();
+        let recovered_len = self.recovered.borrow().len();
+        let marks_len = self.marks.borrow().len();
+        let unmapped_len = self.unmapped.borrow().len();
+        let holes = self.open_holes.get();
+        let parsed = self.parse_closure();
+        let case_follows = self.peek_op("->") || self.peek_kw("when") || self.peek_kw("if");
+        match parsed {
+            Ok(e) if !case_follows => Some(e),
+            _ => {
+                self.pos = save;
+                self.scope.truncate(scope_len);
+                self.recovered.borrow_mut().truncate(recovered_len);
+                self.marks.borrow_mut().truncate(marks_len);
+                self.unmapped.borrow_mut().truncate(unmapped_len);
+                self.open_holes.set(holes);
+                None
+            }
+        }
+    }
+
     fn parse_arms(&mut self) -> R<Vec<Arm>> {
+        self.levels.push(Some(arms::Level::default()));
+        let arms = self.parse_cases();
+        self.levels.pop();
+        arms
+    }
+
+    /// The cases of a `match` or `function`, up to the first that belongs
+    /// to an enclosing one (see [`crate::arms`]).
+    fn parse_cases(&mut self) -> R<Vec<Arm>> {
         if self.peek_op("|") {
             self.mark_op("|");
             self.pos += 1;
@@ -1567,12 +1762,26 @@ impl Parser {
         let mut arms = Vec::new();
         loop {
             let pat = self.parse_pattern()?;
+            if let Some(Some(level)) = self.levels.last_mut() {
+                level.add(&pat);
+            }
             let len = self.push_pat_names([&pat]);
+            // `when`, or Rust's `if`.
+            let mut guard_if = None;
             let guard = if self.eat_kw("when") {
-                Some(self.parse_expr()?)
+                Some(self.barrier(Parser::parse_expr)?)
+            } else if self.peek_kw("if") {
+                guard_if = Some(self.span());
+                self.pos += 1;
+                Some(self.barrier(Parser::parse_expr)?)
             } else {
                 None
             };
+            if guard.is_none()
+                && let Some(Some(level)) = self.levels.last_mut()
+            {
+                level.add_unguarded(&pat);
+            }
             let mut arrow = Vec::new();
             if self.recover && !self.peek_op("->") {
                 // Unfinished: `match o with Some x` (the body is missing too).
@@ -1588,10 +1797,11 @@ impl Parser {
             arms.push(Arm {
                 pat,
                 guard,
+                guard_if,
                 body,
                 arrow,
             });
-            if !self.peek_op("|") {
+            if !self.peek_op("|") || self.case_belongs_outside() {
                 break;
             }
             self.mark_op("|");
@@ -1609,7 +1819,7 @@ impl Parser {
                 "this is Rust's `if let`: write `match e with p -> .. | _ -> ..`",
             ));
         }
-        let cond = self.parse_expr()?;
+        let cond = self.barrier(Parser::parse_expr)?;
         self.expect_kw("then")?;
         let then = self.parse_expr_noseq()?;
         let els = if self.eat_kw("else") {
@@ -1669,7 +1879,7 @@ impl Parser {
         if self.eat_kw("done") {
             return Ok(Expr::Unit(sp));
         }
-        let body = self.parse_expr()?;
+        let body = self.barrier(Parser::parse_expr)?;
         self.expect_kw("done")?;
         Ok(body)
     }
@@ -1683,7 +1893,7 @@ impl Parser {
             // for pat in iter do body done
             let pat = self.parse_pattern()?;
             self.expect_kw("in")?;
-            let iter = self.parse_expr()?;
+            let iter = self.barrier(Parser::parse_expr)?;
             self.expect_kw("do")?;
             let len = self.push_pat_names([&pat]);
             let body = self.parse_loop_body()?;
@@ -1697,7 +1907,7 @@ impl Parser {
         }
         let var = self.expect_ident()?;
         self.expect_op("=")?;
-        let from = self.parse_expr()?;
+        let from = self.barrier(Parser::parse_expr)?;
         let dir = if self.eat_kw("to") {
             ForDir::To
         } else if self.eat_kw("downto") {
@@ -1707,7 +1917,7 @@ impl Parser {
         } else {
             return self.err("expected `to`, `downto` or `til`");
         };
-        let to = self.parse_expr()?;
+        let to = self.barrier(Parser::parse_expr)?;
         self.expect_kw("do")?;
         self.scope.push(ident_str(&var));
         let body = self.parse_loop_body()?;
@@ -1724,6 +1934,8 @@ impl Parser {
 
     fn can_start_arg(&self) -> bool {
         match self.peek() {
+            // `use` starts the next phrase (`let x = 1` then `use m;`).
+            Some(Tok::Ident(i)) if i == "use" => false,
             Some(Tok::Ident(i)) => {
                 let s = word(i);
                 !is_keyword(&s)
@@ -1759,6 +1971,10 @@ impl Parser {
         let mut args = Vec::new();
         while self.can_start_arg() {
             args.push(self.parse_arg()?);
+        }
+        // `f |x| e`: `|` cannot follow an application, but as the next case.
+        if !self.in_cases() && !self.peek_op("||") && self.closure_at(0) {
+            return Err(closure_paren_error(self.span()));
         }
         let mut e = if args.is_empty() {
             head
@@ -2129,7 +2345,7 @@ impl Parser {
                             }
                             return Ok(Expr::Unit(i.span()));
                         }
-                        let e = self.parse_expr()?;
+                        let e = self.barrier(Parser::parse_expr)?;
                         let end = self.expect_kw("end")?;
                         if self.surface {
                             return Ok(Expr::Surface(Box::new(Surface::Begin {
@@ -2157,7 +2373,7 @@ impl Parser {
                         format!("put `{}` in parentheses here: `({} ..)`", s, s),
                     )),
                     "move" if matches!(self.peek(), Some(Tok::Op(o)) if closure_bar(&o.text)) => {
-                        Err(closure_error(i.span()))
+                        Err(closure_paren_error(i.span()))
                     }
                     // `fn f x = ..`: Rust's spelling of a local function.
                     "fn" if matches!(self.peek(), Some(Tok::Ident(n)) if !is_keyword(&word(n))) => {
@@ -2170,7 +2386,7 @@ impl Parser {
                             i.span(),
                             format!(
                                 "`fn` is a Rust keyword, not a name (as a name: `r#fn`); a named local \
-                                 function is `let {} {} = .. in ..`, and a closure is `fun x -> e`",
+                                 function is `let {} {} = .. in ..`, and a closure is `|x| e`",
                                 name, param
                             ),
                         ))
@@ -2200,7 +2416,11 @@ impl Parser {
                 Delimiter::Brace => self.parse_brace(&g),
                 Delimiter::None => Ok(Expr::Rust(g)),
             },
-            Tok::Op(o) if closure_bar(&o.text) => Err(closure_error(o.span())),
+            // Among cases, the `|` of the next case, after a missing body.
+            Tok::Op(o) if closure_bar(&o.text) && self.in_cases() => {
+                Err(Error::new(o.span(), "expected an expression before `|`"))
+            }
+            Tok::Op(o) if closure_bar(&o.text) => Err(closure_paren_error(o.span())),
             Tok::Op(o) => Err(Error::new(
                 o.span(),
                 format!("unexpected operator `{}`", o.text),
@@ -2732,7 +2952,7 @@ impl Parser {
                 if record {
                     "record expressions need the struct name in Rust: write `Point { x = 1; y = 2 }`"
                 } else {
-                    "`{ .. }` is not a block in OCaml: write `begin .. end` or `( .. )` \
+                    "`{ .. }` is not a block in rsml: write `begin .. end` or `( .. )` \
                      (a record needs its struct name: `Point { x = 1 }`)"
                 },
             ));
@@ -3301,16 +3521,33 @@ impl Parser {
     }
 }
 
-/// `|x| e` or `|| e`: a Rust closure.
-fn closure_bar(op: &str) -> bool {
-    matches!(op, "|" | "||" | "|&" | "|&&")
+/// Whether a token can be part of a Rust use tree: names, `::`, `*`, `,`
+/// and `{ .. }` holding such tokens.
+fn use_tree_token(t: &Tok) -> bool {
+    match t {
+        Tok::Ident(_) => true,
+        Tok::Group(g) => {
+            g.delimiter() == Delimiter::Brace && lex(g.stream()).iter().all(use_tree_token)
+        }
+        Tok::Op(o) => o.text.chars().all(|c| matches!(c, ':' | '*' | ',')),
+        Tok::Lit(_) | Tok::TyVar(..) => false,
+    }
 }
 
-fn closure_error(span: Span) -> Error {
+/// The first token of a closure: `|` (`|&` in `|&x|`, which Rust glues
+/// together) or `||`.
+fn closure_bar(op: &str) -> bool {
+    op == "||"
+        || op
+            .strip_prefix('|')
+            .is_some_and(|rest| rest.chars().all(|c| c == '&'))
+}
+
+/// A closure where an argument or operand starts (`f |x| e`, `&|x| e`).
+fn closure_paren_error(span: Span) -> Error {
     Error::new(
         span,
-        "Rust closures are written `fun x -> e` in OCaml (`fun () -> e` for `|| e`, \
-         `fun move x -> e` for `move |x| e`)",
+        "a closure here goes in parentheses, as `fun` does: `f (|x| e)`",
     )
 }
 

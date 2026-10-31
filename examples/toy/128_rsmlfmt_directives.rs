@@ -1,6 +1,6 @@
 // Toy 128: formatter directives, `rsmlfmt: ..` comments.
 //
-// What it is: rsml-fmt formats the OCaml in `ml!` blocks and `rsml!`
+// What it is: rsml-fmt formats the rsml code in `ml!` blocks and `rsml!`
 // bodies. A comment that starts with `rsmlfmt:` before the first token of
 // a block changes how that block is formatted:
 // * `rsmlfmt: skip` leaves the block exactly as written;
@@ -39,25 +39,24 @@ pub fn shipping(zone: u32) -> u32 {
 /// A narrow block: with `max_width = 40` the pipeline breaks per stage.
 pub fn positive_total(xs: &[i64]) -> i64 {
     ml! {
-        (* rsmlfmt: max_width = 40 *)
-        xs
-        |> .iter()
-        |> .copied()
-        |> .filter(fun x -> !x > 0)
-        |> .sum::<i64>()
+    (* rsmlfmt: max_width = 40 *)
+    xs
+    |> .iter()
+    |> .copied()
+    |> .filter(fun x -> !x > 0)
+    |> .sum::<i64>()
     }
 }
 
 rsml! {
-    // rsmlfmt: let.body = fit
-    // (For every function of this `rsml!`: a `let` body stays on the
-    // line of its `in` when it fits.)
+// rsmlfmt: let.body = fit
+// (For every function of this `rsml!`: a `let` body stays on the
+// line of its `in` when it fits.)
 
-    /// The cost of a box, its sides in centimetres.
-    pub fn box_cost(w: u32, h: u32, d: u32) -> u32 {
-        let area = 2 * (w * h + h * d + w * d) in
-        let cents_per_cm2 = 3 in area * cents_per_cm2 / 100
-    }
+/// The cost of a box, its sides in centimetres.
+pub fn box_cost(w: u32, h: u32, d: u32) -> u32 {
+    let area = 2 * (w * h + h * d + w * d) in let cents_per_cm2 = 3 in area * cents_per_cm2 / 100
+}
 }
 
 pub fn run() {

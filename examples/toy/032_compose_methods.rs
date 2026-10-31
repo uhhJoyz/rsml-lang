@@ -23,29 +23,23 @@ use rsml::ml;
 pub const SUMMARY: &str = "`.trim >> .len`, `.split(',') >> .count()`, `add 1 >> add 2`";
 
 /// The length of each name, without the spaces around it.
-pub fn name_lengths(names: &[&str]) -> Vec<usize> {
-    ml! {
-        // `.trim >> .len` is `move |argument| argument.trim().len()`.
-        names |> .iter() |> .map(.trim >> .len) |> .collect()
-    }
-}
+pub fn name_lengths(names: &[&str]) -> Vec<usize> { ml! {
+    // `.trim >> .len` is `move |argument| argument.trim().len()`.
+    names |> .iter() |> .map(.trim >> .len) |> .collect()
+}}
 
 /// How many fields each CSV line has.
-pub fn field_counts(lines: &[&str]) -> Vec<usize> {
-    ml! {
-        // `.split(',') >> .count()` is
-        // `move |argument| argument.split(',').count()`.
-        lines |> .iter() |> .map(.split(',') >> .count()) |> .collect()
-    }
-}
+pub fn field_counts(lines: &[&str]) -> Vec<usize> { ml! {
+    // `.split(',') >> .count()` is
+    // `move |argument| argument.split(',').count()`.
+    lines |> .iter() |> .map(.split(',') >> .count()) |> .collect()
+}}
 
 /// Two partial applications of a local function, composed.
-pub fn plus_three(xs: &[i64]) -> Vec<i64> {
-    ml! {
-        let add x y = x + y in
-        xs |> .iter() |> .copied() |> .map(add 1 >> add 2) |> .collect()
-    }
-}
+pub fn plus_three(xs: &[i64]) -> Vec<i64> { ml! {
+    let add x y = x + y in
+    xs |> .iter() |> .copied() |> .map(add 1 >> add 2) |> .collect()
+}}
 
 pub fn run() {
     println!(

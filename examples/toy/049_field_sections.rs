@@ -21,28 +21,22 @@ use rsml::ml;
 pub const SUMMARY: &str = "Tuple fields as functions: `.map(.0)`, `x |> .1`, `.0.1 t`";
 
 /// The names of the people, from (name, age) pairs.
-pub fn names<'a>(people: &[(&'a str, u32)]) -> Vec<&'a str> {
-    ml! {
-        // `.map(.0)` takes each pair's first field.
-        people |> .iter() |> .map(.0) |> .collect()
-    }
-}
+pub fn names<'a>(people: &[(&'a str, u32)]) -> Vec<&'a str> { ml! {
+    // `.map(.0)` takes each pair's first field.
+    people |> .iter() |> .map(.0) |> .collect()
+}}
 
 /// The age of the oldest person, if there is anyone.
-pub fn oldest(people: &[(&str, u32)]) -> Option<u32> {
-    ml! {
-        // `p |> .1` is `p.1`: a field section applied.
-        people |> .iter() |> .map(fun p -> p |> .1) |> .max()
-    }
-}
+pub fn oldest(people: &[(&str, u32)]) -> Option<u32> { ml! {
+    // `p |> .1` is `p.1`: a field section applied.
+    people |> .iter() |> .map(fun p -> p |> .1) |> .max()
+}}
 
 /// The city of a record (name, (city, zip)).
-pub fn city<'a>(record: &(&str, (&'a str, u32))) -> &'a str {
-    ml! {
-        // `.1.0 record` is `record.1.0`.
-        .1.0 record
-    }
-}
+pub fn city<'a>(record: &(&str, (&'a str, u32))) -> &'a str { ml! {
+    // `.1.0 record` is `record.1.0`.
+    .1.0 record
+}}
 
 pub fn run() {
     let people = [("Ada", 36), ("Alan", 41)];

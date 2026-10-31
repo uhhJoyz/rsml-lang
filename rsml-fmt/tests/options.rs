@@ -257,8 +257,13 @@ fn placeholders_and_rust_names() {
     check("", "f _1 _0 (_ : &str)", "f _1 _0 (_ : &str)");
     check(
         "",
-        "open std::cmp ;; max 1 2",
-        "\nopen std::cmp ;;\nmax 1 2",
+        "use std::cmp::max ;; max 1 2",
+        "\nuse std::cmp::max;\nmax 1 2",
+    );
+    check(
+        "",
+        "use std :: collections :: { HashMap , HashSet , } ; let x = 1 in use std::cmp::max as m; m x 2",
+        "\nuse std::collections::{HashMap, HashSet,};\nlet x = 1 in\nuse std::cmp::max as m;\nm x 2",
     );
     check(
         "colon_spacing = after",
@@ -448,6 +453,13 @@ fn blocks_in_rust_files() {
     check_file(
         "single_line_blocks = preserve",
         src,
+        "fn f() {\n    let a = ml! { x |> f };\n    let b = ml! {\n    x |> f\n    };\n}\n",
+    );
+    // The body lines up with the line holding `ml! {`, or `block_indent`
+    // further in.
+    check_file(
+        "single_line_blocks = preserve; block_indent = 4",
+        src,
         "fn f() {\n    let a = ml! { x |> f };\n    let b = ml! {\n        x |> f\n    };\n}\n",
     );
     check_file(
@@ -459,7 +471,7 @@ fn blocks_in_rust_files() {
     check_file(
         "max_width = 40",
         "fn f() {\n    assert_eq!(ml! { xs |> List.map g |> h }, 3);\n}\n",
-        "fn f() {\n    assert_eq!(ml! {\n        xs |> List.map g |> h\n    }, 3);\n}\n",
+        "fn f() {\n    assert_eq!(ml! {\n    xs |> List.map g |> h\n    }, 3);\n}\n",
     );
     // Breaking the first block moves the second one left, where it fits on
     // one line: the second is laid out at its new column, in the same run.
@@ -471,17 +483,67 @@ fn blocks_in_rust_files() {
 }
 
 #[test]
+fn whole_function_bodies() {
+    // A Rust function whose body is one `ml!` block: `{ ml! {` .. `}}`.
+    let src = "fn f(x: i64) -> i64 {\n    ml! { x |> g }\n}\n";
+    let hugged = "fn f(x: i64) -> i64 { ml! {\n    x |> g\n}}\n";
+    check_file("", src, hugged);
+    check_file("", hugged, hugged);
+    check_file("hug_fn_body = false", hugged, src);
+    check_file(
+        "hug_fn_body = false; single_line_blocks = never",
+        hugged,
+        "fn f(x: i64) -> i64 {\n    ml! {\n    x |> g\n    }\n}\n",
+    );
+    check_file(
+        "fn_body_indent = 2",
+        src,
+        "fn f(x: i64) -> i64 { ml! {\n  x |> g\n}}\n",
+    );
+    // In an `impl`, after a pointer type, with a `where` clause.
+    check_file(
+        "",
+        "impl S {\n    fn f() -> fn(i64) -> i64 {\n        ml! { g }\n    }\n}\n",
+        "impl S {\n    fn f() -> fn(i64) -> i64 { ml! {\n        g\n    }}\n}\n",
+    );
+    check_file(
+        "",
+        "fn f<T>(x: T) -> T\nwhere\n    T: Copy,\n{\n    ml! { x }\n}\n",
+        "fn f<T>(x: T) -> T\nwhere\n    T: Copy,\n{ ml! {\n    x\n}}\n",
+    );
+    // Not when the body holds anything else (a comment, a `;`), nor when
+    // `{ ml! {` would not fit on the signature's line.
+    for kept in [
+        "fn f() {\n    // c\n    ml! { x }\n}\n",
+        "fn f() {\n    ml! { x };\n}\n",
+        "fn f() {\n    let y = ml! { x };\n    y\n}\n",
+    ] {
+        check_file("", kept, kept);
+    }
+    check_file(
+        "max_width = 24",
+        "fn f(x: i64) -> i64 {\n    ml! { x }\n}\n",
+        "fn f(x: i64) -> i64 {\n    ml! { x }\n}\n",
+    );
+}
+
+#[test]
 fn rsml_function_bodies() {
     let src = "rsml! {\n    fn f(x: i64) -> i64 { x |> g }\n\n    impl S {\n        fn m(&self) -> i64 { let y = self.x in y }\n    }\n}\n";
     check_file(
         "",
         src,
+        "rsml! {\nfn f(x: i64) -> i64 {\n    x |> g\n}\n\nimpl S {\n    fn m(&self) -> i64 {\n        let y = self.x in\n        y\n    }\n}\n}\n",
+    );
+    check_file(
+        "indent_rsml_items = true",
+        src,
         "rsml! {\n    fn f(x: i64) -> i64 {\n        x |> g\n    }\n\n    impl S {\n        fn m(&self) -> i64 {\n            let y = self.x in\n            y\n        }\n    }\n}\n",
     );
     check_file(
         "fn_single_line = true",
-        "rsml! {\n    fn f(x: i64) -> i64 {\n        x |> g\n    }\n}\n",
-        "rsml! {\n    fn f(x: i64) -> i64 { x |> g }\n}\n",
+        "rsml! {\nfn f(x: i64) -> i64 {\n    x |> g\n}\n}\n",
+        "rsml! {\nfn f(x: i64) -> i64 { x |> g }\n}\n",
     );
 }
 
@@ -502,7 +564,7 @@ fn rust_bodies_are_left_alone() {
         ),
     );
     check_file(
-        "",
+        "indent_rsml_items = true",
         &format!(
             "rsml! {{\n{}\n    fn o(x: i64) -> i64 {{ x |> r }}\n}}\n",
             rust
@@ -568,11 +630,17 @@ impl Point {
 ";
     check_file("", messy, tidy);
     check_file("", tidy, tidy);
-    // Indented one level from the line with `rsml! {`, which rustfmt's
-    // width counts.
+    // At the indentation of the line with `rsml! {`, or one level in, which
+    // rustfmt's width counts.
+    let nested = "mod m {\n    rsml! {\n  fn   f(a:i64)->i64 { a }\n      fn g() {}\n    }\n}\n";
     check_file(
         "",
-        "mod m {\n    rsml! {\n  fn   f(a:i64)->i64 { a }\n      fn g() {}\n    }\n}\n",
+        nested,
+        "mod m {\n    rsml! {\n    fn f(a: i64) -> i64 {\n        a\n    }\n    fn g() {}\n    }\n}\n",
+    );
+    check_file(
+        "indent_rsml_items = true",
+        nested,
         "mod m {\n    rsml! {\n        fn f(a: i64) -> i64 {\n            a\n        }\n        fn g() {}\n    }\n}\n",
     );
     // `rsmlfmt: skip` leaves the whole block alone; so does `preserve`.
@@ -590,17 +658,81 @@ fn directives() {
     check_file(
         "",
         "fn f() {\n    ml! {\n        (* rsmlfmt: pipe.force_break_at = 1 *)\n        x |> f\n    };\n}\n",
-        "fn f() {\n    ml! {\n        (* rsmlfmt: pipe.force_break_at = 1 *)\n        x\n        |> f\n    };\n}\n",
+        "fn f() {\n    ml! {\n    (* rsmlfmt: pipe.force_break_at = 1 *)\n    x\n    |> f\n    };\n}\n",
     );
     // At the top of `rsml!`, a directive covers every function.
     check_file(
         "",
         "rsml! {\n    // rsmlfmt: let.body = fit\n    fn f() -> i64 { let x = 1 in x }\n}\n",
-        "rsml! {\n    // rsmlfmt: let.body = fit\n    fn f() -> i64 {\n        let x = 1 in x\n    }\n}\n",
+        "rsml! {\n// rsmlfmt: let.body = fit\nfn f() -> i64 {\n    let x = 1 in x\n}\n}\n",
     );
     let bad = Config::default();
     let out = format_source("fn f() { ml! { (* rsmlfmt: nope = 1 *) x } }", &bad).unwrap();
     assert_eq!(out.warnings.len(), 1);
+}
+
+#[test]
+fn rust_closures_and_guards() {
+    // Closures and guards keep the spelling they were written in.
+    check(
+        "",
+        "xs |> .map(|x: &i64|   !x * 2) |> .filter(move |x| *x > k)",
+        "xs |> .map(|x: &i64| !x * 2) |> .filter(move |x| *x > k)",
+    );
+    check("", "let f = ||  1 in f ()", "let f = || 1 in\nf ()");
+    check(
+        "",
+        "f (|(a, b), &c| a + b + c)",
+        "f (|(a, b), &c| a + b + c)",
+    );
+    check("", "[| |x| x |]", "[| |x| x |]");
+    check(
+        "max_width = 30",
+        "register(|event| handle event; log event)",
+        "
+register(|event|
+  handle event;
+  log event)",
+    );
+    check(
+        "",
+        "match x with A | B if c -> 1 | Some y when y > 0 -> y | _ -> 0",
+        "match x with A | B if c -> 1 | Some y when y > 0 -> y | _ -> 0",
+    );
+}
+
+#[test]
+fn nested_matches_break() {
+    // A `match` that ends a case before another, without parentheses:
+    // one case per line, so that the indentation shows whose each is.
+    check(
+        "",
+        "match a with A::X -> match b with B::P -> 1 | B::Q -> 2 | A::Y -> 3",
+        "
+match a with
+| A::X ->
+    match b with
+    | B::P -> 1
+    | B::Q -> 2
+| A::Y -> 3",
+    );
+    // In parentheses the inner `match` cannot take the outer cases.
+    check(
+        "",
+        "match a with A::X -> (match b with B::P -> 1 | B::Q -> 2) | A::Y -> 3",
+        "match a with A::X -> (match b with B::P -> 1 | B::Q -> 2) | A::Y -> 3",
+    );
+    check(
+        "max_width = 30",
+        "match a with A::X -> match b with B::P -> 1 | B::Q -> 2 | A::Y -> 3",
+        "
+match a with
+| A::X ->
+    match b with
+    | B::P -> 1
+    | B::Q -> 2
+| A::Y -> 3",
+    );
 }
 
 #[test]
@@ -777,7 +909,7 @@ g (*a*/b*) y /* ! bang */",
     );
     // Directives keep working, and the result is stable.
     let file = "fn f() {\n    ml! {\n        (* rsmlfmt: pipe.force_break_at = 1 *)\n        x |> f\n    };\n}\n";
-    let rust = "fn f() {\n    ml! {\n        // rsmlfmt: pipe.force_break_at = 1\n        x\n        |> f\n    };\n}\n";
+    let rust = "fn f() {\n    ml! {\n    // rsmlfmt: pipe.force_break_at = 1\n    x\n    |> f\n    };\n}\n";
     check_file("comments = rust", file, rust);
     check_file("comments = rust", rust, rust);
 }
@@ -1334,8 +1466,24 @@ fn fuzz_phase5_findings() {
     // is read back: inside its groups.
     check_stable(
         "",
-        "let it = f () ;; // c\n\nopen std::cmp ;;\ngo 1",
-        "let it =\n  f () // c\n\nopen std::cmp ;;\ngo 1",
+        "let it = f () ;; // c\n\nuse std::cmp::*;\ngo 1",
+        "let it =\n  f () // c\n\nuse std::cmp::*;\ngo 1",
+    );
+}
+
+#[test]
+fn fuzz_comments_in_leading_paths() {
+    // A comment inside the path an expression starts with goes before the
+    // expression, where it is read back: the layout is the same twice.
+    check_stable(
+        "max_width = 30; arithmetic.force_break_at = 1",
+        "Expr::Var (String. (* c *) from name)",
+        "\nExpr::Var\n  ((* c *) String::from name)",
+    );
+    check_stable(
+        "",
+        "Expr::Let (String. // c\n from name, Box::new v, Box::new body)",
+        "\nExpr::Let (\n           // c\n           String::from name, Box::new v, Box::new body)",
     );
 }
 

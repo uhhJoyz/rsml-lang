@@ -29,13 +29,11 @@ fn shout(words: Vec<&str>) -> String {
 }
 
 /// The default greetings, shouted.
-pub fn shouted() -> String {
-    ml! {
-        // `() |> default_greetings |> shout` is
-        // `shout(default_greetings())`.
-        () |> default_greetings |> shout
-    }
-}
+pub fn shouted() -> String { ml! {
+    // `() |> default_greetings |> shout` is
+    // `shout(default_greetings())`.
+    () |> default_greetings |> shout
+}}
 
 /// A function that takes the unit value itself, as callbacks sometimes do.
 fn on_done(signal: ()) -> &'static str {
@@ -43,20 +41,16 @@ fn on_done(signal: ()) -> &'static str {
     "done"
 }
 
-pub fn finish() -> &'static str {
-    ml! {
-        // `(()) |> on_done` is `on_done(())`.
-        (()) |> on_done
-    }
-}
+pub fn finish() -> &'static str { ml! {
+    // `(()) |> on_done` is `on_done(())`.
+    (()) |> on_done
+}}
 
 /// "It worked", piped into a constructor.
-pub fn saved() -> Result<(), String> {
-    ml! {
-        // `() |> Ok` is `Ok(())`.
-        () |> Ok
-    }
-}
+pub fn saved() -> Result<(), String> { ml! {
+    // `() |> Ok` is `Ok(())`.
+    () |> Ok
+}}
 
 pub fn run() {
     println!("() |> default_greetings |> shout = {:?}", shouted());

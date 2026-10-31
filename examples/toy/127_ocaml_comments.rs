@@ -1,12 +1,12 @@
-// Toy 127: OCaml's comments, `(* .. *)`.
+// Toy 127: ML comments, `(* .. *)`.
 //
-// What it is: OCaml's comment, `(* like this *)`, works anywhere in OCaml
-// code, and nests as in OCaml: `1 + (* a (* b *) c *) 2` is `1 + 2`.
+// What it is: an ML comment, `(* like this *)`, works anywhere in rsml
+// code, and nests: `1 + (* a (* b *) c *) 2` is `1 + 2`.
 //
-// When to use it: when OCaml code should look like OCaml. Prefer `//`
-// and `/* */` (toy 126) otherwise: editors color `(* *)` as code, except
-// Neovim and Vim with this repository's files, and Rust's lexer reads a
-// `(* *)` comment before the macro does (below).
+// When to use it: when the code should look like ML throughout. Prefer
+// `//` and `/* */` (toy 126) otherwise: editors color `(* *)` as code,
+// except Neovim and Vim with this repository's files, and Rust's lexer
+// reads a `(* *)` comment before the macro does (below).
 //
 // How to write it:
 // * The text inside must be Rust tokens: an unbalanced `"` or bracket in
@@ -29,26 +29,22 @@ use rsml::ml;
 
 pub const SUMMARY: &str = "`(* .. *)` comments, nested; `( * )`, `( *x)` and `(**)` are not";
 
-/// The area of a rectangle, with OCaml comments around the code.
-pub fn area(w: u32, h: u32) -> u32 {
-    ml! {
-        (* width times height, in square metres *)
-        w * h (* no rounding needed (* integers *) *)
-    }
-}
+/// The area of a rectangle, with ML comments around the code.
+pub fn area(w: u32, h: u32) -> u32 { ml! {
+    (* width times height, in square metres *)
+    w * h (* no rounding needed (* integers *) *)
+}}
 
 /// The product of some numbers: `( * )` keeps its spaces.
-pub fn product(xs: &[u64]) -> u64 {
-    ml! { xs |> .iter() |> .copied() |> .fold(1, ( * )) (* one for none *) }
-}
+pub fn product(xs: &[u64]) -> u64 { ml! {
+    xs |> .iter() |> .copied() |> .fold(1, ( * )) (* one for none *)
+}}
 
 /// Twice what a reference points to: `( *x)`, never `(*x)`.
-pub fn twice(x: &u32) -> u32 {
-    ml! {
-        let double n = n * 2 in
-        double ( *x)
-    }
-}
+pub fn twice(x: &u32) -> u32 { ml! {
+    let double n = n * 2 in
+    double ( *x)
+}}
 
 /// A power, by the `**` section, which looks like an empty comment.
 pub fn power(base: f64, exp: f64) -> f64 {

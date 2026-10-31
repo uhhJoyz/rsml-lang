@@ -26,32 +26,26 @@ fn with_tax(rate: u32, price: u32) -> u32 {
 }
 
 /// Each price with 20% tax.
-pub fn with_vat(prices: &[u32]) -> Vec<u32> {
-    ml! {
-        external with_tax : u32 -> u32 -> u32 ;;
-        // Given `external with_tax : u32 -> u32 -> u32`, `with_tax 20` is
-        // `move |arg2| with_tax(20, arg2)`.
-        prices |> .iter() |> .copied() |> .map(with_tax 20) |> .collect()
-    }
-}
+pub fn with_vat(prices: &[u32]) -> Vec<u32> { ml! {
+    external with_tax : u32 -> u32 -> u32 ;;
+    // Given `external with_tax : u32 -> u32 -> u32`, `with_tax 20` is
+    // `move |arg2| with_tax(20, arg2)`.
+    prices |> .iter() |> .copied() |> .map(with_tax 20) |> .collect()
+}}
 
 /// The same, with the types left out.
-pub fn with_reduced_vat(prices: &[u32]) -> Vec<u32> {
-    ml! {
-        external with_tax : _ -> _ -> _ ;;
-        prices |> .iter() |> .copied() |> .map(with_tax 5) |> .collect()
-    }
-}
+pub fn with_reduced_vat(prices: &[u32]) -> Vec<u32> { ml! {
+    external with_tax : _ -> _ -> _ ;;
+    prices |> .iter() |> .copied() |> .map(with_tax 5) |> .collect()
+}}
 
 /// With both arguments, a known function is called as any other.
-pub fn one_price() -> u32 {
-    ml! {
-        external with_tax : _ -> _ -> _ ;;
-        // Given `external with_tax : _ -> _ -> _`,
-        // `with_tax 20 1000` is `with_tax(20, 1000)`.
-        with_tax 20 1000
-    }
-}
+pub fn one_price() -> u32 { ml! {
+    external with_tax : _ -> _ -> _ ;;
+    // Given `external with_tax : _ -> _ -> _`,
+    // `with_tax 20 1000` is `with_tax(20, 1000)`.
+    with_tax 20 1000
+}}
 
 // Without the `external`, `with_tax 20` is `with_tax(20)`: a call with one
 // argument, which rustc rejects (`with_tax` takes 2).

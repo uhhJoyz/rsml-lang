@@ -1,8 +1,8 @@
 // Toy 019: the arguments of a partial application are evaluated once.
 //
 // What it is: in `with_tax (lookup_rate &lookups)`, the argument is
-// computed when the partial application is made, as in OCaml, and the
-// closure keeps its value. A `fun` that makes the call itself computes it
+// computed when the partial application is made, and the closure keeps
+// its value. A `fun` that makes the call itself computes it
 // on every call.
 //
 // When to use it: when an argument is costly, or must be read once (a
@@ -35,11 +35,11 @@ fn lookup_rate(lookups: &Cell<u32>) -> u32 {
 pub fn partial(prices: &[u32]) -> (Vec<u32>, u32) {
     let lookups = Cell::new(0);
     let taxed = ml! {
-        let with_tax rate price = price + price * rate / 100 in
-        // `lookup_rate &lookups` runs here, once, whatever the number of
-        // prices.
-        let vat = with_tax (lookup_rate &lookups) in
-        prices |> .iter() |> .copied() |> .map(vat) |> .collect()
+    let with_tax rate price = price + price * rate / 100 in
+    // `lookup_rate &lookups` runs here, once, whatever the number of
+    // prices.
+    let vat = with_tax (lookup_rate &lookups) in
+    prices |> .iter() |> .copied() |> .map(vat) |> .collect()
     };
     (taxed, lookups.get())
 }
@@ -48,9 +48,9 @@ pub fn partial(prices: &[u32]) -> (Vec<u32>, u32) {
 pub fn lambda(prices: &[u32]) -> (Vec<u32>, u32) {
     let lookups = Cell::new(0);
     let taxed = ml! {
-        let with_tax rate price = price + price * rate / 100 in
-        let vat = fun price -> with_tax (lookup_rate &lookups) price in
-        prices |> .iter() |> .copied() |> .map(vat) |> .collect()
+    let with_tax rate price = price + price * rate / 100 in
+    let vat = fun price -> with_tax (lookup_rate &lookups) price in
+    prices |> .iter() |> .copied() |> .map(vat) |> .collect()
     };
     (taxed, lookups.get())
 }

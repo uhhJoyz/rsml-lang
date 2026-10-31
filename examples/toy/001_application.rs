@@ -1,6 +1,6 @@
 // Toy 001: application, `f x y`.
 //
-// What it is: OCaml applies a function by writing its arguments after it,
+// What it is: rsml applies a function by writing its arguments after it,
 // separated by spaces. There are no parentheses and no commas: `area 3 4`
 // calls `area` with 3 and 4.
 //
@@ -18,35 +18,29 @@ use rsml::ml;
 
 pub const SUMMARY: &str = "Juxtaposition: `area 3 4` calls `area` with two arguments";
 
-/// An ordinary Rust function: OCaml code calls it like any other.
+/// An ordinary Rust function: rsml code calls it like any other.
 fn area(width: i64, height: i64) -> i64 {
     width * height
 }
 
 /// The area of a 3 by 4 room.
-pub fn room_area() -> i64 {
-    ml! {
-        // `area 3 4` is `area(3, 4)`.
-        area 3 4
-    }
-}
+pub fn room_area() -> i64 { ml! {
+    // `area 3 4` is `area(3, 4)`.
+    area 3 4
+}}
 
 /// The larger of two numbers, through a function of the standard library.
-pub fn larger(a: i64, b: i64) -> i64 {
-    ml! {
-        // A path is a function like any other:
-        // `std::cmp::max a b` is `std::cmp::max(a, b)`.
-        std::cmp::max a b
-    }
-}
+pub fn larger(a: i64, b: i64) -> i64 { ml! {
+    // A path is a function like any other:
+    // `std::cmp::max a b` is `std::cmp::max(a, b)`.
+    std::cmp::max a b
+}}
 
 /// Arguments can be any literal or name: strings, characters, booleans.
-pub fn padded(word: &str) -> String {
-    ml! {
-        // `pad word '.' 6 true` is `pad(word, '.', 6, true)`.
-        pad word '.' 6 true
-    }
-}
+pub fn padded(word: &str) -> String { ml! {
+    // `pad word '.' 6 true` is `pad(word, '.', 6, true)`.
+    pad word '.' 6 true
+}}
 
 fn pad(word: &str, fill: char, width: usize, left: bool) -> String {
     let fill: String = std::iter::repeat_n(fill, width.saturating_sub(word.len())).collect();

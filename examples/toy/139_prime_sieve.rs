@@ -18,52 +18,52 @@ use rsml::rsml;
 pub const SUMMARY: &str = "A prime sieve: `while`, `<-` on elements, `ref`, slice patterns";
 
 rsml! {
-    /// The primes up to `limit`.
-    pub fn primes(limit: usize) -> Vec<usize> {
-        let mut is_prime = vec![true; limit + 1] in
-        let mut p = 2 in
-        while p * p <= limit do
-          if is_prime[p] then begin
-            // Cross out `p * p`, `p * p + p`, ..: the smaller multiples
-            // of `p` are already crossed out.
-            let m = ref (p * p) in
-            while !m <= limit do
-              is_prime[!m] <- false;
-              m := !m + p
-            done
-          end;
-          p <- p + 1
-        done;
-        // The filter's closure gets a reference: `!n` reads the index.
-        2..=limit |> .filter(fun n -> is_prime[!n]) |> .collect()
-    }
+/// The primes up to `limit`.
+pub fn primes(limit: usize) -> Vec<usize> {
+    let mut is_prime = vec![true; limit + 1] in
+    let mut p = 2 in
+    while p * p <= limit do
+      if is_prime[p] then begin
+        // Cross out `p * p`, `p * p + p`, ..: the smaller multiples
+        // of `p` are already crossed out.
+        let m = ref (p * p) in
+        while !m <= limit do
+          is_prime[!m] <- false;
+          m := !m + p
+        done
+      end;
+      p <- p + 1
+    done;
+    // The filter's closure gets a reference: `!n` reads the index.
+    2..=limit |> .filter(fun n -> is_prime[!n]) |> .collect()
+}
 
-    /// The prime factors of `n`, smallest first.
-    pub fn factors(n: u64) -> Vec<u64> {
-        let mut n = n in
-        let mut d = 2 in
-        let mut out = Vec.new () in
-        while d * d <= n do
-          if n mod d = 0 then begin
-            out.push(d);
-            n <- n / d
-          end
-          else
-            d <- d + 1
-        done;
-        if n > 1 then out.push(n);
-        out
-    }
+/// The prime factors of `n`, smallest first.
+pub fn factors(n: u64) -> Vec<u64> {
+    let mut n = n in
+    let mut d = 2 in
+    let mut out = Vec.new () in
+    while d * d <= n do
+      if n mod d = 0 then begin
+        out.push(d);
+        n <- n / d
+      end
+      else
+        d <- d + 1
+    done;
+    if n > 1 then out.push(n);
+    out
+}
 
-    /// The pairs of primes two apart, up to `limit`.
-    pub fn twins(limit: usize) -> Vec<(usize, usize)> {
-        // `.windows(2)` gives slices of two primes; the `function` takes
-        // one apart with the list pattern `[a; b]` (toy 070).
-        primes limit
-        |> .windows(2)
-        |> .filter_map(function [a; b] when !b - !a = 2 -> Some (!a, !b) | _ -> None)
-        |> .collect()
-    }
+/// The pairs of primes two apart, up to `limit`.
+pub fn twins(limit: usize) -> Vec<(usize, usize)> {
+    // `.windows(2)` gives slices of two primes; the `function` takes
+    // one apart with the list pattern `[a; b]` (toy 070).
+    primes limit
+    |> .windows(2)
+    |> .filter_map(function [a; b] when !b - !a = 2 -> Some (!a, !b) | _ -> None)
+    |> .collect()
+}
 }
 
 pub fn run() {

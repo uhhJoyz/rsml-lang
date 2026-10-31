@@ -35,9 +35,9 @@ fn convert(rate: u32, amount: u32) -> u32 {
 pub fn with_placeholder(amounts: &[u32]) -> (Vec<u32>, u32) {
     let reads = Cell::new(0);
     let converted = ml! {
-        // `rate &reads` runs here, once.
-        let to_euros = convert (rate &reads) _ in
-        amounts |> .iter() |> .map(fun a -> to_euros !a) |> .collect()
+    // `rate &reads` runs here, once.
+    let to_euros = convert (rate &reads) _ in
+    amounts |> .iter() |> .map(fun a -> to_euros !a) |> .collect()
     };
     (converted, reads.get())
 }
@@ -46,8 +46,8 @@ pub fn with_placeholder(amounts: &[u32]) -> (Vec<u32>, u32) {
 pub fn with_fun(amounts: &[u32]) -> (Vec<u32>, u32) {
     let reads = Cell::new(0);
     let converted = ml! {
-        let to_euros = fun a -> convert (rate &reads) a in
-        amounts |> .iter() |> .map(fun a -> to_euros !a) |> .collect()
+    let to_euros = fun a -> convert (rate &reads) a in
+    amounts |> .iter() |> .map(fun a -> to_euros !a) |> .collect()
     };
     (converted, reads.get())
 }

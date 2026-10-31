@@ -1,6 +1,6 @@
 // Toy 078: `if c then a else b`.
 //
-// What it is: OCaml's conditional, an expression with a value like Rust's
+// What it is: the conditional, an expression with a value like Rust's
 // `if c { a } else { b }`. Without `else` it is a statement: its `then`
 // branch must be `()`, the unit value.
 //
@@ -21,36 +21,30 @@ use rsml::ml;
 pub const SUMMARY: &str = "`if c then a else b`, `else if` chains, `if` without `else`";
 
 /// Shipping costs nothing above 100.
-pub fn shipping(total: u32) -> u32 {
-    ml! {
-        // `if c then a else b` is `if c { a } else { b }`.
-        if total > 100 then 0 else 5
-    }
-}
+pub fn shipping(total: u32) -> u32 { ml! {
+    // `if c then a else b` is `if c { a } else { b }`.
+    if total > 100 then 0 else 5
+}}
 
 /// The sign of a number, in words.
-pub fn sign(n: i64) -> &'static str {
-    ml! {
-        // `if n < 0 then "-" else if n = 0 then "0" else "+"` is
-        // `if n < 0 { "-" } else if n == 0 { "0" } else { "+" }`.
-        if n < 0 then "negative" else if n = 0 then "zero" else "positive"
-    }
-}
+pub fn sign(n: i64) -> &'static str { ml! {
+    // `if n < 0 then "-" else if n = 0 then "0" else "+"` is
+    // `if n < 0 { "-" } else if n == 0 { "0" } else { "+" }`.
+    if n < 0 then "negative" else if n = 0 then "zero" else "positive"
+}}
 
 /// The warnings for an order: `if` without `else` for the optional ones.
-pub fn warnings(total: u32, items: usize) -> Vec<&'static str> {
-    ml! {
-        let mut out = Vec.new () in
-        // `if c then log x; log y` is `{ if c { log(x) }; log(y) }`:
-        // only the first step is conditional.
-        if total = 0 then out.push("empty order");
-        if items > 10 then begin
-          out.push("many items");
-          out.push("check the stock")
-        end;
-        out
-    }
-}
+pub fn warnings(total: u32, items: usize) -> Vec<&'static str> { ml! {
+    let mut out = Vec.new () in
+    // `if c then log x; log y` is `{ if c { log(x) }; log(y) }`:
+    // only the first step is conditional.
+    if total = 0 then out.push("empty order");
+    if items > 10 then begin
+      out.push("many items");
+      out.push("check the stock")
+    end;
+    out
+}}
 
 pub fn run() {
     println!(

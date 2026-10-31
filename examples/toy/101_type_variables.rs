@@ -1,6 +1,6 @@
 // Toy 101: type variables, `'a`, in `let rec` signatures.
 //
-// What it is: OCaml writes "any type" as `'a`, `'b`, .. In a `let rec`
+// What it is: "any type" is written `'a`, `'b`, .. In a `let rec`
 // signature each one becomes a generic parameter of the nested `fn`:
 // `let rec id (x : 'a) : 'a = x in id` is `{ fn id<A>(x: A) -> A { x } id }`.
 // Inside other types too: `let rec count (xs : Vec<'a>) : usize =
@@ -27,28 +27,26 @@ use rsml::ml;
 pub const SUMMARY: &str = "`let rec len (xs : &['a]) : usize`: `'a` becomes a generic parameter";
 
 /// The lengths of a list of numbers and a list of words, by one function.
-pub fn lengths(numbers: &[i64], words: &[&str]) -> (usize, usize) {
-    ml! {
-        // `len` is generic, so it takes both kinds of slice.
-        let rec len (xs : &['a]) : usize = match xs with [] -> 0 | _ :: rest -> 1 + len rest in
-        (len numbers, len words)
-    }
-}
+pub fn lengths(numbers: &[i64], words: &[&str]) -> (usize, usize) { ml! {
+    // `len` is generic, so it takes both kinds of slice.
+    let rec len (xs : &['a]) : usize = match xs with [] -> 0 | _ :: rest -> 1 + len rest in
+    (len numbers, len words)
+}}
 
 /// Two lists reversed by one generic function that moves the items.
 pub fn reversed(numbers: Vec<i64>, words: Vec<&'static str>) -> (Vec<i64>, Vec<&'static str>) {
     ml! {
-        // Each item moves from the end of `from` onto the end of `into`.
-        let rec move_all (from : Vec<'a>) (into : Vec<'a>) : Vec<'a> =
-          let mut from = from in
-          let mut into = into in
-          match from.pop() with
-          | None -> into
-          | Some x ->
-              into.push(x);
-              move_all from into
-        in
-        (move_all numbers [], move_all words [])
+    // Each item moves from the end of `from` onto the end of `into`.
+    let rec move_all (from : Vec<'a>) (into : Vec<'a>) : Vec<'a> =
+      let mut from = from in
+      let mut into = into in
+      match from.pop() with
+      | None -> into
+      | Some x ->
+          into.push(x);
+          move_all from into
+    in
+    (move_all numbers [], move_all words [])
     }
 }
 
@@ -82,8 +80,8 @@ mod tests {
         // Inside the block `id` is generic; the value the block returns
         // would be `id` at one type.
         let pair = ml! {
-            let rec id (x : 'a) : 'a = x in
-            (id 5, id "five")
+        let rec id (x : 'a) : 'a = x in
+        (id 5, id "five")
         };
         assert_eq!(pair, (5, "five"));
     }

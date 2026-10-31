@@ -20,41 +20,33 @@ use rsml::ml;
 pub const SUMMARY: &str = "Tuple patterns: `match (x, y) with (0, _) -> ..`, `let (h, m) = ..`";
 
 /// Where a point lies on a grid.
-pub fn place(x: i64, y: i64) -> &'static str {
-    ml! {
-        // `match (x, y) with (0, 0) -> "origin" | _ -> "plane"` is
-        // `match (x, y) { (0, 0) => "origin", _ => "plane", }`.
-        match (x, y) with (0, 0) -> "origin" | (0, _) | (_, 0) -> "on an axis" | _ -> "elsewhere"
-    }
-}
+pub fn place(x: i64, y: i64) -> &'static str { ml! {
+    // `match (x, y) with (0, 0) -> "origin" | _ -> "plane"` is
+    // `match (x, y) { (0, 0) => "origin", _ => "plane", }`.
+    match (x, y) with (0, 0) -> "origin" | (0, _) | (_, 0) -> "on an axis" | _ -> "elsewhere"
+}}
 
 /// Minutes as hours and minutes, `2h05`.
-pub fn clock(minutes: u32) -> String {
-    ml! {
-        // `let (h, m) = (minutes / 60, minutes mod 60) in h` is
-        // `{ let (h, m) = (minutes / 60, minutes % 60); h }`.
-        let (h, m) = (minutes / 60, minutes mod 60) in
-        format!("{h}h{m:02}")
-    }
-}
+pub fn clock(minutes: u32) -> String { ml! {
+    // `let (h, m) = (minutes / 60, minutes mod 60) in h` is
+    // `{ let (h, m) = (minutes / 60, minutes % 60); h }`.
+    let (h, m) = (minutes / 60, minutes mod 60) in
+    format!("{h}h{m:02}")
+}}
 
 /// How many items are in stock: the closure takes each pair apart.
-pub fn in_stock(stock: &[(&str, u32)]) -> u32 {
-    ml! {
-        // `(_, n)` ignores the name; `n` has type `&u32` (the pairs are
-        // borrowed), so `!n` reads it.
-        stock.iter().map(fun (_, n) -> !n).sum::<u32>()
-    }
-}
+pub fn in_stock(stock: &[(&str, u32)]) -> u32 { ml! {
+    // `(_, n)` ignores the name; `n` has type `&u32` (the pairs are
+    // borrowed), so `!n` reads it.
+    stock.iter().map(fun (_, n) -> !n).sum::<u32>()
+}}
 
 /// Swaps the two halves of a pair.
-pub fn swap(pair: (char, u8)) -> (u8, char) {
-    ml! {
-        // `fun (a, b) -> (b, a)` is `move |(a, b)| (b, a)`; applied on the
-        // spot, it is a `let` (toy 014).
-        (fun (a, b) -> (b, a)) pair
-    }
-}
+pub fn swap(pair: (char, u8)) -> (u8, char) { ml! {
+    // `fun (a, b) -> (b, a)` is `move |(a, b)| (b, a)`; applied on the
+    // spot, it is a `let` (toy 014).
+    (fun (a, b) -> (b, a)) pair
+}}
 
 pub fn run() {
     println!(

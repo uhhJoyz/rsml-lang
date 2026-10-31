@@ -20,43 +20,43 @@ use rsml::rsml;
 pub const SUMMARY: &str = "FizzBuzz: a `match` on a tuple, `mod`, a range and pipes";
 
 rsml! {
-    /// The word for one number.
-    pub fn word(n: u32) -> String {
-        // `n mod 3` is `n % 3`; the pair is matched position by position,
-        // and the first case that fits wins.
-        match (n mod 3, n mod 5) with
-        | (0, 0) -> String.from "FizzBuzz"
-        | (0, _) -> String.from "Fizz"
-        | (_, 0) -> String.from "Buzz"
-        | _ -> n.to_string()
-    }
+/// The word for one number.
+pub fn word(n: u32) -> String {
+    // `n mod 3` is `n % 3`; the pair is matched position by position,
+    // and the first case that fits wins.
+    match (n mod 3, n mod 5) with
+    | (0, 0) -> String.from "FizzBuzz"
+    | (0, _) -> String.from "Fizz"
+    | (_, 0) -> String.from "Buzz"
+    | _ -> n.to_string()
+}
 
-    /// The words for 1 to `last`, separated by spaces.
-    pub fn line(last: u32) -> String {
-        // A range binds tighter than `|>`:
-        // `1..=last |> .map(word)` is `(1..=last).map(word)`.
-        // The gotcha: `xs |> .join " "` is `" ".join(xs)`, since the
-        // receiver of `.join` is its first argument; the method section
-        // `.join(" ")` waits for its receiver (toy 048).
-        1..=last |> .map(word) |> .collect::<Vec<_>>() |> .join(" ")
-    }
+/// The words for 1 to `last`, separated by spaces.
+pub fn line(last: u32) -> String {
+    // A range binds tighter than `|>`:
+    // `1..=last |> .map(word)` is `(1..=last).map(word)`.
+    // The gotcha: `xs |> .join " "` is `" ".join(xs)`, since the
+    // receiver of `.join` is its first argument; the method section
+    // `.join(" ")` waits for its receiver (toy 048).
+    1..=last |> .map(word) |> .collect::<Vec<_>>() |> .join(" ")
+}
 
-    /// How many of 1 to `last` are Fizz, Buzz and FizzBuzz.
-    pub fn tally(last: u32) -> (u32, u32, u32) {
-        let fizz = ref 0 in
-        let buzz = ref 0 in
-        let both = ref 0 in
-        for n = 1 to last do
-          // A `String` is matched against string literals (toy 077), and
-          // `incr both` adds one to the `ref` (toy 089).
-          match word n with
-          | "FizzBuzz" -> incr both
-          | "Fizz" -> incr fizz
-          | "Buzz" -> incr buzz
-          | _ -> ()
-        done;
-        (!fizz, !buzz, !both)
-    }
+/// How many of 1 to `last` are Fizz, Buzz and FizzBuzz.
+pub fn tally(last: u32) -> (u32, u32, u32) {
+    let fizz = ref 0 in
+    let buzz = ref 0 in
+    let both = ref 0 in
+    for n = 1 to last do
+      // A `String` is matched against string literals (toy 077), and
+      // `incr both` adds one to the `ref` (toy 089).
+      match word n with
+      | "FizzBuzz" -> incr both
+      | "Fizz" -> incr fizz
+      | "Buzz" -> incr buzz
+      | _ -> ()
+    done;
+    (!fizz, !buzz, !both)
+}
 }
 
 pub fn run() {

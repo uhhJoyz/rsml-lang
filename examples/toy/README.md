@@ -25,14 +25,14 @@ documentation:
 
 ```rust
 // `x |> f a` is `f(a, x)`.          (the Rust it expands to)
-// `1 :: [2; 3]` is `[1; 2; 3]`.     (or OCaml with the same expansion)
+// `1 :: [2; 3]` is `[1; 2; 3]`.     (or rsml code with the same expansion)
 // Given `external add : _ -> _ -> _`, `add 1` is `move |arg2| add(1, arg2)`.
-// `x += 1` is an error: "OCaml has no `+=`"
+// `x += 1` is an error: "rsml has no `+=`"
 ```
 
 * A claim is two code spans joined by "is" (or "is always", "becomes",
   "would be", "stays", ..): the second is the expansion of the first as
-  rustc sees it, or OCaml that expands to the same Rust, up to the names
+  rustc sees it, or rsml code that expands to the same Rust, up to the names
   of closure parameters.
 * "Given", a code span and a comma, before claims in the same comment,
   puts that code and `;;` before both of their sides: an `external`
@@ -112,8 +112,8 @@ every toy once with its `SUMMARY`, and that main.rs registers each.
 | 057 | [constructor_values](057_constructor_values.rs) | `Some(x).unwrap()` vs `Some (x).unwrap()`; `f Some(x) y` | [Rust-style calls and indexing](../../docs/notation.md#rust-style-calls-and-indexing-fa-b-vi) |
 | 058 | [rust_paths](058_rust_paths.rs) | Paths `std::mem::swap a b`, `::std::cmp::max`, `u8::MAX`, turbofish | [Paths](../../docs/notation.md#paths) |
 | 059 | [dotted_paths](059_dotted_paths.rs) | Dotted paths `Vec.new ()`, `Level.High`; `h::t` with a bound `h` | [Paths](../../docs/notation.md#paths) |
-| 060 | [open](060_open.rs) | `open std::cmp ;;`: Rust's `use std::cmp::*;` for the rest of the block | [Local functions and bindings](../../docs/notation.md#local-functions-and-bindings) |
-| 061 | [let_open](061_let_open.rs) | `let open std::f64::consts in PI *. r *. r`: names for one expression | [Local functions and bindings](../../docs/notation.md#local-functions-and-bindings) |
+| 060 | [use_items](060_use_items.rs) | `use std::cmp::{max, min};`: Rust's `use` for the rest of the block | [Local functions and bindings](../../docs/notation.md#local-functions-and-bindings) |
+| 061 | [use_in_expressions](061_use_in_expressions.rs) | `(use std::cmp::max; max a b) + bonus`: names for one expression | [Local functions and bindings](../../docs/notation.md#local-functions-and-bindings) |
 | 062 | [cons](062_cons.rs) | `x :: xs` puts `x` in front of a `Vec`; `1 :: [2; 3]` is a literal | [Operators that become calls](../../docs/notation.md#operators-that-become-calls) |
 | 063 | [append](063_append.rs) | `morning @ evening` joins two lists | [Operators that become calls](../../docs/notation.md#operators-that-become-calls) |
 | 064 | [string_concat](064_string_concat.rs) | `"Dear " ^ name ^ ","` builds a `String` | [Operators that become calls](../../docs/notation.md#operators-that-become-calls) |
@@ -126,7 +126,7 @@ every toy once with its `SUMMARY`, and that main.rs registers each.
 | 071 | [record_patterns](071_record_patterns.rs) | Record patterns: `Order { item; qty = 0; _ }`, `let Order { .. } = o` | [Patterns](../../docs/notation.md#patterns) |
 | 072 | [or_patterns](072_or_patterns.rs) | Or-patterns: `'a' \| 'e' -> ..`, `Some 0 \| None -> ..`, `(0, k) \| (k, 0)` | [Patterns](../../docs/notation.md#patterns) |
 | 073 | [as_patterns](073_as_patterns.rs) | `as` patterns: `Some n as found`, `x :: _ as all` name the whole | [Patterns](../../docs/notation.md#patterns) |
-| 074 | [guards](074_guards.rs) | Guards: `s when s >= 90 -> "A"`, `(a, b) when a = b -> ..` | [Patterns](../../docs/notation.md#patterns) |
+| 074 | [guards](074_guards.rs) | Guards: `s when s >= 90 -> "A"`, `(a, b) when a = b -> ..`, `a if a < 12 -> ..` | [Patterns](../../docs/notation.md#patterns) |
 | 075 | [range_patterns](075_range_patterns.rs) | Range patterns: `'a'..='z'` includes its end, `0..10` leaves it out, as in Rust | [Patterns](../../docs/notation.md#patterns) |
 | 076 | [reference_patterns](076_reference_patterns.rs) | Reference patterns: `for &x in ..`, `fun (&x) -> ..`, `let &x = r in` | [Patterns](../../docs/notation.md#patterns) |
 | 077 | [literal_patterns](077_literal_patterns.rs) | Literal patterns: `"yes"` (on a String too), `-1`, `'\\n'`, `i32::MAX` | [Patterns](../../docs/notation.md#patterns) |
@@ -152,36 +152,36 @@ every toy once with its `SUMMARY`, and that main.rs registers each.
 | 097 | [arrays](097_arrays.rs) | Arrays: `[\|a; b\|]` is `[a, b]`; array patterns `[\|r; g; b\|]` | [Records and collections](../../docs/notation.md#records-and-collections) |
 | 098 | [tuples](098_tuples.rs) | Tuples: `(q, r)`, `p.0`, `let (q, r) = .. in`, `f (a, b)` | [Records and collections](../../docs/notation.md#records-and-collections) |
 | 099 | [type_annotations](099_type_annotations.rs) | `(e : t)`, `let x : t = ..`, `fun (x : t) -> ..`: Rust types | [Types](../../docs/notation.md#types) |
-| 100 | [function_and_tuple_types](100_function_and_tuple_types.rs) | Types with OCaml's `*` and `->`: `u32 * &str`, `u32 -> u32` | [Types](../../docs/notation.md#types) |
+| 100 | [function_and_tuple_types](100_function_and_tuple_types.rs) | Types with `*` and `->`: `u32 * &str`, `u32 -> u32` | [Types](../../docs/notation.md#types) |
 | 101 | [type_variables](101_type_variables.rs) | `let rec len (xs : &['a]) : usize`: `'a` becomes a generic parameter | [Types](../../docs/notation.md#types) |
 | 102 | [lifetimes](102_lifetimes.rs) | Lifetimes: `(s : &'a str)` in a `fn f<'a>`, `&'static str` | [Types](../../docs/notation.md#types) |
 | 103 | [turbofish](103_turbofish.rs) | Turbofish: `.parse::<i32>()`, `.sum::<i64>`, `Vec::<u8>::new ()` | [Types](../../docs/notation.md#types) |
-| 104 | [println](104_println.rs) | `println!("{} items", items \|> .len)`: macro arguments are OCaml | [Macros](../../docs/notation.md#macros) |
+| 104 | [println](104_println.rs) | `println!("{} items", items \|> .len)`: macro arguments are rsml | [Macros](../../docs/notation.md#macros) |
 | 105 | [format_named_arguments](105_format_named_arguments.rs) | `format!("{} {x}", f a, x = g b)`; `(a = b)` to compare | [Macros](../../docs/notation.md#macros) |
 | 106 | [assert_macros](106_assert_macros.rs) | `assert_eq!(add 1 2, 3)`, `assert!(not (xs.is_empty()))` | [Macros](../../docs/notation.md#macros) |
 | 107 | [vec_macro](107_vec_macro.rs) | `vec![0; n + 1]` repeats, `vec![f 1, g 2]` lists | [Macros](../../docs/notation.md#macros) |
 | 108 | [write_macro](108_write_macro.rs) | `write!(out, "{}", f x)?`; other macros (`matches!`) take Rust | [Macros](../../docs/notation.md#macros) |
-| 109 | [rsml_functions](109_rsml_functions.rs) | `rsml! { fn .. }`: Rust signatures, OCaml bodies | [Arity and partial application](../../docs/notation.md#arity-and-partial-application) |
-| 110 | [rsml_impl](110_rsml_impl.rs) | `impl` in `rsml!`: `&self`/`&mut self` methods with OCaml bodies | [Arity and partial application](../../docs/notation.md#arity-and-partial-application) |
-| 111 | [rsml_trait](111_rsml_trait.rs) | A `trait` with an OCaml default method, and its `impl`s | [Arity and partial application](../../docs/notation.md#arity-and-partial-application) |
+| 109 | [rsml_functions](109_rsml_functions.rs) | `rsml! { fn .. }`: Rust signatures, rsml bodies | [Arity and partial application](../../docs/notation.md#arity-and-partial-application) |
+| 110 | [rsml_impl](110_rsml_impl.rs) | `impl` in `rsml!`: `&self`/`&mut self` methods with rsml bodies | [Arity and partial application](../../docs/notation.md#arity-and-partial-application) |
+| 111 | [rsml_trait](111_rsml_trait.rs) | A `trait` with an rsml default method, and its `impl`s | [Arity and partial application](../../docs/notation.md#arity-and-partial-application) |
 | 112 | [rsml_generics_where](112_rsml_generics_where.rs) | Generic `rsml!` functions: `<T: Display>` and `where` clauses | [Arity and partial application](../../docs/notation.md#arity-and-partial-application) |
-| 113 | [rsml_closure_parameters](113_rsml_closure_parameters.rs) | `&dyn Fn`, `F: Fn(..)`, `where F: Fn(..)` parameters, applied OCaml style | [Arity and partial application](../../docs/notation.md#arity-and-partial-application) |
+| 113 | [rsml_closure_parameters](113_rsml_closure_parameters.rs) | `&dyn Fn`, `F: Fn(..)`, `where F: Fn(..)` parameters, applied ML style | [Arity and partial application](../../docs/notation.md#arity-and-partial-application) |
 | 114 | [sibling_arity](114_sibling_arity.rs) | Functions of one `rsml!` are known: `with_tax 20` is partial | [Arity and partial application](../../docs/notation.md#arity-and-partial-application) |
 | 115 | [self_and_type_names](115_self_and_type_names.rs) | `Self::new 0 0` in the `impl`, `Money::new 5` partial outside | [Arity and partial application](../../docs/notation.md#arity-and-partial-application) |
 | 116 | [nested_modules](116_nested_modules.rs) | `mod` in `rsml!`: `use super::*` brings the parent's arities along | [Arity and partial application](../../docs/notation.md#arity-and-partial-application) |
-| 117 | [async_and_const_fn](117_async_and_const_fn.rs) | `async fn` and `const fn` in `rsml!`, OCaml bodies | [Arity and partial application](../../docs/notation.md#arity-and-partial-application) |
+| 117 | [async_and_const_fn](117_async_and_const_fn.rs) | `async fn` and `const fn` in `rsml!`, rsml bodies | [Arity and partial application](../../docs/notation.md#arity-and-partial-application) |
 | 118 | [rust_attribute](118_rust_attribute.rs) | `#[rust]` keeps a function's body Rust inside `rsml!` | [Arity and partial application](../../docs/notation.md#arity-and-partial-application) |
 | 119 | [question_mark](119_question_mark.rs) | Rust's `?`: `s.parse::<u32>()?`, `(parse s)?`, `words.first()?` | [Rust-style methods, fields and calls](../../docs/notation.md#rust-style-methods-fields-and-calls) |
 | 120 | [await_futures](120_await_futures.rs) | `price(item).await`, `fut \|> .await`, `async move { e }` | [Methods as functions: .name](../../docs/notation.md#methods-as-functions-name) |
-| 121 | [unsafe_blocks](121_unsafe_blocks.rs) | `unsafe { e }` with OCaml inside: `unsafe { text_of bytes }` | [Control flow](../../docs/notation.md#control-flow) |
+| 121 | [unsafe_blocks](121_unsafe_blocks.rs) | `unsafe { e }` with rsml code inside: `unsafe { text_of bytes }` | [Control flow](../../docs/notation.md#control-flow) |
 | 122 | [raw_identifiers](122_raw_identifiers.rs) | Raw names `r#match`, `t.r#type`; reserved words: `let gen = ..` | [Rust habits](../../docs/notation.md#rust-habits) |
 | 123 | [as_casts](123_as_casts.rs) | Casts: `total as f64 /. count as f64`, `c as u8 - b'a'` | [Operators that become calls](../../docs/notation.md#operators-that-become-calls) |
 | 124 | [whole_file](124_whole_file.rs) | A whole module in one flush-left `rsml::rsml! { .. }` | [Arity and partial application](../../docs/notation.md#arity-and-partial-application) |
-| 125 | [whole_file_tests](125_whole_file_tests.rs) | A whole file whose tests are OCaml, with a `#[rust]` function | [Macros](../../docs/notation.md#macros) |
-| 126 | [rust_comments](126_rust_comments.rs) | `//` and `/* */` in OCaml code; `///` documents `rsml!` items | [Comments](../../docs/notation.md#comments) |
+| 125 | [whole_file_tests](125_whole_file_tests.rs) | A whole file whose tests are rsml code, with a `#[rust]` function | [Macros](../../docs/notation.md#macros) |
+| 126 | [rust_comments](126_rust_comments.rs) | `//` and `/* */` in rsml code; `///` documents `rsml!` items | [Comments](../../docs/notation.md#comments) |
 | 127 | [ocaml_comments](127_ocaml_comments.rs) | `(* .. *)` comments, nested; `( * )`, `( *x)` and `(**)` are not | [Comments](../../docs/notation.md#comments) |
 | 128 | [rsmlfmt_directives](128_rsmlfmt_directives.rs) | `// rsmlfmt: skip`, `(* rsmlfmt: max_width = 40 *)` per block | [Comments](../../docs/notation.md#comments) |
-| 129 | [rust_habits_expressions](129_rust_habits_expressions.rs) | Rust habits rejected: `\|x\| e`, `if let`, `match {}`, `+=`, `!` for not | [Rust habits](../../docs/notation.md#rust-habits) |
+| 129 | [rust_habits_expressions](129_rust_habits_expressions.rs) | Rust habits rejected: `if let`, `match {}`, `+=`, `!` for not; `\|x\| e` is accepted | [Rust habits](../../docs/notation.md#rust-habits) |
 | 130 | [rust_habits_blocks](130_rust_habits_blocks.rs) | Rust habits rejected: `{ a; b }`, `[1, 2]`, `let x = e;`, `fn f x` | [Rust habits](../../docs/notation.md#rust-habits) |
 | 131 | [fizzbuzz](131_fizzbuzz.rs) | FizzBuzz: a `match` on a tuple, `mod`, a range and pipes | [Patterns](../../docs/notation.md#patterns) |
 | 132 | [word_count](132_word_count.rs) | Word count: a cleaning pipeline, a counting loop, a sort | [Methods as functions: .name](../../docs/notation.md#methods-as-functions-name) |

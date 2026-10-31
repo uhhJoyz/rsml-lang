@@ -2,10 +2,10 @@
 //
 // What it is: an `rsml!` function's signature is Rust, so it can have
 // generic parameters with bounds (`<T: Display>`) and `where` clauses; the
-// body is OCaml and uses them as Rust code would.
+// body is rsml code and uses them as Rust code would.
 //
-// When to use it: whenever a function works for many types. OCaml's own
-// type variables (`'a` in a `let rec`, toy 101) become generic parameters
+// When to use it: whenever a function works for many types. Type
+// variables (`'a` in a `let rec`, toy 101) become generic parameters
 // too, but they cannot have bounds: a bound needs a Rust signature.
 //
 // How to write it:
@@ -21,32 +21,32 @@ use rsml::rsml;
 pub const SUMMARY: &str = "Generic `rsml!` functions: `<T: Display>` and `where` clauses";
 
 rsml! {
-    use std::fmt::Display;
+use std::fmt::Display;
 
-    /// Items of any `Display` type, joined into one line.
-    pub fn joined<T: Display>(items: &[T], sep: &str) -> String {
-        items |> .iter() |> .map(fun x -> x.to_string()) |> .collect::<Vec<_>>() |> .join(sep)
-    }
+/// Items of any `Display` type, joined into one line.
+pub fn joined<T: Display>(items: &[T], sep: &str) -> String {
+    items |> .iter() |> .map(fun x -> x.to_string()) |> .collect::<Vec<_>>() |> .join(sep)
+}
 
-    /// The largest item, for any type that can be compared and copied.
-    pub fn largest<T>(items: &[T]) -> Option<T>
-    where
-        T: PartialOrd + Copy,
-    {
-        // `fun best x -> ..` gets its types from `fold`: `Option<T>`, `T`.
-        items
-        |> .iter()
-        |> .copied()
-        |> .fold(None, fun best x -> match best with Some b when b >= x -> Some b | _ -> Some x)
-    }
+/// The largest item, for any type that can be compared and copied.
+pub fn largest<T>(items: &[T]) -> Option<T>
+where
+    T: PartialOrd + Copy,
+{
+    // `fun best x -> ..` gets its types from `fold`: `Option<T>`, `T`.
+    items
+    |> .iter()
+    |> .copied()
+    |> .fold(None, fun best x -> match best with Some b when b >= x -> Some b | _ -> Some x)
+}
 
-    /// The sum of anything that iterates over `i64`s.
-    pub fn total<I>(numbers: I) -> i64
-    where
-        I: IntoIterator<Item = i64>,
-    {
-        numbers |> .into_iter |> .sum
-    }
+/// The sum of anything that iterates over `i64`s.
+pub fn total<I>(numbers: I) -> i64
+where
+    I: IntoIterator<Item = i64>,
+{
+    numbers |> .into_iter |> .sum
+}
 }
 
 pub fn run() {

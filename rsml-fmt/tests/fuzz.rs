@@ -396,7 +396,9 @@ impl Gen<'_> {
                 "&x",
                 "Point { x; _ }",
                 "p when p > 0",
+                "p if p > 0",
                 "Shape::Rect(w, h)",
+                "Shape::Circle r",
             ])
             .to_string()
     }
@@ -423,10 +425,18 @@ impl Gen<'_> {
                 self.expr(d)
             ),
             8 => format!("let rec go (n : i64) : i64 = {} in go 1", self.expr(d)),
-            9 => format!(
+            9 if self.rng.below(2) == 0 => format!(
                 "fun {} -> {}",
                 self.rng
                     .pick(&["x", "x y", "(x : i64)", "()", "move x", "(a, b)"]),
+                self.expr(d)
+            ),
+            // Rust's spelling of the same closures.
+            9 => format!(
+                "{} {}",
+                self.rng.pick(&[
+                    "|x|", "|x, y|", "|x: i64|", "||", "move |x|", "|(a, b)|", "|&x|"
+                ]),
                 self.expr(d)
             ),
             10 => format!(
@@ -437,6 +447,15 @@ impl Gen<'_> {
             ),
             11 => format!(
                 "if {} then {} else {}",
+                self.expr(d),
+                self.expr(d),
+                self.expr(d)
+            ),
+            12 if self.rng.below(3) == 0 => format!(
+                // Nested without parentheses: `A::Y` is the outer `match`'s.
+                "match {} with A::X -> match {} with B::P -> {} | _ -> {} | A::Y -> {}",
+                self.expr(d),
+                self.expr(d),
                 self.expr(d),
                 self.expr(d),
                 self.expr(d)
@@ -469,7 +488,7 @@ impl Gen<'_> {
             ),
             20 => format!("return {}", self.expr(d)),
             21 => format!("({} : i64 -> i64)", self.expr(d)),
-            22 => format!("let open std::cmp in {}", self.expr(d)),
+            22 => format!("use std::cmp::*; {}", self.expr(d)),
             23 => format!(
                 "not {} || -{} < -. {}",
                 self.atom(d),

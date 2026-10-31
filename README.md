@@ -1,12 +1,13 @@
 # rsml
 
-OCaml syntax inside Rust function bodies, with Rust's names and types.
-`ml! { .. }` is a procedural macro that parses OCaml and lowers it, at
-compile time, to the Rust you would have written by hand: pipelines become
-nested calls, partial applications and compositions become ordinary
-closures, and there is no runtime library behind them. There is no OCaml
-standard library either: you call Rust's functions, methods and macros by
-their Rust names, and every type is a Rust type.
+ML-style syntax inside Rust function bodies, with Rust's names and types.
+`ml! { .. }` is a procedural macro that parses rsml code (pipelines,
+curried calls, `let .. in`, `match .. with`) and lowers it, at compile
+time, to the Rust you would have written by hand: pipelines become nested
+calls, partial applications and compositions become ordinary closures, and
+there is no runtime library behind them. There is no standard library of
+its own either: you call Rust's functions, methods and macros by their Rust
+names, and every type is a Rust type.
 
 ```rust
 use rsml::ml;
@@ -25,6 +26,10 @@ fn sum_of_odd_squares(xs: &[i64]) -> i64 {
 assert_eq!(sum_of_odd_squares(&[1, 2, 3, 4, 5]), 35);
 ```
 
+The syntax started as OCaml's; where the two languages give a notation
+different meanings, rsml takes Rust's, and Rust's own spellings work where
+they do not clash (`|x| e` closures, `if` guards, `f(a, b)` calls).
+
 This page is an overview. [docs/notation.md](https://github.com/uhhJoyz/rsml-lang/blob/main/docs/notation.md) is the
 reference for every functional notation, with its expansion and where an
 editor completes it; [docs/editors.md](https://github.com/uhhJoyz/rsml-lang/blob/main/docs/editors.md) covers editor
@@ -37,7 +42,7 @@ library is still `rsml` in code:
 
 ```toml
 [dependencies]
-rsml-lang = "0.1"
+rsml-lang = "0.2"
 ```
 
 ```rust
@@ -48,7 +53,7 @@ rsml! {
 
     // `|>` passes the value last, `.name(..)` is a method, `add 10` a partial application.
     fn shifted_odds(xs: &[i64]) -> Vec<i64> {
-        xs |> .iter() |> .copied() |> .filter(fun x -> x mod 2 = 1) |> .map(add 10) |> .collect()
+        xs |> .iter() |> .copied() |> .filter(|x| x mod 2 = 1) |> .map(add 10) |> .collect()
     }
 }
 
@@ -64,13 +69,18 @@ The formatter, and the editor setup:
 cargo install rsml-fmt              # `rsml-fmt` on the PATH
 ```
 
-* Format on save, OCaml included, wherever rust-analyzer formats (VS Code's
+* Format on save, rsml code included, wherever rust-analyzer formats (VS Code's
   `settings.json`; the same setting for Neovim and others is in
   [docs/editors.md](https://github.com/uhhJoyz/rsml-lang/blob/main/docs/editors.md#formatting-on-save)):
   `"rust-analyzer.rustfmt.overrideCommand": ["rsml-fmt", "--rustfmt"]`
 * Neovim, to color `(* *)` comments as comments (from the checkout;
   [details](https://github.com/uhhJoyz/rsml-lang/blob/main/docs/editors.md#neovim-coloring---comments)):
   `mkdir -p ~/.config/nvim/after/queries/rust && cp editors/nvim/queries/rust/highlights.scm ~/.config/nvim/after/queries/rust/`
+* Neovim, to hide `ml! {` and its `}` and show `- RSML -` in the
+  statusline while the cursor is in rsml code (from the checkout;
+  [details](https://github.com/uhhJoyz/rsml-lang/blob/main/docs/editors.md#neovim-hiding-the-macros)):
+  `vim.opt.runtimepath:append("path/to/rsml/editors/nvim")` and
+  `require("rsml").setup()`
 * Vim, to format the buffer
   ([format on save and highlighting](https://github.com/uhhJoyz/rsml-lang/blob/main/docs/editors.md#vim)):
   `:%!rsml-fmt --rustfmt --stdin-filepath %:p 2>/dev/null`
@@ -80,7 +90,7 @@ leaves out the slow and editor ones; see [Checking changes](#checking-changes)).
 
 ## Pipes, composition and partial application
 
-| OCaml in `ml!`          | Rust it becomes                                                 |
+| rsml in `ml!`           | Rust it becomes                                                 |
 |-------------------------|-----------------------------------------------------------------|
 | `x \|> f \|> g a`       | `g(a, f(x))`                                                    |
 | `f @@ g @@ x`           | `f(g(x))`                                                       |
@@ -94,8 +104,7 @@ leaves out the slow and editor ones; see [Checking changes](#checking-changes)).
 | `f _ 1`, `f _1 _0`      | `move \|_0\| f(_0, 1)`, `move \|_0, _1\| f(_1, _0)`             |
 | `x \|> f _ 1`           | `f(x, 1)`                                                       |
 
-Arguments of a partial application are evaluated once, when it is created,
-as in OCaml.
+Arguments of a partial application are evaluated once, when it is created.
 
 ```rust
 use rsml::ml;
@@ -125,7 +134,7 @@ placeholder is a parameter. `_N` is parameter `N` (from 0), and `_` is the
 lowest one not written elsewhere in the expression, so `f _ _` is
 `fun a b -> f a b` and `f _1 _ _` is `fun a b c -> f b a c`.
 
-| OCaml in `ml!`                  | Rust it becomes                                |
+| rsml in `ml!`                   | Rust it becomes                                |
 |---------------------------------|------------------------------------------------|
 | `Iterator::map _ (_ * 2)`       | `move \|_0\| Iterator::map(_0, \|_0\| _0 * 2)` |
 | `s \|> str::starts_with _ "he"` | `str::starts_with(s, "he")`                    |
@@ -166,7 +175,7 @@ method. The receiver alone is a call without arguments (`.iter xs`), so a
 `()` after it is a unit argument. With pipes and placeholders, a method
 chain reads left to right:
 
-| OCaml in `ml!`             | Rust it becomes                             |
+| rsml in `ml!`              | Rust it becomes                             |
 |----------------------------|---------------------------------------------|
 | `.len s`                   | `s.len()`                                   |
 | `.push xs 1`               | `xs.push(1)`                                |
@@ -182,7 +191,7 @@ With its arguments written Rust style, right after the name, `.name(args)`
 is the method with those arguments, waiting for its receiver, so a
 pipeline reads like a Rust method chain:
 
-| OCaml in `ml!`                                              | Rust it becomes                           |
+| rsml in `ml!`                                               | Rust it becomes                           |
 |-------------------------------------------------------------|-------------------------------------------|
 | `xs \|> .map(f)`                                            | `xs.map(f)`                               |
 | `.push(1) xs`                                               | `xs.push(1)`                              |
@@ -203,10 +212,10 @@ as in Rust; where nothing provides it, annotate the placeholder
 
 ### Arity: what the macro can and cannot see
 
-OCaml functions are curried; Rust functions take all their arguments at
+rsml functions are curried; Rust functions take all their arguments at
 once. The macro decides how to call something from the function's *shape*:
 
-* Functions defined in the same `ml!` block, closures (`fun`), operator
+* Functions defined in the same `ml!` block, closures (`fun`, `|x| e`), operator
   sections, placeholder functions, closure-typed parameters of `rsml!`
   functions and the functions defined in the same `rsml!` (see below) have
   known shapes, so `f a` is a direct call when it is complete and a
@@ -245,10 +254,10 @@ binds the name to a different Rust path.
 
 ## Whole functions: `rsml!`
 
-`rsml! { .. }` holds Rust items whose function bodies are OCaml, so a
+`rsml! { .. }` holds Rust items whose function bodies are rsml code, so a
 function needs no `ml! { }` inside it. Signatures, attributes and every
 other item are Rust and pass through untouched; methods in `impl` and
-`trait` blocks get OCaml bodies too.
+`trait` blocks get rsml bodies too.
 
 ```rust
 use rsml::rsml;
@@ -299,7 +308,7 @@ reads better that way; the formatter leaves those bodies alone too.
 
 A file can be one flush-left `rsml::rsml! { .. }` holding all its items:
 `use`s, types, `impl`s, functions, a `#[cfg(test)] mod tests` whose tests
-assert on OCaml expressions, and `#[rust]` functions where Rust reads
+assert on rsml expressions, and `#[rust]` functions where Rust reads
 better. Only the file's own `//!` comments and `#![..]` attributes stay
 outside, as a macro call cannot hold them.
 [examples/whole_file.rs](https://github.com/uhhJoyz/rsml-lang/blob/main/examples/whole_file.rs) is one; `cargo test` runs
@@ -332,7 +341,7 @@ fn checksum(bytes: &[u8]) -> u32 {
     bytes.iter().fold(0, |sum, b| sum.wrapping_mul(31).wrapping_add(u32::from(*b)))
 }
 
-// In a test as anywhere else, the arguments of `assert_eq!` are OCaml.
+// In a test as anywhere else, the arguments of `assert_eq!` are rsml code.
 fn check() {
     assert_eq!(add 1 2, 3);
     assert_eq!(incremented &[|1; 2|], vec![2, 3])
@@ -345,8 +354,8 @@ assert_eq!(counts("a b a")["a"], 2);
 assert_ne!(checksum(b"ab"), checksum(b"ba"));
 ```
 
-Inside OCaml code, the arguments of std's formatting, assertion and
-panicking macros are OCaml expressions (next section), so tests read like
+Inside rsml code, the arguments of std's formatting, assertion and
+panicking macros are rsml expressions (next section), so tests read like
 the code they test.
 
 rust-analyzer expands a macro call again whenever its contents change, so
@@ -359,13 +368,13 @@ what it costs in plain Rust
 
 This is a function-like macro rather than an attribute because rustc parses
 the item under an attribute macro as Rust before the macro runs, and an
-OCaml body is not Rust.
+rsml body is not Rust.
 
 ## Syntax
 
-Expressions: `let .. in`, `let rec .. and ..`, `fun`, `function`, `match ..
-with` (guards, or-patterns, `as`, constructors, tuples, lists, ranges
-`'a'..='z'` and `0..10`), `if then else`, `;` sequencing, `begin .. end`,
+Expressions: `let .. in`, `let rec .. and ..`, `fun` and `|x| e`, `function`,
+`match .. with` (guards with `when` or `if`, or-patterns, `as`, constructors,
+tuples, lists, ranges `'a'..='z'` and `0..10`, nested matches), `if then else`, `;` sequencing, `begin .. end`,
 `for .. to / downto / til .. do .. done`, `for p in e do .. done`, `while .. do
 .. done` (`while true` is Rust's `loop`), `return e`, `break e`, `continue`,
 ranges `a..b`, `a..=b`, `a..`, `..b`, `unsafe { .. }`, `async { .. }`,
@@ -374,23 +383,24 @@ x = 1; y }` and `{ p with x = 2 }`, `ref` / `!` / `:=` / `incr` / `decr`,
 `not`, `assert`, labels `~x:e` (matched by name), `(e : t)`, placeholders,
 user-defined operators `let ( +! ) a b = ..`, `(* comments *)`.
 
-The block itself is an OCaml toplevel: `let` without `in`, `external`,
-`open` and `;;`-separated expressions are allowed, and the last expression
-is the value. `open std::cmp` is `use std::cmp::*;` for the rest of the
-block (`let open std::cmp in e` for one expression).
+The block itself is a sequence of toplevel phrases: `let` without `in`, `external`,
+`use` and `;;`-separated expressions are allowed, and the last expression
+is the value. `use path;` is Rust's `use`, for the rest of the block, or of
+an expression when it starts one: `use std::cmp::*; max a b` is
+`{ use std::cmp::*; max(a, b) }`.
 
-Operators follow OCaml's precedence and use OCaml's spelling: `=` / `<>`
+Operators follow ML's precedence and spelling: `=` / `<>`
 compare, `mod`, `land`, `lor`, `lxor`, `lsl`, `lsr`, `asr`, `not`, `+.` (same
 as `+`), `**` (`f64::powf`). `==` and `!=` are accepted as `==` and `!=`.
 `>>` and `<<` are composition, not shifts.
 
 Types are Rust types (`i64`, `&str`, `Vec<String>`, `&'a [u8]`) written with
-OCaml's arrows and tuples: `i64 -> i64` is a function, `i64 * String` is
+ML's arrows and tuples: `i64 -> i64` is a function, `i64 * String` is
 `(i64, String)`, and `'a` is a type variable, which in a `let rec`
 signature becomes a generic parameter (`Vec<'a>` is `Vec<A>`). A `'name`
 directly after `&` is a lifetime, as is `'static`.
 
-### Rust inside OCaml
+### Rust inside rsml code
 
 * `Module.item` is the path `Module::item` (`Vec.new ()` is `Vec::new()`),
   and Rust paths work as written when there is no space around `::`
@@ -403,32 +413,36 @@ directly after `&` is a lifetime, as is `'static`.
   result of `f(a)`, `v[i]`, `m[&k]`, `xs[1..]`, `f(x)[0]`. Each item is
   one argument, and for a function whose arity the macro knows they count
   as that many: `add(1)` is a partial application. With a space it is
-  OCaml: `f (a, b)` passes one tuple and `f [1; 2]` a list. A constructor
+  ML style: `f (a, b)` passes one tuple and `f [1; 2]` a list. A constructor
   applied this way is one value, as in Rust: `Some(x).unwrap()` and
   `Shape::Rect(w, h).area()` call methods of what they build, and
-  `f Some(x)` passes one argument. Its argument still follows OCaml's
-  rules (`Some(1, 2)` is `Some((1, 2))`). Spaced, it is OCaml again:
+  `f Some(x)` passes one argument. Its argument still follows the ML
+  rules (`Some(1, 2)` is `Some((1, 2))`). Spaced, it is ML style again:
   `Some (x).unwrap()` is `Some (x.unwrap ())`.
 * Method calls `xs.push(1)`, written without a space before the
-  parenthesis (`x.f (a)` applies the field `f`), or OCaml style as
+  parenthesis (`x.f (a)` applies the field `f`), or ML style as
   `.push xs 1`. The name after `.` follows it directly (`. len` is an
   error). Turbofish, `e?`, `e.await`, `e as t`, `&x`, `&mut x`, `*x`.
 * Macros. The arguments of std's `print!`, `println!`, `eprint!`,
   `eprintln!`, `format!`, `format_args!`, `write!`, `writeln!`, `panic!`,
   `unreachable!`, `todo!`, `unimplemented!`, `assert!`, `assert_eq!`,
   `assert_ne!`, their `debug_` forms, `dbg!` and `vec!` (also as
-  `std::name!`) are OCaml expressions separated by `,`:
+  `std::name!`) are rsml expressions separated by `,`:
   `assert_eq!(add 1 2, 3)`, `println!("{}", xs |> .len)`, `vec![0; n]`. A
   format string stays as written, and after it `name = e` is a named
   argument (`(a = b)` compares). Every other macro gets Rust tokens, as
   written (`ml! { .. }` works inside them).
 * `*e` is Rust's dereference, binding like Rust's: `*x.f` is `*(x.f)`,
-  where OCaml's `!x.f` is `(!x).f`. `(*x)` reads as the start of an OCaml
+  where `!x.f` is `(!x).f`. `(*x)` reads as the start of an ML
   comment, so write `( *x)` (as the formatter does) or `!x`. After an
   argument `*` multiplies: `f *x` is `f * x`.
 * `let mut x = ..` and `x <- v` for mutable locals, and `let mut f x = ..`
   for a local function that mutates what it captures (Rust's `FnMut`).
-* `fun move x -> ..` for a `move` closure.
+* Rust's closures: `|x: i32| x + 1`, `|a, b| a + b`, `|| e`, `move |x| e`,
+  the same closures as `fun (x : i32) -> x + 1`, `fun a b -> a + b`,
+  `fun () -> e` and `fun move x -> e` (the body reaches as far as a `fun`'s,
+  and as an argument a closure goes in parentheses: `f (|x| x)`).
+* Rust's match guards: `| Some x if x > 0 -> ..`, the same as `when`.
 * `Some (a, b)` is `Some((a, b))`; other constructors applied to a tuple get
   one field per element (`Rect (w, h)` is `Rect(w, h)`); `Foo ((a, b))` keeps
   the tuple.
@@ -437,9 +451,10 @@ directly after `&` is a lifetime, as is `'static`.
   stays raw: `r#match x` calls a function named `match`. Words that Rust
   only reserves (`gen`, `try`, `yield`, `box`, `macro`, `abstract`, ..)
   are ordinary names, emitted raw (`let gen = 3` is `let r#gen = 3`), so
-  `rng.gen()` works in every edition. Rust habits get an error that says
-  what to write instead: `|x| e`, `if let`, `match x { .. }`, `x += 1`,
-  `{ a; b }`, `[1, 2]` (a list of one pair in OCaml) and `let x = e;`.
+  `rng.gen()` works in every edition. Rust habits that mean something else
+  here get an error that says what to write instead: `if let`, `match x {
+  .. }`, `x += 1`, `{ a; b }`, `[1, 2]` (a list of one pair) and `let x =
+  e;`.
 * `f ()` calls a function with no arguments (`f()`), and `f (())` passes
   the unit value (`f(())`); likewise `() |> f` and `(()) |> f`. With other
   arguments `()` is always a value: `f () x` is `f((), x)`. Methods have
@@ -497,8 +512,7 @@ The macro changes syntax, not Rust's rules:
   `assert!(!xs.is_empty())` would assert the opposite; it is an error, as
   is `!` before a comparison or `true`.
 * Ranges are Rust's, in patterns too: `0..n` stops before `n` and
-  `'a'..='z'` includes `'z'` (OCaml's `'a' .. 'z'` would include it; here
-  it does not).
+  `'a'..='z'` includes `'z'` (`'a' .. 'z'` does not).
 * `assert false` is `::core::unreachable!("assert false")`. `try .. with` and `raise` are not
   supported; use `Result`, `match`, `?` and `panic!`.
 
@@ -558,24 +572,40 @@ assert_eq!(line, "apple (5) fig   (3) pear  (4)");
 
 rust-analyzer understands the code inside both macros through their
 expansion, so highlighting, hover, go to definition, diagnostics and
-completion work inside OCaml code: methods after `xs.`, `xs |> .` and
+completion work inside rsml code: methods after `xs.`, `xs |> .` and
 `.‸ xs`, items after `Vec::` and `Vec.`, variants in patterns, locals,
 fields and types, including in unfinished code (`if ‸`, `match o with ‸`).
-Every OCaml keyword is colored as a keyword (`then`, `with`, `done`,
+Every rsml keyword is colored as a keyword (`then`, `with`, `done`,
 `fun`, ..) and every operator as an operator. rustc's errors point at the
-OCaml code they are about. [docs/editors.md](https://github.com/uhhJoyz/rsml-lang/blob/main/docs/editors.md) explains
+rsml code they are about. [docs/editors.md](https://github.com/uhhJoyz/rsml-lang/blob/main/docs/editors.md) explains
 how, with setup notes for Neovim and blink.cmp, Vim, and the list of
 positions `scripts/check_completion.py` checks.
 
 ## Formatting
 
-`rsml-fmt` formats the OCaml in `ml!` blocks and `rsml!` functions, which
+`rsml-fmt` formats the rsml code in `ml!` blocks and `rsml!` functions, which
 rustfmt leaves alone, and has rustfmt format the Rust inside `rsml!`.
 `rsml-fmt --rustfmt` runs rustfmt on the rest of the file too, so one
 command formats everything; editors can run it in place of rustfmt
 ([docs/editors.md](https://github.com/uhhJoyz/rsml-lang/blob/main/docs/editors.md#formatting-on-save) has the setup for
-rust-analyzer, VS Code and Neovim). Every layout decision is configurable
-in `rsmlfmt.toml`; see [`rsml-fmt/README.md`](https://github.com/uhhJoyz/rsml-lang/blob/main/rsml-fmt/README.md).
+rust-analyzer, VS Code and Neovim). By default the body of an `ml!` block
+lines up with the line holding `ml! {`, and a function whose whole body is
+one `ml!` block gets it on its own line, so that the block reads as the
+body:
+
+```rust
+use rsml::ml;
+
+fn demo(a: i128, b: u64) -> usize { ml! {
+    .saturating_add (a as usize) (b as usize)
+}}
+
+assert_eq!(demo(1, 2), 3);
+```
+
+Plain rustfmt (`cargo fmt`) undoes that last layout; run `rsml-fmt
+--rustfmt` instead, as the editor setup does. Every layout decision is
+configurable in `rsmlfmt.toml`; see [`rsml-fmt/README.md`](https://github.com/uhhJoyz/rsml-lang/blob/main/rsml-fmt/README.md).
 
 ```sh
 cargo run -p rsml-fmt -- --rustfmt src tests
@@ -598,13 +628,14 @@ every expansion in a table or in a sentence such as "`x |> f` is `f(x)`"
 against the macros, every completion position against the cases
 rust-analyzer is checked on, the links, and the comments and index of the
 toy examples); `cargo doc` with warnings denied; the files `cargo package`
-would publish; rustfmt and `rsml-fmt --rustfmt` on the repository's own
-code (the formatter's test fixtures stay messy); clippy on the generated
+would publish; `rsml-fmt --rustfmt` on the repository's own code, and
+rustfmt on the crates without rsml code (the formatter's test fixtures
+stay messy); clippy on the generated
 code; the check that `rsml!` expansion time grows linearly; the zero-cost
 assembly comparison; the formatter's corpus test under every config and a
 long fuzz run; and, where rust-analyzer, Neovim
 and Vim are installed, the completion, highlighting, error-span, editor
-formatting, latency and Vim checks. `--quick` leaves out the slow ones.
+formatting, latency, Neovim module and Vim checks. `--quick` leaves out the slow ones.
 CI (`.github/workflows/ci.yml`) runs `--quick` on Linux and macOS, the
 rust-analyzer and Vim checks, the tests on Rust 1.88 (the oldest
 supported), and once a week the corpus and fuzz runs.
@@ -615,7 +646,7 @@ write.
 
 ## Limitations
 
-* Rust's lexer runs before the macro, so OCaml `{|quoted strings|}`,
+* Rust's lexer runs before the macro, so ML `{|quoted strings|}`,
   identifiers with primes (`x'`) and comments containing unbalanced quotes
   or brackets do not work. Prefer `//` and `/* */` comments: they are Rust
   comments, which may contain anything and which editors color as
@@ -625,12 +656,12 @@ write.
 * No modules, functors, objects, polymorphic variants, GADTs, `type`
   definitions, exceptions or `lazy`. Define types in Rust and match on them.
 * `lsr` and `asr` are both Rust's `>>`: on a signed integer `lsr` is an
-  arithmetic shift, not OCaml's logical one (cast to an unsigned type
+  arithmetic shift, not a logical one (cast to an unsigned type
   first for that).
 * The expansions need edition 2018 or later: they name `::core::..`,
   which edition 2015 reads as a path from the crate root. Raw identifiers
   (`r#gen`) work in every edition.
-* Clippy lints the generated Rust like any other code. Lints that OCaml
+* Clippy lints the generated Rust like any other code. Lints that rsml
   code could not act on are avoided (`n <- n + 1` is allowed to be
-  `n = n + 1`, as OCaml has no `+=`), and `scripts/check_clippy.sh` checks
+  `n = n + 1`, as rsml has no `+=`), and `scripts/check_clippy.sh` checks
   every notation for others.

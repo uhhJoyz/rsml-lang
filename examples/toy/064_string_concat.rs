@@ -1,6 +1,6 @@
 // Toy 064: string concatenation, `a ^ b`.
 //
-// What it is: OCaml's `a ^ b` joins two strings. Here it is a call of a
+// What it is: `a ^ b` joins two strings. It is a call of a
 // small helper that makes a `String`: `a ^ b` is
 // `::rsml::__rt::concat(a, b)`. It takes a `String` or a `&str` on either
 // side.
@@ -19,18 +19,16 @@ use rsml::ml;
 pub const SUMMARY: &str = "`\"Dear \" ^ name ^ \",\"` builds a `String`";
 
 /// The first line of a letter.
-pub fn salutation(name: &str) -> String {
-    ml! {
-        // `"Dear " ^ name ^ ","` is
-        // `::rsml::__rt::concat("Dear ", ::rsml::__rt::concat(name, ","))`.
-        "Dear " ^ name ^ ","
-    }
-}
+pub fn salutation(name: &str) -> String { ml! {
+    // `"Dear " ^ name ^ ","` is
+    // `::rsml::__rt::concat("Dear ", ::rsml::__rt::concat(name, ","))`.
+    "Dear " ^ name ^ ","
+}}
 
 /// A file name from a stem: a `String` on the left works too.
-pub fn file_name(stem: &str, n: u32) -> String {
-    ml! { stem.to_lowercase() ^ "-" ^ n.to_string() ^ ".txt" }
-}
+pub fn file_name(stem: &str, n: u32) -> String { ml! {
+    stem.to_lowercase() ^ "-" ^ n.to_string() ^ ".txt"
+}}
 
 pub fn run() {
     println!("salutation \"Ada\" = {:?}", salutation("Ada"));

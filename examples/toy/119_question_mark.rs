@@ -7,7 +7,7 @@
 // When to use it: in a function that returns a `Result` or an `Option`,
 // to stop at the first failure instead of matching on every step. rsml has
 // no exceptions (`try .. with` and `raise` are errors), so this is how
-// OCaml code in rsml fails.
+// rsml code fails.
 //
 // How to write it: `?` goes with the atom right before it.
 // * `s.parse::<u32>()?` applies to the call, as in Rust.
@@ -18,7 +18,7 @@
 //   `(b |> .trim |> .parse::<u32>)?` is `b.trim().parse::<u32>()?`.
 //
 // Reference: [Rust-style methods, fields and calls](../../docs/notation.md#rust-style-methods-fields-and-calls),
-// [Rust inside OCaml](../../README.md#rust-inside-ocaml)
+// [Rust inside rsml code](../../README.md#rust-inside-rsml-code)
 
 use rsml::rsml;
 use std::num::ParseIntError;
@@ -26,31 +26,31 @@ use std::num::ParseIntError;
 pub const SUMMARY: &str = "Rust's `?`: `s.parse::<u32>()?`, `(parse s)?`, `words.first()?`";
 
 rsml! {
-    /// A number from text, spaces around it allowed.
-    fn parse(s: &str) -> Result<u32, ParseIntError> {
-        s.trim().parse()
-    }
+/// A number from text, spaces around it allowed.
+fn parse(s: &str) -> Result<u32, ParseIntError> {
+    s.trim().parse()
+}
 
-    /// The sum of two numbers written as text, or the first parse error.
-    fn add_text(a: &str, b: &str) -> Result<u32, ParseIntError> {
-        // If `a` is not a number, `a.parse::<u32>()?` returns its `Err`.
-        let x = a.parse::<u32>()? in
-        let y = (b |> .trim |> .parse::<u32>)? in
-        Ok (x + y)
-    }
+/// The sum of two numbers written as text, or the first parse error.
+fn add_text(a: &str, b: &str) -> Result<u32, ParseIntError> {
+    // If `a` is not a number, `a.parse::<u32>()?` returns its `Err`.
+    let x = a.parse::<u32>()? in
+    let y = (b |> .trim |> .parse::<u32>)? in
+    Ok (x + y)
+}
 
-    /// Twice the number in `s`.
-    fn doubled(s: &str) -> Result<u32, ParseIntError> {
-        // `2 * (parse s)?` is `2 * parse(s)?`.
-        Ok (2 * (parse s)?)
-    }
+/// Twice the number in `s`.
+fn doubled(s: &str) -> Result<u32, ParseIntError> {
+    // `2 * (parse s)?` is `2 * parse(s)?`.
+    Ok (2 * (parse s)?)
+}
 
-    /// The length of the first word, plus one; `None` without words.
-    fn first_len(words: &[&str]) -> Option<usize> {
-        // On an `Option`, `?` returns `None` early.
-        let w = words.first()? in
-        Some (w.len() + 1)
-    }
+/// The length of the first word, plus one; `None` without words.
+fn first_len(words: &[&str]) -> Option<usize> {
+    // On an `Option`, `?` returns `None` early.
+    let w = words.first()? in
+    Some (w.len() + 1)
+}
 }
 
 pub fn run() {

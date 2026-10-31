@@ -926,7 +926,12 @@ fn with_hoists(hoists: Vec<TokenStream>, out: Out) -> Out {
 
 /// `|a, b|`, or `||` when there are no parameters, located at `sp`.
 fn closure_bars(params: &[TokenStream], sp: Span) -> TokenStream {
-    let bar = |spacing| {
+    closure_bars_at(params, sp, sp)
+}
+
+/// `|a, b|` with its bars at `open` and `close`, or `||` (at `open`).
+fn closure_bars_at(params: &[TokenStream], open: Span, close: Span) -> TokenStream {
+    let bar = |spacing, sp| {
         let mut p = proc_macro2::Punct::new('|', spacing);
         p.set_span(at(sp));
         TokenTree::Punct(p)
@@ -934,13 +939,13 @@ fn closure_bars(params: &[TokenStream], sp: Span) -> TokenStream {
     if params.is_empty() {
         let mut ts = TokenStream::new();
         ts.extend([
-            bar(proc_macro2::Spacing::Joint),
-            bar(proc_macro2::Spacing::Alone),
+            bar(proc_macro2::Spacing::Joint, open),
+            bar(proc_macro2::Spacing::Alone, close),
         ]);
         return ts;
     }
-    let open = bar(proc_macro2::Spacing::Alone);
-    let close = bar(proc_macro2::Spacing::Alone);
+    let open = bar(proc_macro2::Spacing::Alone, open);
+    let close = bar(proc_macro2::Spacing::Alone, close);
     quote!(#open #(#params),* #close)
 }
 
@@ -1198,7 +1203,7 @@ impl Cx {
             Expr::Deref(inner, sp) if links > 0 && self.is_refcell(inner).is_none() => {
                 Some(Error::new(
                     *sp,
-                    "`!` dereferences in OCaml and binds tighter than `.`: `!x.f()` is \
+                    "`!` dereferences, and binds tighter than `.`: `!x.f()` is \
                      `(!x).f()`. To negate, write `not (x.f())`; to dereference, `(!x).f()`",
                 ))
             }
@@ -1324,8 +1329,12 @@ impl Cx {
                 body,
                 is_move,
                 span,
+                bars,
                 ..
-            } => self.fun_value(params, body, *is_move || (tail && !body.mutates()), *span),
+            } => {
+                let is_move = *is_move || (tail && !body.mutates());
+                self.fun_value(params, body, is_move, *span, *bars)
+            }
             Expr::Function { arms, span } => {
                 let x = self.local_at("arg", "argument", *span);
                 let m = self.match_tokens(&Expr::Tmp(x.clone(), None), arms, true, *span)?;
@@ -1333,7 +1342,7 @@ impl Cx {
                 let bars = closure_bars(&[quote!(#x)], *span);
                 Ok(Out::new(quote!(#mv #bars #m), Kind::Compound).shaped(Some(vec![1])))
             }
-            Expr::Let { .. } | Expr::Seq(..) | Expr::External { .. } | Expr::Open { .. } => {
+            Expr::Let { .. } | Expr::Seq(..) | Expr::External { .. } | Expr::Use { .. } => {
                 self.block_expr(e, tail)
             }
             Expr::If {
@@ -1383,7 +1392,7 @@ impl Cx {
                 if !self.editor && self.is_bool(inner) {
                     return Err(Error::new(
                         *sp,
-                        "a `bool` cannot be dereferenced: in OCaml `!r` is the value of `r`, and \
+                        "a `bool` cannot be dereferenced: `!r` is the value of `r` here, and \
                          negation is `not e`",
                     ));
                 }
@@ -2501,7 +2510,14 @@ impl Cx {
         }
     }
 
-    fn fun_value(&mut self, params: &[Pat], body: &Expr, is_move: bool, sp: Span) -> R<Out> {
+    fn fun_value(
+        &mut self,
+        params: &[Pat],
+        body: &Expr,
+        is_move: bool,
+        sp: Span,
+        bars: Option<(Span, Span)>,
+    ) -> R<Out> {
         let len = self.env.len();
         let ps = self.closure_params(params)?;
         for p in params {
@@ -2515,7 +2531,8 @@ impl Cx {
             shape.extend(s);
         }
         let bt = b.ts;
-        let bars = closure_bars(&ps, sp);
+        let (open, close) = bars.unwrap_or((sp, sp));
+        let bars = closure_bars_at(&ps, open, close);
         Ok(Out::new(quote!(#mv #bars #bt), Kind::Compound).shaped(Some(shape)))
     }
 
@@ -2887,10 +2904,16 @@ impl Cx {
                 }
                 self.block_items(body, tail, stmts)
             }
-            Expr::Open { module, body, .. } => {
-                // `open m` is a glob import for the rest of the block.
-                let m = path_tokens(module);
-                stmts.push(quote_spanned!(module.span()=> use #m::*;));
+            Expr::Use {
+                tree,
+                body,
+                span,
+                semi,
+            } => {
+                // A `use` item for the rest of the block.
+                let kw = keyword("use", *span);
+                let semi = quote_spanned!(at(*semi)=> ;);
+                stmts.push(quote!(#kw #tree #semi));
                 self.block_items(body, tail, stmts)
             }
             other => self.expr(other, tail),
@@ -3388,7 +3411,8 @@ impl Cx {
             let guard = match &arm.guard {
                 Some(g) => {
                     let g = self.expr(g, false)?.ts;
-                    let kw = keyword("if", first_span(&g).unwrap_or(sp));
+                    let at = arm.guard_if.or_else(|| first_span(&g)).unwrap_or(sp);
+                    let kw = keyword("if", at);
                     quote!(#kw #g)
                 }
                 None => quote!(),
@@ -3704,7 +3728,7 @@ fn holes_under_binder(e: &Expr) -> bool {
                 walk(from, under) || walk(to, under) || walk(body, true)
             }
             Expr::ForIn { iter, body, .. } => walk(iter, under) || walk(body, true),
-            Expr::Fun { body, .. } | Expr::External { body, .. } | Expr::Open { body, .. } => {
+            Expr::Fun { body, .. } | Expr::External { body, .. } | Expr::Use { body, .. } => {
                 walk(body, true)
             }
             Expr::Function { .. } => e.children_mut().into_iter().any(|c| walk(c, true)),
@@ -3837,7 +3861,7 @@ fn tail_calls(body: &Expr, name: &str, n: usize, labels: &[Option<String>]) -> O
             Expr::Paren(x, _)
             | Expr::Constraint(x, _)
             | Expr::Seq(_, x)
-            | Expr::Open { body: x, .. }
+            | Expr::Use { body: x, .. }
             | Expr::External { body: x, .. } => mark(x, name, n, labels, found),
             Expr::If { then, els, .. } => {
                 mark(then, name, n, labels, found);

@@ -1,6 +1,6 @@
 // Toy 090: mutable locals, `let mut x = e in ..` and `x <- e`.
 //
-// What it is: Rust's `let mut`, with OCaml's assignment arrow: `x <- e`
+// What it is: Rust's `let mut`, with the assignment arrow `<-`: `x <- e`
 // stores `e` in `x`. It makes the same local as `ref` (toy 089), read by
 // its name instead of with `!`.
 //
@@ -10,7 +10,7 @@
 // How to write it:
 // * The `let` needs `mut`: `x <- 2` after `let x = 1 in` is rustc's
 //   "cannot assign twice to immutable variable".
-// * OCaml has no `+=`; write `x <- x + e`. rsml allows clippy's
+// * rsml has no `+=`; write `x <- x + e`. rsml allows clippy's
 //   `assign_op_pattern` lint on such a statement, as nothing else could
 //   be written.
 // * `<-` is also how you write through `*` (toy 091): `*c <- *c + 1`.
@@ -22,39 +22,33 @@ use rsml::ml;
 pub const SUMMARY: &str = "`let mut n = 0 in n <- n + 1`: assignment with `<-`";
 
 /// A balance after deposits and withdrawals; it never goes below zero.
-pub fn balance(moves: &[i64]) -> i64 {
-    ml! {
-        // `let mut n = 0 in n <- 10 - n; n` is `{ let mut n = 0; n = 10 - n; n }`.
-        let mut money = 0 in
-        for m in moves do money <- std::cmp::max 0 (money + !m) done;
-        money
-    }
-}
+pub fn balance(moves: &[i64]) -> i64 { ml! {
+    // `let mut n = 0 in n <- 10 - n; n` is `{ let mut n = 0; n = 10 - n; n }`.
+    let mut money = 0 in
+    for m in moves do money <- std::cmp::max 0 (money + !m) done;
+    money
+}}
 
 /// The first of the longest words.
-pub fn longest<'a>(words: &[&'a str]) -> &'a str {
-    ml! {
-        let mut best = "" in
-        for w in words do if w.len() > best.len() then best <- !w done;
-        best
-    }
-}
+pub fn longest<'a>(words: &[&'a str]) -> &'a str { ml! {
+    let mut best = "" in
+    for w in words do if w.len() > best.len() then best <- !w done;
+    best
+}}
 
 /// How many doublings it takes to reach `target`, starting from 1.
-pub fn doublings(target: u64) -> u32 {
-    ml! {
-        let mut n = 1 in
-        let mut steps = 0 in
-        while n < target do
-          // `n <- n * 2` is `{ #[allow(clippy::assign_op_pattern)] { n = n * 2; } }`.
-          n <- n * 2;
-          steps <- steps + 1
-        done;
-        steps
-    }
-}
+pub fn doublings(target: u64) -> u32 { ml! {
+    let mut n = 1 in
+    let mut steps = 0 in
+    while n < target do
+      // `n <- n * 2` is `{ #[allow(clippy::assign_op_pattern)] { n = n * 2; } }`.
+      n <- n * 2;
+      steps <- steps + 1
+    done;
+    steps
+}}
 
-// `x += 1` is an error: "OCaml has no `+=`: write `x <- x + e` (for a
+// `x += 1` is an error: "rsml has no `+=`: write `x <- x + e` (for a
 // `ref`: `r := !r + e`, or `incr r`), or define the operator with
 // `let ( += ) a b = ..`"
 
@@ -84,9 +78,9 @@ mod tests {
     fn assignment_from_the_old_value() {
         assert_eq!(
             ml! {
-                let mut n = 0 in
-                n <- 10 - n;
-                n
+            let mut n = 0 in
+            n <- 10 - n;
+            n
             },
             10
         );

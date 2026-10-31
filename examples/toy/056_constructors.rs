@@ -1,9 +1,9 @@
 // Toy 056: constructors, `Some x`, `Shape::Rect (w, h)`, `Some (1, 2)`.
 //
 // What it is: an enum variant or a tuple struct is applied like a
-// function, OCaml style: `Some x`, `Shape::Circle r`. Applied to a tuple,
-// a constructor gets one field per element, as OCaml's do, except `Some`,
-// which has one field and wraps the tuple.
+// function, ML style: `Some x`, `Shape::Circle r`. Applied to a tuple,
+// a constructor gets one field per element, except `Some`, which has one
+// field and wraps the tuple.
 //
 // When to use it: to build any enum or tuple struct value.
 //
@@ -33,41 +33,33 @@ pub enum Shape {
 pub struct Span((u32, u32));
 
 /// A circle and a rectangle of the same width.
-pub fn shapes(w: f64) -> Vec<Shape> {
-    ml! {
-        // `Shape::Circle w` is `Shape::Circle(w)`, and
-        // `Shape::Rect (w, 2.0)` is `Shape::Rect(w, 2.0)`.
-        [Shape::Circle w; Shape::Rect (w, 2.0)]
-    }
-}
+pub fn shapes(w: f64) -> Vec<Shape> { ml! {
+    // `Shape::Circle w` is `Shape::Circle(w)`, and
+    // `Shape::Rect (w, 2.0)` is `Shape::Rect(w, 2.0)`.
+    [Shape::Circle w; Shape::Rect (w, 2.0)]
+}}
 
 /// The smallest and largest value, if there is one.
-pub fn min_max(xs: &[u32]) -> Option<(u32, u32)> {
-    ml! {
-        match (xs.iter().min(), xs.iter().max()) with
-        // `Some (!lo, !hi)` is `Some((*lo, *hi))`: one field, the pair.
-        | (Some lo, Some hi) -> Some (!lo, !hi)
-        | _ -> None
-    }
-}
+pub fn min_max(xs: &[u32]) -> Option<(u32, u32)> { ml! {
+    match (xs.iter().min(), xs.iter().max()) with
+    // `Some (!lo, !hi)` is `Some((*lo, *hi))`: one field, the pair.
+    | (Some lo, Some hi) -> Some (!lo, !hi)
+    | _ -> None
+}}
 
 /// A span from `a` to `b`: the pair is the struct's one field.
-pub fn span(a: u32, b: u32) -> Span {
-    ml! {
-        // `Span ((a, b))` is `Span((a, b))`; `Span (a, b)` would be
-        // `Span(a, b)`, two fields, which rustc rejects for `Span`.
-        Span ((a, b))
-    }
-}
+pub fn span(a: u32, b: u32) -> Span { ml! {
+    // `Span ((a, b))` is `Span((a, b))`; `Span (a, b)` would be
+    // `Span(a, b)`, two fields, which rustc rejects for `Span`.
+    Span ((a, b))
+}}
 
 /// A checked width: `Ok` or `Err` around one value.
-pub fn width(w: f64) -> Result<f64, String> {
-    ml! {
-        // A macro call is one atom, so these parentheses are only for the
-        // reader: `Err format!("{w}")` is `Err(format!("{w}"))` too.
-        if w > 0.0 then Ok w else Err (format!("{w} is not positive"))
-    }
-}
+pub fn width(w: f64) -> Result<f64, String> { ml! {
+    // A macro call is one atom, so these parentheses are only for the
+    // reader: `Err format!("{w}")` is `Err(format!("{w}"))` too.
+    if w > 0.0 then Ok w else Err (format!("{w} is not positive"))
+}}
 
 pub fn run() {
     println!("shapes 3.0 = {:?}", shapes(3.0));

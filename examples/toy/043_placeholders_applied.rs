@@ -26,30 +26,24 @@ fn percent_of(amount: u32, total: u32) -> u32 {
 }
 
 /// The share of a budget that one expense takes: the pipe fills the hole.
-pub fn share(expense: u32, budget: u32) -> u32 {
-    ml! {
-        // `expense |> percent_of _ budget` is `percent_of(expense, budget)`.
-        expense |> percent_of _ budget
-    }
-}
+pub fn share(expense: u32, budget: u32) -> u32 { ml! {
+    // `expense |> percent_of _ budget` is `percent_of(expense, budget)`.
+    expense |> percent_of _ budget
+}}
 
 /// The same with the arguments given the other way round.
-pub fn share_of(budget: u32, expense: u32) -> u32 {
-    ml! {
-        // `(percent_of _1 _0) budget expense` is
-        // `percent_of(expense, budget)`.
-        (percent_of _1 _0) budget expense
-    }
-}
+pub fn share_of(budget: u32, expense: u32) -> u32 { ml! {
+    // `(percent_of _1 _0) budget expense` is
+    // `percent_of(expense, budget)`.
+    (percent_of _1 _0) budget expense
+}}
 
 /// A function of the expense, for a fixed budget.
-pub fn shares_of(budget: u32, expenses: &[u32]) -> Vec<u32> {
-    ml! {
-        // `(percent_of _1 _0) budget` is `move |_1| percent_of(_1, budget)`.
-        let of_budget = (percent_of _1 _0) budget in
-        expenses |> .iter() |> .map(fun e -> of_budget !e) |> .collect()
-    }
-}
+pub fn shares_of(budget: u32, expenses: &[u32]) -> Vec<u32> { ml! {
+    // `(percent_of _1 _0) budget` is `move |_1| percent_of(_1, budget)`.
+    let of_budget = (percent_of _1 _0) budget in
+    expenses |> .iter() |> .map(fun e -> of_budget !e) |> .collect()
+}}
 
 pub fn run() {
     println!("share 30 120 = {}", share(30, 120));

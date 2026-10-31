@@ -88,7 +88,7 @@ fn syntax() {
         and unused (x : 'a) : 'a = x ;;
         let v : Vec<i64> = [1] ;;
         let it : Box<dyn Iterator<Item = u8>> = f () ;;
-        open std::cmp ;;
+        use std::cmp::*;
         go [] &[1; 2] |> Vec::len |> max 3
     };
     let misc = ml! {
@@ -108,7 +108,7 @@ fn syntax() {
         let sec = (xs |> .iter |> .map _ (_ * 2), clamp 0 _ 10, f _1 _0 _, .len (_ : &str), ( * ) _0 _0) in
         let lab ~f ~n = n in
         let dots = (- .len xs, [| .len xs |], lab ~f:(.len) ~n: .len, .iter >> .count, .collect::<Vec<_>> it) in
-        let open std::cmp in
+        use std::cmp::*;
         let c = function 'a' .. 'z' as ch when ch <> 'q' -> 1 | 'A' | 'B' -> 2 | _ -> 3 in
         let k = (x : i64) in
         let o = &mut n in

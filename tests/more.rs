@@ -22,28 +22,28 @@ fn macro_rules_fragments_are_rust() {
 fn let_rec_forms() {
     // Annotated binding with `fun`.
     let r = ml! {
-        let rec pow : i64 -> i64 -> i64 = fun b e -> if e = 0 then 1 else b * pow b (e - 1) in
-        pow 2 10
+    let rec pow : i64 -> i64 -> i64 = fun b e -> if e = 0 then 1 else b * pow b (e - 1) in
+    pow 2 10
     };
     assert_eq!(r, 1024);
     // Type variables become generic parameters.
     let r = ml! {
-        let rec count (l : &['a]) (acc : i64) : i64 =
-          match l with [] -> acc | _ :: t -> count t (acc + 1)
-        in
-        (count &[1; 2; 3] 0, count &["a"] 0)
+    let rec count (l : &['a]) (acc : i64) : i64 =
+      match l with [] -> acc | _ :: t -> count t (acc + 1)
+    in
+    (count &[1; 2; 3] 0, count &["a"] 0)
     };
     assert_eq!(r, (3, 1));
     // Unit parameter.
     let r = ml! {
-        let rec answer () : i64 = 42 in
-        answer ()
+    let rec answer () : i64 = 42 in
+    answer ()
     };
     assert_eq!(r, 42);
     // Partially applied `let rec` function.
     let r = ml! {
-        let rec add3 (a : i64) (b : i64) (c : i64) : i64 = a + b + c in
-        [1; 2] |> .into_iter |> .map _ (add3 10 20) |> .collect::<Vec<_>>
+    let rec add3 (a : i64) (b : i64) (c : i64) : i64 = a + b + c in
+    [1; 2] |> .into_iter |> .map _ (add3 10 20) |> .collect::<Vec<_>>
     };
     assert_eq!(r, vec![31, 32]);
 }
@@ -52,7 +52,7 @@ fn let_rec_forms() {
 fn nested_matches_and_begin_end() {
     let f = |a: Option<i32>, b: Option<i32>| -> i32 {
         ml! {
-            match a with Some x -> begin match b with Some y -> x + y | None -> x end | None -> 0
+        match a with Some x -> begin match b with Some y -> x + y | None -> x end | None -> 0
         }
     };
     assert_eq!(f(Some(1), Some(2)), 3);
@@ -73,10 +73,10 @@ fn as_patterns_and_or_patterns() {
 fn sequencing_and_unit() {
     let mut log = Vec::new();
     let r = ml! {
-        log.push(1);
-        log.push(2);
-        if log.len() > 1 then log.push(3);
-        .len log
+    log.push(1);
+    log.push(2);
+    if log.len() > 1 then log.push(3);
+    .len log
     };
     assert_eq!(r, 3);
     assert_eq!(log, vec![1, 2, 3]);
@@ -87,8 +87,8 @@ fn sequencing_and_unit() {
 fn labeled_arguments() {
     assert_eq!(
         ml! {
-            let f ~x ~y = x - y in
-            f ~x:5 ~y:2
+        let f ~x ~y = x - y in
+        f ~x:5 ~y:2
         },
         3
     );
@@ -96,12 +96,12 @@ fn labeled_arguments() {
     let mut log = Vec::new();
     assert_eq!(
         ml! {
-            let f ~x ~y = x - y in
-            let mut note c v =
-              log.push(c);
-              v
-            in
-            f ~y:(note 'y' 2) ~x:(note 'x' 5)
+        let f ~x ~y = x - y in
+        let mut note c v =
+          log.push(c);
+          v
+        in
+        f ~y:(note 'y' 2) ~x:(note 'x' 5)
         },
         3
     );
@@ -110,22 +110,22 @@ fn labeled_arguments() {
     let y = 2;
     assert_eq!(
         ml! {
-            let f ~x ~y = x - y in
-            f ~y 5
+        let f ~x ~y = x - y in
+        f ~y 5
         },
         3
     );
     // Leaving out a parameter before a given one makes a function of it.
     let minus_two = ml! {
-        let f ~x ~y = x - y in
-        f ~y:2
+    let f ~x ~y = x - y in
+    f ~y:2
     };
     assert_eq!(minus_two(5), 3);
     // `let f = fun ~x ~y -> ..` has labels too.
     assert_eq!(
         ml! {
-            let f = fun ~x ~y -> x - y in
-            f ~y:2 ~x:5
+        let f = fun ~x ~y -> x - y in
+        f ~y:2 ~x:5
         },
         3
     );
@@ -152,8 +152,8 @@ fn deref_and_borrow() {
     assert_eq!(ml! { .len r }, 3);
     let mut n = 1;
     ml! {
-        let p = &mut n in
-        p := !p + 1
+    let p = &mut n in
+    p := !p + 1
     };
     assert_eq!(n, 2);
     let boxed = Box::new(5);
@@ -164,17 +164,17 @@ fn deref_and_borrow() {
 fn tuples_and_nested_data() {
     let pairs = [(1, "one"), (2, "two")];
     let r = ml! {
-        pairs
-        |> .iter
-        |> .map _ (fun (n, s) -> format!("{}={}", n, s))
-        |> .collect::<Vec<_>>
-        |> .join _ ","
+    pairs
+    |> .iter
+    |> .map _ (fun (n, s) -> format!("{}={}", n, s))
+    |> .collect::<Vec<_>>
+    |> .join _ ","
     };
     assert_eq!(r, "1=one,2=two");
     assert_eq!(
         ml! {
-            let (a, (b, c)) = (1, (2, 3)) in
-            a + b + c
+        let (a, (b, c)) = (1, (2, 3)) in
+        a + b + c
         },
         6
     );
@@ -189,15 +189,13 @@ enum Expr {
     Neg(Box<Expr>),
 }
 
-fn eval(e: &Expr) -> i64 {
-    ml! {
-        match e with
-        | Expr::Num n -> !n
-        | Expr::Add (a, b) -> eval a + eval b
-        | Expr::Mul (a, b) -> eval a * eval b
-        | Expr::Neg a -> -(eval a)
-    }
-}
+fn eval(e: &Expr) -> i64 { ml! {
+    match e with
+    | Expr::Num n -> !n
+    | Expr::Add (a, b) -> eval a + eval b
+    | Expr::Mul (a, b) -> eval a * eval b
+    | Expr::Neg a -> -(eval a)
+}}
 
 #[test]
 fn interpreter() {
@@ -216,20 +214,20 @@ fn interpreter() {
 #[test]
 fn point_free_style() {
     let r = ml! {
-        let sum = Iterator::fold _ 0 ( + ) in
-        let squares = Iterator::map _ (fun x -> x * x) in
-        let sum_of_squares = squares >> sum in
-        sum_of_squares (.into_iter (vec![1, 2, 3]))
+    let sum = Iterator::fold _ 0 ( + ) in
+    let squares = Iterator::map _ (fun x -> x * x) in
+    let sum_of_squares = squares >> sum in
+    sum_of_squares (.into_iter (vec![1, 2, 3]))
     };
     assert_eq!(r, 14);
     let is_even = |x: &i32| x % 2 == 0;
     let r = ml! {
-        [1; 2; 3; 4; 5; 6]
-        |> .into_iter
-        |> Iterator::filter _ is_even
-        |> Iterator::map _ (( * ) 3 >> ( + ) 1)
-        |> Iterator::rev
-        |> Iterator::collect::<Vec<_>>
+    [1; 2; 3; 4; 5; 6]
+    |> .into_iter
+    |> Iterator::filter _ is_even
+    |> Iterator::map _ (( * ) 3 >> ( + ) 1)
+    |> Iterator::rev
+    |> Iterator::collect::<Vec<_>>
     };
     assert_eq!(r, vec![19, 13, 7]);
     let k = compose3(|x: i32| x + 1, |x: i32| x * 2, |x: i32| x - 3);
@@ -240,23 +238,23 @@ fn compose3<A, B, C, D>(
     f: impl Fn(A) -> B,
     g: impl Fn(B) -> C,
     h: impl Fn(C) -> D,
-) -> impl Fn(A) -> D {
-    ml! { f >> g >> h }
-}
+) -> impl Fn(A) -> D { ml! {
+    f >> g >> h
+}}
 
 #[test]
 fn shadowing() {
     let r = ml! {
-        let add x y = x + y in
-        let add = add 10 in
-        add 1
+    let add x y = x + y in
+    let add = add 10 in
+    add 1
     };
     assert_eq!(r, 11);
     let r = ml! {
-        let x = 1 in
-        let x = x + 1 in
-        let x = x * 10 in
-        x
+    let x = 1 in
+    let x = x + 1 in
+    let x = x * 10 in
+    x
     };
     assert_eq!(r, 20);
 }
@@ -271,9 +269,9 @@ fn unit_functions() {
     }
     assert_eq!(calls, 2);
     let r = ml! {
-        let f () = 5 in
-        let g = f in
-        g () + f ()
+    let f () = 5 in
+    let g = f in
+    g () + f ()
     };
     assert_eq!(r, 10);
     // `f ()` calls with no arguments; `f (())` passes the unit value.
@@ -329,13 +327,11 @@ fn whitespace_sensitive_forms() {
 
 #[test]
 fn early_return_with_question_mark() {
-    fn parse_sum(a: &str, b: &str) -> Result<i32, std::num::ParseIntError> {
-        ml! {
-            let x = a.parse::<i32>()? in
-            let y = b.parse::<i32>()? in
-            Ok (x + y)
-        }
-    }
+    fn parse_sum(a: &str, b: &str) -> Result<i32, std::num::ParseIntError> { ml! {
+        let x = a.parse::<i32>()? in
+        let y = b.parse::<i32>()? in
+        Ok (x + y)
+    }}
     assert_eq!(parse_sum("1", "2"), Ok(3));
     assert!(parse_sum("1", "x").is_err());
 }
@@ -346,17 +342,15 @@ fn tail_recursion_runs_in_constant_stack() {
     // function is a loop, not a recursive `fn`.
     let xs: Vec<i32> = (0..1_000_000).collect();
     let n = ml! {
-        let rec go (acc : i64) (l : &[i32]) : i64 =
-          match l with [] -> acc | _ :: rest -> go (acc + 1) rest
-        in
-        go 0 &xs
+    let rec go (acc : i64) (l : &[i32]) : i64 =
+      match l with [] -> acc | _ :: rest -> go (acc + 1) rest
+    in
+    go 0 &xs
     };
     assert_eq!(n, 1_000_000);
     let s = ml! {
-        let rec go ~(acc : u64) ~(k : u64) : u64 =
-          if k = 0 then acc else go ~k:(k - 1) ~acc:(acc + k)
-        in
-        go ~k:1_000_000 ~acc:0
+    let rec go ~(acc : u64) ~(k : u64) : u64 = if k = 0 then acc else go ~k:(k - 1) ~acc:(acc + k) in
+    go ~k:1_000_000 ~acc:0
     };
     assert_eq!(s, 500_000_500_000);
 }

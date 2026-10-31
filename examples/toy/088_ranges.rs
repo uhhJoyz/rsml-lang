@@ -13,7 +13,7 @@
 //   `(0..n).map(f)`.
 // * Ranges do not chain: `a..b..c` is an error: "ranges do not chain: put
 //   one in parentheses"
-// * In patterns, `..` includes its end, as in OCaml (toy 075).
+// * In patterns, `..` and `..=` mean the same (toy 075).
 // * The end is left out when nothing that starts an expression follows:
 //   `xs[1..]`.
 //
@@ -24,30 +24,26 @@ use rsml::ml;
 pub const SUMMARY: &str = "`0..n` stops before `n`, `1..=n` includes it; `xs[1..]`, `0..n |> ..`";
 
 /// The squares from 1 to n: an inclusive range in a pipeline.
-pub fn squares(n: u64) -> Vec<u64> {
-    ml! {
-        // `1..=n |> .map(fun k -> k * k)` is `(1..=n).map(|k| k * k)`.
-        1..=n |> .map(fun k -> k * k) |> .collect()
-    }
-}
+pub fn squares(n: u64) -> Vec<u64> { ml! {
+    // `1..=n |> .map(fun k -> k * k)` is `(1..=n).map(|k| k * k)`.
+    1..=n |> .map(fun k -> k * k) |> .collect()
+}}
 
 /// The hours of a working day, 9 to 17 excluded.
-pub fn office_hours() -> Vec<u32> {
-    ml! { 9..17 |> .collect() }
-}
+pub fn office_hours() -> Vec<u32> { ml! {
+    9..17 |> .collect()
+}}
 
 /// A list without its first and last items.
-pub fn middle(items: &[&'static str]) -> Vec<&'static str> {
-    ml! {
-        // `items[1..items.len() - 1]` slices from index 1 up to the last.
-        if items.len() < 2 then Vec.new () else items[1..items.len() - 1].to_vec()
-    }
-}
+pub fn middle(items: &[&'static str]) -> Vec<&'static str> { ml! {
+    // `items[1..items.len() - 1]` slices from index 1 up to the last.
+    if items.len() < 2 then Vec.new () else items[1..items.len() - 1].to_vec()
+}}
 
 /// How many numbers below 100 are multiples of `k`.
-pub fn multiples(k: u32) -> usize {
-    ml! { (1..100) |> .filter(fun n -> !n mod k = 0) |> .count() }
-}
+pub fn multiples(k: u32) -> usize { ml! {
+    (1..100) |> .filter(fun n -> !n mod k = 0) |> .count()
+}}
 
 pub fn run() {
     println!("squares 4 = {:?}", squares(4));

@@ -8,14 +8,14 @@
 //
 // How to write it:
 // * The operators you define that start with `<`, `>`, `|`, `&`, `=` or
-//   `$` bind like comparisons and group to the left, as in OCaml.
-// * An operator starting with `!` cannot be defined: as in OCaml it would
-//   be a prefix operator, and `!` before an expression is a dereference.
+//   `$` bind like comparisons and group to the left.
+// * An operator starting with `!` cannot be defined: it would be a prefix
+//   operator, and `!` before an expression is a dereference.
 //   `let ( !+ ) a b = a + b in 1` is an error: "`!+` cannot be an
-//   operator: one starting with `!` is a prefix operator (as in OCaml),
-//   and here `!` before an expression is a dereference (`!r` is `*r`), so
-//   `!+` could never be used; define a function instead"
-// * `!=` is infix, as in OCaml, so it can be defined; then it is yours:
+//   operator: one starting with `!` is a prefix operator, and here `!`
+//   before an expression is a dereference (`!r` is `*r`), so `!+` could
+//   never be used; define a function instead"
+// * `!=` is infix, so it can be defined; then it is yours:
 //   Given `let ( != ) a b = a - b`, `5 != 3` is `( != ) 5 3`.
 // * An operator may change what it captures (Rust's `FnMut`): rsml binds
 //   every operator with `let mut`, so nothing more is needed.
@@ -27,40 +27,34 @@ use rsml::ml;
 pub const SUMMARY: &str = "Operator rules: grouping, no `!` operators, operators with state";
 
 /// The port to use: from the command line, else the environment, else 8080.
-pub fn port(cli: Option<u16>, env: Option<u16>) -> u16 {
-    ml! {
-        // `<|>` keeps the first `Some`, `|?` unwraps with a default.
-        let ( <|> ) a b = Option::or a b in
-        let ( |? ) o default = Option::unwrap_or o default in
-        // Both group to the left. Given `let ( <|> ) a b = Option::or a b
-        // let ( |? ) o d = Option::unwrap_or o d`, `cli <|> env |? 8080`
-        // is `(cli <|> env) |? 8080`.
-        cli <|> env |? 8080
-    }
-}
+pub fn port(cli: Option<u16>, env: Option<u16>) -> u16 { ml! {
+    // `<|>` keeps the first `Some`, `|?` unwraps with a default.
+    let ( <|> ) a b = Option::or a b in
+    let ( |? ) o default = Option::unwrap_or o default in
+    // Both group to the left. Given `let ( <|> ) a b = Option::or a b
+    // let ( |? ) o d = Option::unwrap_or o d`, `cli <|> env |? 8080`
+    // is `(cli <|> env) |? 8080`.
+    cli <|> env |? 8080
+}}
 
 /// Where `name` is in `names`, and how many comparisons it took.
-pub fn find(names: &[&str], name: &str) -> (Option<usize>, u32) {
-    ml! {
-        let mut comparisons = 0 in
-        // This operator counts its uses in a local it captures.
-        let ( =? ) a b =
-          comparisons <- comparisons + 1;
-          a = b
-        in
-        // `position` stops at the first match.
-        let at = names |> .iter() |> .position(fun n -> !n =? name) in
-        (at, comparisons)
-    }
-}
+pub fn find(names: &[&str], name: &str) -> (Option<usize>, u32) { ml! {
+    let mut comparisons = 0 in
+    // This operator counts its uses in a local it captures.
+    let ( =? ) a b =
+      comparisons <- comparisons + 1;
+      a = b
+    in
+    // `position` stops at the first match.
+    let at = names |> .iter() |> .position(fun n -> !n =? name) in
+    (at, comparisons)
+}}
 
 /// The difference of two numbers, through a `!=` defined as subtraction.
-pub fn redefined(a: i64, b: i64) -> i64 {
-    ml! {
-        let ( != ) a b = a - b in
-        a != b
-    }
-}
+pub fn redefined(a: i64, b: i64) -> i64 { ml! {
+    let ( != ) a b = a - b in
+    a != b
+}}
 
 pub fn run() {
     println!("port None (Some 3000) = {}", port(None, Some(3000)));

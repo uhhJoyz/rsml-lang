@@ -22,32 +22,26 @@ use rsml::ml;
 pub const SUMMARY: &str = "`(_ : &str).trim().len()`: a placeholder with a type";
 
 /// Initials of a name, with a stored helper that needs its type.
-pub fn initials(first: &str, last: &str) -> String {
-    ml! {
-        // `(_ : &str).chars().next()` is
-        // `move |_0: &str| _0.chars().next()`. Without the type, rustc
-        // could not look up `chars` when the closure is made.
-        let initial = (_ : &str).chars().next() in
-        format!("{}.{}.", initial first |> .unwrap_or('?'), initial last |> .unwrap_or('?'))
-    }
-}
+pub fn initials(first: &str, last: &str) -> String { ml! {
+    // `(_ : &str).chars().next()` is
+    // `move |_0: &str| _0.chars().next()`. Without the type, rustc
+    // could not look up `chars` when the closure is made.
+    let initial = (_ : &str).chars().next() in
+    format!("{}.{}.", initial first |> .unwrap_or('?'), initial last |> .unwrap_or('?'))
+}}
 
 /// A function that measures a text without the spaces around it.
-pub fn measure() -> impl Fn(&str) -> usize {
-    ml! {
-        // `(_ : &str).trim().len()` is `move |_0: &str| _0.trim().len()`.
-        (_ : &str).trim().len()
-    }
-}
+pub fn measure() -> impl Fn(&str) -> usize { ml! {
+    // `(_ : &str).trim().len()` is `move |_0: &str| _0.trim().len()`.
+    (_ : &str).trim().len()
+}}
 
 /// A function that counts the words of a text: a typed `_0`.
-pub fn word_counter() -> impl Fn(&str) -> usize {
-    ml! {
-        // `(_0 : &str).split_whitespace().count()` is
-        // `move |_0: &str| _0.split_whitespace().count()`.
-        (_0 : &str).split_whitespace().count()
-    }
-}
+pub fn word_counter() -> impl Fn(&str) -> usize { ml! {
+    // `(_0 : &str).split_whitespace().count()` is
+    // `move |_0: &str| _0.split_whitespace().count()`.
+    (_0 : &str).split_whitespace().count()
+}}
 
 pub fn run() {
     println!(

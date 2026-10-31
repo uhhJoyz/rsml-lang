@@ -1,8 +1,8 @@
 # Functional notation
 
 Every notation on this page parses inside `ml! { .. }` and in the bodies of
-`rsml!` functions. Each entry shows the OCaml you write and the Rust the
-macro turns it into (as rustc sees it; `scripts/check_docs.py` checks every
+`rsml!` functions. Each entry shows the rsml code you write and the Rust
+the macro turns it into (as rustc sees it; `scripts/check_docs.py` checks every
 row against the macros). `f`, `g`, `xs` and so on stand for whatever is in
 scope. The names of the locals the macros make up say what they stand for,
 since rustc's errors can show them: `_0`, `_1` for placeholders,
@@ -49,7 +49,7 @@ Juxtaposition applies a function to its arguments. A function the macro
 cannot see (anything defined outside the block) is called with every
 argument it is given.
 
-| OCaml                      | Rust                       |
+| rsml                       | Rust                       |
 |----------------------------|----------------------------|
 | `f x y`                    | `f(x, y)`                  |
 | `std::cmp::max a b`        | `std::cmp::max(a, b)`      |
@@ -69,17 +69,18 @@ given makes a function of it. A function the macro cannot see the
 parameters of (a Rust function from elsewhere, a closure parameter) takes
 no labels: `Option::unwrap_or None ~default:3` is an error.
 
-| OCaml                                          | Rust |
+| rsml                                           | Rust |
 |------------------------------------------------|------|
 | `let f ~x ~y = x - y in f ~y:1 ~x:3`           | `{ let f = \|x, y\| x - y; f(3, 1) }` |
 | `let f ~x ~y = x - y in f ~y:1 2`              | `{ let f = \|x, y\| x - y; f(2, 1) }` |
 | `let f ~x ~y = x - y in f ~y:(g a) ~x:(h b)`   | `{ let f = \|x, y\| x - y; { let value1 = g(a); let value2 = h(b); f(value2, value1) } }` |
 | `let f ~x ~y = x - y in f ~y:1`                | `{ let f = \|x, y\| x - y; move \|_0\| f(_0, 1) }` |
 
-**Unit.** `()` alone after a function means "no arguments"; anywhere else it
-is the unit value.
+**Unit.** `()` alone after a function means "no arguments"; anywhere else
+it is the unit value (after a [method](#methods-as-functions-name)'s
+receiver too), and `(())` is the unit value everywhere.
 
-| OCaml       | Rust          |
+| rsml        | Rust          |
 |-------------|---------------|
 | `f ()`      | `f()`         |
 | `f (())`    | `f(())`       |
@@ -89,7 +90,7 @@ is the unit value.
 element, except `Some`, which wraps the tuple. Double parentheses keep a
 tuple as one field.
 
-| OCaml                  | Rust                   |
+| rsml                   | Rust                   |
 |------------------------|------------------------|
 | `Some (1, 2)`          | `Some((1, 2))`         |
 | `Shape::Rect (w, h)`   | `Shape::Rect(w, h)`    |
@@ -111,13 +112,14 @@ tuple as one field.
 
 ## Arity and partial application
 
-OCaml functions are curried; Rust functions take all their arguments at
-once. The macro calls a function directly when it can see that all its
+rsml functions are curried: applied to some of their arguments, they wait
+for the rest. Rust functions take all their arguments at once. The macro
+calls a function directly when it can see that all its
 arguments are there, and makes a closure when some are missing. It can see
 the arity of:
 
 * functions defined in the same block (`let f x y = ..`),
-* closures (`fun`), sections and placeholder functions,
+* closures (`fun x -> e` and `|x| e`), sections and placeholder functions,
 * closure-typed parameters of `rsml!` functions (`impl Fn(..)`,
   `&dyn Fn(..)`, generics bounded by `Fn(..)`),
 * the functions of the same `rsml!`, in each other's bodies: by name at
@@ -126,13 +128,14 @@ the arity of:
   `self` as `Self::name` in their `impl` and `Type::name` in the module,
 * `external` declarations and `(e : t)` constraints with a function type.
 
-| OCaml                                                    | Rust |
+| rsml                                                     | Rust |
 |----------------------------------------------------------|------|
 | `let add x y = x + y in add 1 2`                         | `{ let add = \|x, y\| x + y; add(1, 2) }` |
 | `let add x y = x + y in add 1`                           | `{ let add = \|x, y\| x + y; move \|arg2\| add(1, arg2) }` |
 | `let add x y = x + y in add (expensive ())`              | `{ let add = \|x, y\| x + y; { let value1 = expensive(); move \|arg2\| add(value1, arg2) } }` |
 | `let add x y = x + y in add(1)`                          | `{ let add = \|x, y\| x + y; move \|arg2\| add(1, arg2) }` |
 | `let add x y = x + y in add(1)(2)`                       | `{ let add = \|x, y\| x + y; add(1, 2) }` |
+| `let add = \|x, y\| x + y in add 1`                       | `{ let add = \|x, y\| x + y; move \|arg2\| add(1, arg2) }` |
 | `external add : i64 -> i64 -> i64 ;; add 1`              | `move \|arg2\| add(1, arg2)` |
 | `external adder : i64 -> (i64 -> i64) ;; adder 1 2`      | `adder(1)(2)` |
 | `external plus : _ -> _ -> _ = "std::ops::Add::add" ;; plus 1` | `move \|arg2\| std::ops::Add::add(1, arg2)` |
@@ -142,8 +145,8 @@ the arity of:
 | `rsml! { fn adder(n: i64) -> impl Fn(i64) -> i64 { .. } fn f() { adder 1 2 } }` | `.. fn f() { adder(1)(2) }` |
 | `rsml! { impl P { fn new(x: i64, y: i64) -> P { .. } fn o() -> P { Self::new 0 0 } } }` | `.. Self::new(0, 0) ..` |
 
-Arguments of a partial application are evaluated once, when it is made,
-as in OCaml. In an `external` type only the arrows count: each `->` at the
+Arguments of a partial application are evaluated once, when it is made.
+In an `external` type only the arrows count: each `->` at the
 top is one argument, and parentheses mark a function that returns a
 closure.
 
@@ -181,10 +184,10 @@ locals ahead of its closure, so that `plus` and `plus x` line up
 
 ## Pipelines: `|>` and `@@`
 
-`x |> f` is `f x` and `f @@ x` is `f x`. The piped value goes *last*, as in
-OCaml, and no arity is needed: the result is always a plain call.
+`x |> f` is `f x` and `f @@ x` is `f x`. The piped value goes *last*, and
+no arity is needed: the result is always a plain call.
 
-| OCaml                  | Rust                   |
+| rsml                   | Rust                   |
 |------------------------|------------------------|
 | `x \|> f`              | `f(x)`                 |
 | `x \|> f a`            | `f(a, x)`              |
@@ -218,7 +221,7 @@ puts it anywhere: `x |> f _ 1` is `f(x, 1)`, and `it |> .map _ g` is
 `f >> g` applies `f`, then `g`; `f << g` applies `g`, then `f`. A
 composition is a closure, unless it is applied right away.
 
-| OCaml                                       | Rust |
+| rsml                                        | Rust |
 |---------------------------------------------|------|
 | `f >> g`                                    | `move \|argument\| g(f(argument))` |
 | `f << g`                                    | `move \|argument\| f(g(argument))` |
@@ -231,8 +234,8 @@ composition is a closure, unless it is applied right away.
 `>>` and `<<` are always composition, never shifts; shifts are `lsl`,
 `lsr` and `asr`. Both `lsr` and `asr` are Rust's `>>`, which the operand's
 type decides: arithmetic (sign-filling) for signed integers, logical for
-unsigned ones. OCaml's `lsr` is always logical; for that on a signed
-value, shift it as an unsigned type (`((x as u64) lsr 2) as i64`).
+unsigned ones. For a logical shift of a signed value, shift it as an
+unsigned type (`((x as u64) lsr 2) as i64`).
 
 **Completes at**: `add 1 >> ‸` (functions in scope), `xs |> (.iter >> .‸)`
 (methods of the iterator).
@@ -242,7 +245,7 @@ value, shift it as an unsigned type (`((x as u64) lsr 2) as i64`).
 An operator in parentheses is a function of its operands; applied to one
 argument it is a partial application of the left operand.
 
-| OCaml        | Rust                         |
+| rsml         | Rust                         |
 |--------------|------------------------------|
 | `( + )`      | `\|lhs, rhs\| lhs + rhs`     |
 | `( + ) 1`    | `move \|rhs\| 1 + rhs`       |
@@ -254,17 +257,17 @@ argument it is a partial application of the left operand.
 too.
 
 Operators defined with `let ( op ) a b = ..` are ordinary two-argument
-functions with OCaml's precedence for their first character:
+functions, with the precedence and associativity of their first character
+(`+!` binds like `+`):
 
-| OCaml                                                  | Rust |
+| rsml                                                   | Rust |
 |--------------------------------------------------------|------|
 | `let ( +! ) a b = a + 2 * b in 1 +! 2`                 | `{ let mut operator1 = \|a, b\| a + (2 * b); operator1(1, 2) }` |
 | `let ( \|? ) o d = Option::unwrap_or o d in o \|? 0`   | `{ let mut operator1 = \|o, d\| Option::unwrap_or(o, d); operator1(o, 0) }` |
 
-An operator starting with `!` (other than `!=`) cannot be defined: as in
-OCaml it would be a prefix operator, and here `!` before an expression is
-a dereference (`!*p` is `*(*p)`), so it could never be used. `!=` is
-infix, as in OCaml.
+An operator starting with `!` (other than `!=`) cannot be defined: it
+would be a prefix operator, and `!` before an expression is a dereference
+(`!*p` is `*(*p)`), so it could never be used. `!=` is infix.
 
 **Completes at**: `( + ) ‸` (values in scope) and both operands of any
 operator (`n + ‸`, `n + ‸ * 2`, `n mod ‸`, `n = ‸`, `n > 0 && ‸`).
@@ -275,7 +278,7 @@ A placeholder in an expression makes the expression a function, with one
 parameter per placeholder. `_N` is parameter `N` (from 0); `_` is the
 lowest number not written elsewhere in the expression.
 
-| OCaml                        | Rust |
+| rsml                         | Rust |
 |------------------------------|------|
 | `f _ 1`                      | `move \|_0\| f(_0, 1)` |
 | `f _1 _0`                    | `move \|_0, _1\| f(_1, _0)` |
@@ -300,7 +303,7 @@ annotated, belongs to the expression around it: `f (_ : &str) 1` is
 **Applied directly, there is no closure**, and the rest of the expression
 is evaluated once, when the function is made:
 
-| OCaml                  | Rust |
+| rsml                   | Rust |
 |------------------------|------|
 | `x \|> f _ 1`          | `f(x, 1)` |
 | `(g _1 _0) a b`        | `g(b, a)` |
@@ -320,7 +323,7 @@ Where an expression starts, `.name` is a method as a function of its
 receiver and arguments. Every argument after the receiver goes to the
 method, and the receiver alone is a call without arguments.
 
-| OCaml                                        | Rust |
+| rsml                                         | Rust |
 |----------------------------------------------|------|
 | `.len s`                                     | `s.len()` |
 | `.push xs 1`                                 | `xs.push(1)` |
@@ -365,8 +368,7 @@ Rules:
   you type, `. xs` reads as a method still to be named, with `xs` its
   receiver.)
 * The space before the dot can be left out after `|>`, `>>`, `<<` and
-  `@@`. Rust lexes `xs |>.iter()` with one operator `|>.`, as OCaml
-  does, and unless a `( |>. )` is defined (as for `+=`, see
+  `@@`. Rust lexes `xs |>.iter()` with one operator `|>.`, and unless a `( |>. )` is defined (as for `+=`, see
   [Rust habits](#rust-habits)) that is `|>` and the section:
   `xs |>.iter()` is `xs |> .iter()`, `t |>.0` is `t |> .0`, and
   `.iter >>.count` is `.iter >> .count`. rsml-fmt prints the space. Only
@@ -411,13 +413,13 @@ there (`.it‸ xs`).
 
 ## Rust-style methods, fields and calls
 
-Rust's own call syntax works inside OCaml, with OCaml expressions as
+Rust's own call syntax works in rsml code, with rsml expressions as
 arguments.
 
-| OCaml                                                 | Rust |
+| rsml                                                  | Rust |
 |-------------------------------------------------------|------|
 | `xs.push(1)`                                          | `xs.push(1)` |
-| `xs.iter().map(fun x -> x + 1).collect::<Vec<_>>()`   | `xs.iter().map(\|x\| x + 1).collect::<Vec<_>>()` |
+| `xs.iter().map(fun x -> x + 1).collect::<Vec<_>>()`, `xs.iter().map(\|x\| x + 1).collect::<Vec<_>>()` | `xs.iter().map(\|x\| x + 1).collect::<Vec<_>>()` |
 | `xs` / `.iter()` / `.count()` on separate lines       | `xs.iter().count()` |
 | `p.0`                                                 | `p.0` |
 | `r.f (x)`                                             | `(r.f)(x)` |
@@ -428,13 +430,14 @@ arguments.
 | `f ( *x)`, `f *x`                                     | `f(*x)`, `f * x` |
 
 A method call has no space before its parenthesis (`x.f(a)`); with a
-space, `x.f (a)` applies the *field* `f` to `a`, as OCaml would read it.
+space, `x.f (a)` applies the *field* `f` to `a`.
 
 `*e` is Rust's dereference where an expression starts, and binds like
-Rust's (`*x.f` is `*(x.f)`), while OCaml's `!x.f` is `(!x).f`. Rust's
-glued prefix operators (`&*s`, `!*p`, `**q`) are one operator each. `(*x)`
-reads as the start of an OCaml comment (to people and to OCaml tools),
-so write `( *x)`, which is what rsml-fmt prints, or `!x`. After an
+Rust's (`*x.f` is `*(x.f)`), while `!`, which dereferences too, binds
+tighter than `.` (`!x.f` is `(!x).f`). Rust's glued prefix operators
+(`&*s`, `!*p`, `**q`) are one operator each. `(*x)` opens an ML comment
+(see [Comments](#comments)), so write `( *x)`, which is what rsml-fmt
+prints, or `!x`. After an
 argument, `*` multiplies: `f *x` is `f * x`.
 
 **Completes at**
@@ -458,9 +461,9 @@ A `(` written right after a function (a name, a path, its generic
 arguments, a closing `)` or `]`, or the `?` of `x?`) is a Rust call: each item between the
 parentheses is one argument, and a full expression of its own for
 placeholders. A `[` written there is Rust indexing. With a space, both are
-OCaml: `f (a, b)` passes one tuple, `f [1; 2]` a list.
+ML style: `f (a, b)` passes one tuple, `f [1; 2]` a list.
 
-| OCaml                                   | Rust |
+| rsml                                    | Rust |
 |-----------------------------------------|------|
 | `add(1, 2)`                             | `add(1, 2)` |
 | `f()`, `f(())`                          | `f()`, `f(())` |
@@ -480,7 +483,7 @@ OCaml: `f (a, b)` passes one tuple, `f [1; 2]` a list.
 
 * For a function whose arity the macro knows (a local `let`, a
   closure-typed `rsml!` parameter, an `external`), the items count as that
-  many arguments, as if written OCaml style: `add(1)` is a partial
+  many arguments, as if written ML style: `add(1)` is a partial
   application, `add(1)(2)` and `add(1, 2)` are the same call, and extra
   arguments apply the result. A Rust function's call `f(a)` is complete.
 * `f()` is `f ()`: a call without arguments, or `()` passed to a function
@@ -488,13 +491,14 @@ OCaml: `f (a, b)` passes one tuple, `f [1; 2]` a list.
 * A constructor with its `(` written right after it is one value, like
   a Rust call: what follows (`.method()`, `.field`, `.0`, `[i]`, `?`,
   `.await`, another `(..)`) applies to the value it builds, and as an
-  argument it is one argument. Its argument keeps OCaml's rules:
-  `Some(1, 2)` is `Some((1, 2))`, `Pair(1, 2)` is `Pair(1, 2)`. Spaced,
-  it is OCaml's application, where `.` binds tighter: `Some (x).unwrap()`
+  argument it is one argument. Its argument keeps the rules of
+  constructors (see [Application](#application)): `Some(1, 2)` is
+  `Some((1, 2))`, `Pair(1, 2)` is `Pair(1, 2)`. Spaced, it is ML-style
+  application, where `.` binds tighter: `Some (x).unwrap()`
   is `Some (x.unwrap ())`. rsml-fmt keeps a constructor's argument
   against it or spaced, as written, so it never changes which is meant.
 * `[|..|]` is always an array: `f[|1; 2|]` is `f [|1; 2|]`.
-* OCaml's `s.[i]` (the byte at `i` as a character) is an error: Rust
+* `s.[i]` (the byte at `i` as a character, in OCaml) is an error: Rust
   strings are not indexed by position. Write `s.as_bytes()[i]` for the
   byte or `s.chars().nth(i)` for the character.
 * rsml-fmt never adds or removes the space before such a `(` or `[`.
@@ -512,7 +516,7 @@ OCaml: `f (a, b)` passes one tuple, `f [1; 2]` a list.
 ## Macros
 
 The arguments of std's formatting, assertion and panicking macros are
-OCaml expressions: `print!`, `println!`, `eprint!`, `eprintln!`,
+rsml expressions: `print!`, `println!`, `eprint!`, `eprintln!`,
 `format!`, `format_args!`, `write!`, `writeln!`, `panic!`,
 `unreachable!`, `todo!`, `unimplemented!`, `assert!`, `assert_eq!`,
 `assert_ne!`, `debug_assert!`, `debug_assert_eq!`, `debug_assert_ne!`,
@@ -520,7 +524,7 @@ OCaml expressions: `print!`, `println!`, `eprint!`, `eprintln!`,
 `alloc::name!`. Every other macro (yours, `matches!`, ..) gets its tokens
 as written, as Rust, and `ml! { .. }` works inside it.
 
-| OCaml                                        | Rust |
+| rsml                                         | Rust |
 |----------------------------------------------|------|
 | `assert_eq!(add 1 2, 3)`                     | `assert_eq!(add(1, 2), 3)` |
 | `println!("{}", xs \|> .len)`                | `println!("{}", xs.len())` |
@@ -535,14 +539,15 @@ as written, as Rust, and `ml! { .. }` works inside it.
 * Each argument ends at a `,` outside brackets, so generic arguments and
   comparisons need no parentheses. `vec![e; n]` (with `;`) repeats `e`.
 * A format string stays as written. After it, `name = e` is a named
-  argument, its value OCaml; write `(a = b)` for a comparison there.
-* OCaml's meanings apply: `!x` dereferences and `not x` negates. Rust's
+  argument, its value rsml code; write `(a = b)` for a comparison there.
+* rsml's meanings apply: `!x` dereferences and `not x` negates. Rust's
   `assert!(!xs.is_empty())` would dereference `xs` and assert the
   opposite (`!` binds tighter than `.`), so in an assertion `!x.f()`
   without parentheses is an error that suggests `not (x.f())`, or
   `(!x).f()` for a dereference. `!` before a comparison, `not e` or
   `true` is an error anywhere.
-* `assert e` is still OCaml's `assert`; `assert!(e)` is the macro.
+* `assert e` is still the `assert` of [Control flow](#control-flow);
+  `assert!(e)` is the macro.
 * rsml-fmt prints macro calls as written.
 
 **Completes at**
@@ -559,9 +564,9 @@ as written, as Rust, and `ml! { .. }` works inside it.
 ## Paths
 
 Rust paths are written as in Rust when there is no space around `::`.
-Capitalized names may also be joined with `.`, OCaml style.
+Capitalized names may also be joined with `.`, ML style.
 
-| OCaml                        | Rust                        |
+| rsml                         | Rust                        |
 |------------------------------|-----------------------------|
 | `std::mem::swap a b`         | `std::mem::swap(a, b)`      |
 | `::std::cmp::max a b`        | `::std::cmp::max(a, b)`     |
@@ -571,7 +576,7 @@ Capitalized names may also be joined with `.`, OCaml style.
 | `Iterator::map _ f`          | `move \|_0\| Iterator::map(_0, f)` |
 
 `x :: xs` with spaces is a cons, and so is `h::t` when `h` is bound in the
-block (a name bound in OCaml is a value, never a module).
+block (a name bound in rsml code is a value, never a module).
 
 **Completes at**
 
@@ -583,11 +588,11 @@ block (a name bound in OCaml is a value, never a module).
 | `std::cmp::‸`, `std::cmp::ma‸`        | the module's items           |
 | `::std::‸`                            | `std`'s modules              |
 | `xs.iter() \|> Iterator::‸ _ (fun x -> x)` | `Iterator`'s methods   |
-| `open std::‸`, `let open std::‸ in ..`| modules                      |
+| `use std::‸;`                         | modules                      |
 
 ## Lambdas: `fun` and `function`
 
-| OCaml                                | Rust |
+| rsml                                 | Rust |
 |--------------------------------------|------|
 | `fun x y -> x + y`                   | `move \|x, y\| x + y` |
 | `fun () -> 1`                        | `move \|\| 1` |
@@ -599,11 +604,42 @@ block (a name bound in OCaml is a value, never a module).
 | `3 \|> fun x -> x * x`               | `{ let x = 3; x * x }` |
 | `function Some x -> x \| None -> 0`  | `move \|argument\| match argument { Some(x) => x, None => 0, }` |
 
-A `fun` that is the result of the block (or of an enclosing closure) is
+A closure may also be written Rust style: `|x, y| e` makes the same
+closure as `fun x y -> e`. The parameters are separated by `,` and typed
+Rust's way (`x: i32`), `|| e` has no parameters, and `move |x| e` is
+`fun move x -> e`.
+
+| rsml                                 | Rust |
+|--------------------------------------|------|
+| `\|x: i32\| x + c`, `move \|x: i32\| x + c` | `move \|x: i32\| x + c` |
+| `\|\| 1`                             | `move \|\| 1` |
+| `\|(a, b)\| a + b`                   | `move \|(a, b)\| a + b` |
+| `f (\|a, b\| a + b)`                 | `f(\|a, b\| a + b)` |
+| `f (move \|x\| x)`                   | `f(move \|x\| x)` |
+| `map (\|&x\| x * 2) xs`              | `map(\|&x\| x * 2, xs)` |
+| `xs.map(\|x\| x + 1)`                | `xs.map(\|x\| x + 1)` |
+| `(\|x\| x + 1) 2`                    | `{ let x = 2; x + 1 }` |
+| `f (\|x\| a <- x; b <- x)`           | `f(\|x\| { a = x; b = x })` |
+| `let add = \|x, y\| x + y in add 1`  | `{ let add = \|x, y\| x + y; move \|arg2\| add(1, arg2) }` |
+| `a \|\| b`                           | `a \|\| b` |
+
+* Both forms make the same closure, with the same known arity (see
+  [Arity](#arity-and-partial-application)), and both are applied on the
+  spot without a closure.
+* The body reaches as far as a `fun` body does, over `;` too:
+  `f (|x| a <- x; b <- x)` assigns both in the closure.
+* As an argument, a closure goes in parentheses, as `fun` does:
+  `f (|x| x)`. `f |x| x` is an error: "a closure here goes in parentheses, as `fun` does: `f (|x| e)`".
+* The body comes right after the parameters: `|x| -> x` is an error: "a closure's body comes right after its parameters: `|x| e` (or `fun x -> e`)".
+* `||` after an operand is still `or`: `a || b` is `a || b`.
+* Among match cases, a `|` after `return` or after a trailing `;` is the
+  next case, so a closure there needs parentheses: `return (|y| y)`.
+
+A closure that is the result of the block (or of an enclosing closure) is
 `move`, so it can be returned, unless it assigns to something. Closures
 passed as arguments borrow what they capture, like Rust closures; write
-`fun move` when one must outlive the function. A lambda applied on the spot
-is not a closure at all.
+`fun move` or `move |x| e` when one must outlive the function. A lambda
+applied on the spot is not a closure at all.
 
 **Completes at**
 
@@ -619,8 +655,8 @@ is not a closure at all.
 
 ## Local functions and bindings
 
-| OCaml | Rust |
-|-------|------|
+| rsml | Rust |
+|------|------|
 | `let f x = x * 2 in f 3` | `{ let f = \|x\| x * 2; f(3) }` |
 | `let c = ref 0 in let mut next () = incr c; !c in next ()` | `{ let mut c = 0; let mut next = \|\| { c += 1; c }; next() }` |
 | `let rec fact (n : i64) : i64 = if n = 0 then 1 else n * fact (n - 1) in fact 5` | `{ fn fact(n: i64) -> i64 { if n == 0 { 1 } else { n * fact(n - 1) } } fact(5) }` |
@@ -629,14 +665,16 @@ is not a closure at all.
 | `let rec id (x : 'a) : 'a = x in id 1` | `{ fn id<A>(x: A) -> A { x } id(1) }` |
 | `let rec go (acc : i64) (k : i64) : i64 = if k = 0 then acc else go (acc + k) (k - 1) in go 0 n` | `{ fn go(mut arg1: i64, mut arg2: i64) -> i64 { loop { let acc = arg1; let k = arg2; break if k == 0 { acc } else { (arg1, arg2) = (acc + k, k - 1); continue }; } } go(0, n) }` |
 | `let x = 1 let y = 2 ;; x + y` | `{ let x = 1; let y = 2; x + y }` |
-| `open std::cmp ;; max a b` | `{ use std::cmp::*; max(a, b) }` |
-| `let open std::cmp in max a b` | `{ use std::cmp::*; max(a, b) }` |
+| `use std::cmp::*; max a b` | `{ use std::cmp::*; max(a, b) }` |
+| `use std::cmp::{max, min}; min (max a b) c` | `{ use std::cmp::{max, min}; min(max(a, b), c) }` |
+| `let y = 2 in use std::cmp::max; max y 3` | `{ let y = 2; use std::cmp::max; max(y, 3) }` |
+| `(use std::cmp::max; max a b) + 1` | `({ use std::cmp::max; max(a, b) }) + 1` |
 | `let r = ref 0 in incr r; r := 10 - !r; !r` | `{ let mut r = 0; r += 1; r = 10 - r; r }` |
 | `let mut n = 0 in n <- 10 - n; n` | `{ let mut n = 0; n = 10 - n; n }` |
 | `n <- n + 1` | `{ #[allow(clippy::assign_op_pattern)] { n = n + 1; } }` |
 | `let r = ref 0 in r := !r + 1` | `{ let mut r = 0; { #[allow(clippy::assign_op_pattern)] { r = r + 1; } } }` |
 
-OCaml has no `+=`, so an assignment that clippy would rewrite as one
+rsml has no `+=`, so an assignment that clippy would rewrite as one
 (`x = x + e`, `x = e * x`, ..) is made a statement that allows the lint.
 
 `let f x = ..` is a closure: its parameter types are inferred like a Rust
@@ -651,9 +689,11 @@ or `match`, the body of `let`, the end of a sequence) is a loop instead:
 such a call assigns the parameters and goes round again, so it runs in
 constant stack space in every build. Rust does not guarantee that for a
 recursive `fn`, and a debug build does not do it. Functions defined
-together with `and` stay recursive. The block is an OCaml toplevel: `let` without `in`,
-`external`, `open` and `;;`-separated expressions, the last one being the
-value.
+together with `and` stay recursive. The block is a toplevel: `let`
+without `in`, `external`, `use` and `;;`-separated expressions, the last
+one being the value. `use` takes any Rust use tree and ends with its own
+`;` (no `;;` after it); it can also start an expression, for that
+expression only.
 
 **Completes at**
 
@@ -668,23 +708,25 @@ value.
 | `let (a, b) = (1, 2) in ‸`, `let Point { x; y } = p in ‸` | the bound names |
 | `let a = 1 and b = ‸ in a + b`                      | values in scope      |
 | `let x = 1` / `let y = x‸`                          | `x`                  |
-| `let open std::cmp in ‸`, `open std::cmp ;; ‸`      | `max`, `min`, ..     |
+| `use std::cmp::*; ‸`, `let x = 1 in use std::cmp::*; ‸` | `max`, `min`, .. |
 | `external add : i64 -> i64 -> i64 ;; ad‸ 1`         | `add`                |
 | `let r = ref 0 in r := ‸`, `let mut m = 0 in m <- ‸`, `incr ‸` | values    |
 
 ## Patterns
 
-`match`, `function` and `let` take OCaml patterns: constructors, tuples,
-lists (as slice patterns), records, literals, ranges `'a'..='z'` and
-`0..10`, or-patterns, `as`, and guards with `when`. Ranges are Rust's, in
-patterns as in expressions (see [Ranges](#ranges)): `..=` includes its end
-and `..` leaves it out, however it is spaced. OCaml's `'a' .. 'z'` would
-include `'z'`; here it does not (clippy's `almost_complete_range` lint
+`match`, `function` and `let` take patterns: constructors, tuples, lists
+(as slice patterns), records, literals, ranges `'a'..='z'` and `0..10`,
+or-patterns, `as`, and guards with `when` or `if` (`p if c -> e` means
+the same as `p when c -> e`). Ranges are Rust's, in patterns as in
+expressions (see [Ranges](#ranges)): `..=` includes its end and `..`
+leaves it out, however it is spaced, so `'a' .. 'z'` leaves out `'z'`
+(it would include it in OCaml; clippy's `almost_complete_range` lint
 points at it, as in Rust).
 
-| OCaml | Rust |
-|-------|------|
-| `match o with Some x when x > 0 -> x \| _ -> 0` | `match o { Some(x) if x > 0 => x, _ => 0, }` |
+| rsml | Rust |
+|------|------|
+| `match o with Some x when x > 0 -> x \| _ -> 0`, `match o with Some x if x > 0 -> x \| _ -> 0` | `match o { Some(x) if x > 0 => x, _ => 0, }` |
+| `match x with A \| B if c -> 1 \| _ -> 2` | `match x { A \| B if c => 1, _ => 2, }` |
 | `match xs with [] -> 0 \| x :: rest -> 1` | `match ::rsml::__rt::as_slice(&xs) { [] => 0, [x, rest @ ..] => 1, }` |
 | `match ord with std::cmp::Ordering::Less -> -1 \| _ -> 0` | `match ord { std::cmp::Ordering::Less => -1, _ => 0, }` |
 | `match n with i32::MAX -> 1 \| _ -> 0` | `match n { i32::MAX => 1, _ => 0, }` |
@@ -696,6 +738,39 @@ points at it, as in Rust).
 A path in a pattern may start with a lowercase module (`std::cmp::Ordering::Less`,
 `i32::MAX`) when it is written without spaces and reaches a capitalized
 name; `x::rest`, all lowercase, is a cons.
+
+**Nested `match`.** A `match` in a case needs no parentheses: a case that
+the inner `match` cannot take goes to the enclosing one, and the cases
+after it go there too. The macro runs before types are known, but a
+pattern shows part of its type: a path's type segment (`A` in `A::Y`),
+`Some` and `None` (`Option`), `Ok` and `Err` (`Result`), a literal's kind
+(integer, float, string, char, bool), a tuple's length, a list pattern.
+A case goes to the nearest enclosing `match` (or `function`) that can take
+it when
+
+* its pattern is of another type than the inner cases', or
+* a case before it in the inner `match` already matches everything it
+  does: `_`, a variable, or the same constructor or literal again (a
+  second `None`).
+
+| rsml | Rust |
+|------|------|
+| `match a with A::X -> match b with B::P -> 1 \| B::Q -> 2 \| A::Y -> 3` | `match a { A::X => match b { B::P => 1, B::Q => 2, }, A::Y => 3, }` |
+| `match r with Ok n -> match n with 0 -> 1 \| _ -> 2 \| Err e -> 3` | `match r { Ok(n) => match n { 0 => 1, _ => 2, }, Err(e) => 3, }` |
+| `match a with A -> match b with X -> 1 \| _ -> 2 \| B -> 3` | `match a { A => match b { X => 1, _ => 2, }, B => 3, }` |
+| `match a with Some x -> match x with Some y -> y \| None -> 0 \| None -> 3` | `match a { Some(x) => match x { Some(y) => y, None => 0, }, None => 3, }` |
+| `function Some x -> match x with 0 -> 1 \| n -> n \| None -> 0` | `move \|argument\| match argument { Some(x) => match x { 0 => 1, n => n, }, None => 0, }` |
+| `match a with A -> match b with X -> 1 \| Y -> 2 \| B -> 3` | `match a { A => match b { X => 1, Y => 2, B => 3, }, }` |
+| `match a with A -> (match b with X -> 1 \| Y -> 2) \| B -> 3` | `match a { A => match b { X => 1, Y => 2, }, B => 3, }` |
+
+Without such evidence (bare constructors such as `X` and `B`, a `_` or
+a variable case that follows the inner cases, or the same type at both
+levels: `A::P` and `A::Y`) a case stays with the inner `match`, and the
+inner `match` needs parentheses or `begin .. end` for the case to go to
+the enclosing one. `Self::A` shows no type: it could be any. A case never
+leaves brackets, `begin .. end`, a `let` value (before `in`), an `if`
+condition, a guard, a `match` scrutinee, or a loop's bounds or body. rsml-fmt puts each case of a nested `match` on its
+own line, so the indentation shows which `match` a case belongs to.
 
 **Completes at**
 
@@ -712,13 +787,14 @@ name; `x::rest`, all lowercase, is a cons.
 | `match (n, o) with (0, Some x) -> x.‸ \| _ -> 0`   | methods of `String`    |
 | `let rec go : &[i64] -> i64 = function [] -> 0 \| x :: rest -> ‸ in ..` | `x`, `rest` |
 
-Field names inside a record pattern (`Point { ‸ }`) are not offered: an
-OCaml record pattern may leave fields out, so the expansion always ends it
-with `..`, and rust-analyzer only offers the fields a pattern is missing.
+Field names inside a record pattern (`Point { ‸ }`) are not offered: a
+record pattern in rsml code may leave fields out, so the expansion always
+ends it with `..`, and rust-analyzer only offers the fields a pattern is
+missing.
 
 ## Operators that become calls
 
-| OCaml               | Rust |
+| rsml                | Rust |
 |---------------------|------|
 | `x :: xs`           | `::rsml::__rt::cons(x, xs)` |
 | `1 :: [2; 3]`       | `::std::vec![1, 2, 3]` |
@@ -738,7 +814,7 @@ with `..`, and rust-analyzer only offers the fields a pattern is missing.
 
 Rust's ranges, with Rust's meaning: `a..b` stops before `b`.
 
-| OCaml          | Rust           |
+| rsml           | Rust           |
 |----------------|----------------|
 | `a..b`, `a..=b` | `a..b`, `a..=b` |
 | `a..`, `..b`, `..=b`, `..` | `a..`, `..b`, `..=b`, `..` |
@@ -761,8 +837,8 @@ expression (`a..` before `)`, `do`, `|>`, ..). Patterns take the same
 These are expressions, so they appear wherever a function body or argument
 does.
 
-| OCaml | Rust |
-|-------|------|
+| rsml | Rust |
+|------|------|
 | `if c then a else b` | `if c { a } else { b }` |
 | `a; b` | `{ a; b }` |
 | `begin a; b end` | `{ a; b }` |
@@ -777,19 +853,20 @@ does.
 | `unsafe { e }`, `async { e }`, `async move { e }` | the same, with `e` translated |
 | `assert c`, `assert false` | `::core::assert!(c)`, `::core::unreachable!("assert false")` |
 
-* `for p in e do .. done` takes an OCaml pattern; its body is a unit
-  block, like the other loops'.
-* `while true` is OCaml's endless loop and Rust's `loop` (which rustc
-  would ask for); `break e` gives it a value.
+* `for p in e do .. done` takes a pattern (see [Patterns](#patterns));
+  its body is a unit block, like the other loops'.
+* `while true` is the endless loop, Rust's `loop` (which rustc would ask
+  for); `break e` gives it a value.
 * The value of `return` and `break` extends like an `if` branch: up to a
   `;`, `in`, `then`, `else`, `with`, a match `|`, `done` or a closing
   bracket. It is left out when nothing that can start an expression
   follows. As an argument, `return` needs parentheses: `f (return x)`.
-* The braces of `unsafe` and `async` hold OCaml, as `begin .. end` does.
+* The braces of `unsafe` and `async` hold rsml code, as `begin .. end`
+  does.
 * A `;` may end a sequence (`begin a; b; end`), but what follows it must
   then end something: `a; ; b` (two `;`s, which is not `;;`) and an
-  operator right after a `;` (`a; + b`, `a; := b`, `a; , b`) are errors,
-  as in OCaml.
+  operator right after a `;` (`a; + b`, `a; := b`, `a; , b`) are
+  errors.
 
 **Completes at**
 
@@ -812,7 +889,7 @@ does.
 
 ## Records and collections
 
-| OCaml                 | Rust |
+| rsml                  | Rust |
 |-----------------------|------|
 | `Point { x = 1; y }`  | `Point { x: 1, y }` |
 | `{ p with x = 2 }`    | `{ let mut record = p; record.x = 2; record }` |
@@ -840,7 +917,7 @@ moved into the new one.
 
 ## Types
 
-Types are Rust types written with OCaml's arrows and tuples: `i64 -> i64`
+Types are Rust types written with ML arrows and tuples: `i64 -> i64`
 is a function, `i64 * String` is `(i64, String)`, and `'a` is a type
 variable (a generic parameter in a `let rec` signature). They appear in
 `(e : t)`, `(x : t)` parameters, `let x : t = ..`, `let rec` signatures,
@@ -854,10 +931,10 @@ matters there, so they are not part of the expansion.
 
 ## Comments
 
-OCaml's `(* .. *)` comments work in OCaml code, nested as in OCaml, and so
-do Rust's `//` and `/* .. */`.
+ML comments, `(* .. *)`, work in rsml code and nest, and so do Rust's
+`//` and `/* .. */`.
 
-| OCaml                         | Rust      |
+| rsml                          | Rust      |
 |-------------------------------|-----------|
 | `1 + (* one (* two *) *) 2`   | `1 + 2`   |
 | `1 + /* one */ 2`             | `1 + 2`   |
@@ -878,12 +955,14 @@ do Rust's `//` and `/* .. */`.
 
 ## Rust habits
 
-Rust code that means something else in OCaml, or nothing, is an error
-that says what to write instead.
+Rust code that means something else in rsml, or nothing, is an error
+that says what to write instead. Rust closures (`|x| e`, `|| e`,
+`move |x| e`) are not among them: they are accepted (see
+[Lambdas](#lambdas-fun-and-function)), and so are `if` guards (see
+[Patterns](#patterns)).
 
 | Written                               | The error suggests                     |
 |---------------------------------------|----------------------------------------|
-| `\|x\| e`, `\|\| e`, `move \|x\| e`     | `fun x -> e`, `fun () -> e`, `fun move x -> e` |
 | `if let Some(x) = o { .. }`           | `match e with p -> .. \| _ -> ..`      |
 | `match x { p => e }`                  | `match x with p -> e \| ..`            |
 | `x += e`, `x -= e`, `x *= e`, ..      | `x <- x + e` (`incr r` or `r := !r + e` for a `ref`) |
@@ -891,7 +970,7 @@ that says what to write instead.
 | `[1, 2]`, `[\|1, 2\|]`, `function [a, b] -> a` | `[1; 2]`, or `[(1, 2)]` for a list of one pair |
 | `let x = e; more`                     | `let x = e in ..`                      |
 | `let loop = ..`, `fn x`, `p.type`, .. | a raw identifier (`r#loop`) for a name |
-| `fn f x = ..`                         | `let f x = .. in ..` (a closure is `fun x -> e`) |
+| `fn f x = ..`                         | `let f x = .. in ..` (a closure is `\|x\| e`) |
 | `assert!(!xs.is_empty())`, `!(a = b)` | `not (x.f())`, `not e`                 |
 
 A raw identifier is a name wherever one goes (values, parameters,
@@ -910,11 +989,11 @@ the error that `try .. with` is not supported. `async`, `await` and `dyn`
 stay keywords, as rsml uses them (`async { e }`, `e.await`, `dyn Trait` in
 types); write `r#async` for the name.
 
-One habit is read as meant instead, a method chain's dot glued to the
-pipe before it: `xs |>.iter() |>.count()` is `xs |> .iter() |> .count()`
+Besides closures and `if` guards, one habit is read as meant, a method
+chain's dot glued to the pipe before it: `xs |>.iter() |>.count()` is `xs |> .iter() |> .count()`
 (see [methods as functions](#methods-as-functions-name)).
 
-OCaml's own forms are not affected: `let () = a; b` and `let f x = a; b`
+The rsml forms that look like these are not affected: `let () = a; b` and `let f x = a; b`
 (a sequence as the value), `if let x = e in c then ..`, `x += e` with
 a `let ( += ) a b = ..` in scope, and `x |>.y` with a
 `let ( |>. ) a b = ..` in scope. Under rust-analyzer the parser recovers

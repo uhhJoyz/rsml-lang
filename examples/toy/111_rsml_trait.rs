@@ -1,14 +1,14 @@
-// Toy 111: traits with OCaml method bodies.
+// Toy 111: traits with rsml method bodies.
 //
 // What it is: in a `trait` inside `rsml!`, a default method's body is
-// OCaml, and so are the bodies in each `impl Trait for Type`. Method
+// rsml code, and so are the bodies in each `impl Trait for Type`. Method
 // declarations without a body (`fn area(&self) -> f64;`) stay as they are.
 //
 // When to use it: to give a family of types shared behaviour, written in
-// OCaml like the rest of the code.
+// rsml like the rest of the code.
 //
 // How to write it:
-// * Declarations and signatures are Rust; each body is one OCaml
+// * Declarations and signatures are Rust; each body is one rsml
 //   expression.
 // * A default method calls the others Rust style, `self.area()`. With a
 //   space, `self.area ()` is `(self.area)()`, a call of a field `area`.
@@ -20,58 +20,58 @@
 
 use rsml::rsml;
 
-pub const SUMMARY: &str = "A `trait` with an OCaml default method, and its `impl`s";
+pub const SUMMARY: &str = "A `trait` with an rsml default method, and its `impl`s";
 
 rsml! {
-    /// A plane figure.
-    pub trait Shape {
-        fn area(&self) -> f64;
-        fn name(&self) -> String;
+/// A plane figure.
+pub trait Shape {
+    fn area(&self) -> f64;
+    fn name(&self) -> String;
 
-        /// A default method, in OCaml.
-        fn describe(&self) -> String {
-            format!("{} of area {:.1}", self.name(), self.area())
-        }
+    /// A default method, in rsml.
+    fn describe(&self) -> String {
+        format!("{} of area {:.1}", self.name(), self.area())
+    }
+}
+
+pub struct Circle {
+    pub r: f64,
+}
+
+pub struct Square {
+    pub side: f64,
+}
+
+impl Shape for Circle {
+    fn area(&self) -> f64 {
+        std::f64::consts::PI *. self.r *. self.r
     }
 
-    pub struct Circle {
-        pub r: f64,
+    fn name(&self) -> String {
+        String.from "circle"
+    }
+}
+
+impl Shape for Square {
+    // `self.side ** 2.0` is `::core::primitive::f64::powf(self.side, 2.0)`.
+    fn area(&self) -> f64 {
+        self.side ** 2.0
     }
 
-    pub struct Square {
-        pub side: f64,
+    fn name(&self) -> String {
+        String.from "square"
     }
 
-    impl Shape for Circle {
-        fn area(&self) -> f64 {
-            std::f64::consts::PI *. self.r *. self.r
-        }
-
-        fn name(&self) -> String {
-            String.from "circle"
-        }
+    /// Overrides the default.
+    fn describe(&self) -> String {
+        format!("a square of side {}", self.side)
     }
+}
 
-    impl Shape for Square {
-        // `self.side ** 2.0` is `::core::primitive::f64::powf(self.side, 2.0)`.
-        fn area(&self) -> f64 {
-            self.side ** 2.0
-        }
-
-        fn name(&self) -> String {
-            String.from "square"
-        }
-
-        /// Overrides the default.
-        fn describe(&self) -> String {
-            format!("a square of side {}", self.side)
-        }
-    }
-
-    /// The total area of some shapes of any kind.
-    pub fn total_area(shapes: &[&dyn Shape]) -> f64 {
-        shapes |> .iter() |> .map(fun s -> s.area()) |> .sum()
-    }
+/// The total area of some shapes of any kind.
+pub fn total_area(shapes: &[&dyn Shape]) -> f64 {
+    shapes |> .iter() |> .map(fun s -> s.area()) |> .sum()
+}
 }
 
 pub fn run() {

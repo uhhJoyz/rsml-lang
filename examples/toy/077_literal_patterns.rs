@@ -25,54 +25,46 @@ pub const SUMMARY: &str =
     "Literal patterns: `\"yes\"` (on a String too), `-1`, `'\\n'`, `i32::MAX`";
 
 /// Whether an answer, as typed, means yes.
-pub fn yes(answer: String) -> bool {
-    ml! {
-        // `match answer with "y" -> true | _ -> false` is
-        // `match ::rsml::__rt::as_str(&answer) { "y" => true, _ => false, }`.
-        match answer with "yes" | "y" -> true | _ -> false
-    }
-}
+pub fn yes(answer: String) -> bool { ml! {
+    // `match answer with "y" -> true | _ -> false` is
+    // `match ::rsml::__rt::as_str(&answer) { "y" => true, _ => false, }`.
+    match answer with "yes" | "y" -> true | _ -> false
+}}
 
 /// Whether a character is blank, and whether that counts.
-pub fn blank(c: char, strict: bool) -> bool {
-    ml! { match (c, strict) with (' ', _) | ('\t', false) | ('\n', false) -> true | _ -> false }
-}
+pub fn blank(c: char, strict: bool) -> bool { ml! {
+    match (c, strict) with (' ', _) | ('\t', false) | ('\n', false) -> true | _ -> false
+}}
 
 /// A command and its argument; the `String` inside the tuple is matched too.
-pub fn apply(cmd: String, n: i32, total: i32) -> i32 {
-    ml! {
-        // `match (s, n) with ("add", n) -> 1 | _ -> 0` is
-        // `match (::rsml::__rt::as_str(&s), n) { ("add", n) => 1, _ => 0, }`.
-        match (cmd, n) with ("add", n) -> total + n | ("reset", _) -> 0 | _ -> total
-    }
-}
+pub fn apply(cmd: String, n: i32, total: i32) -> i32 { ml! {
+    // `match (s, n) with ("add", n) -> 1 | _ -> 0` is
+    // `match (::rsml::__rt::as_str(&s), n) { ("add", n) => 1, _ => 0, }`.
+    match (cmd, n) with ("add", n) -> total + n | ("reset", _) -> 0 | _ -> total
+}}
 
 /// Names for special numbers.
-pub fn name(n: i32) -> &'static str {
-    ml! {
-        match n with
-        | i32::MAX -> "the largest i32"
-        | 0 -> "zero"
-        | -1 -> "minus one"
-        | 0x10 -> "sixteen"
-        | _ -> "a number"
-    }
-}
+pub fn name(n: i32) -> &'static str { ml! {
+    match n with
+    | i32::MAX -> "the largest i32"
+    | 0 -> "zero"
+    | -1 -> "minus one"
+    | 0x10 -> "sixteen"
+    | _ -> "a number"
+}}
 
 /// A comparison, in words: the variants are written with their path.
-pub fn compare(a: u32, b: u32) -> &'static str {
-    ml! {
-        match a.cmp(&b) with
-        | std::cmp::Ordering::Less -> "less"
-        | std::cmp::Ordering::Equal -> "equal"
-        | std::cmp::Ordering::Greater -> "greater"
-    }
-}
+pub fn compare(a: u32, b: u32) -> &'static str { ml! {
+    match a.cmp(&b) with
+    | std::cmp::Ordering::Less -> "less"
+    | std::cmp::Ordering::Equal -> "equal"
+    | std::cmp::Ordering::Greater -> "greater"
+}}
 
 /// An optional answer: `as_deref` turns `Option<String>` into `Option<&str>`.
-pub fn maybe_yes(answer: Option<String>) -> bool {
-    ml! { match answer.as_deref() with Some "yes" -> true | _ -> false }
-}
+pub fn maybe_yes(answer: Option<String>) -> bool { ml! {
+    match answer.as_deref() with Some "yes" -> true | _ -> false
+}}
 
 pub fn run() {
     println!(

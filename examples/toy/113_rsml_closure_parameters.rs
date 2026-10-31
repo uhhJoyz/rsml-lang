@@ -8,7 +8,7 @@
 // `Box<dyn Fn(..)>`) takes one more call (toy 114).
 //
 // When to use it: for higher-order functions written in `rsml!`: the
-// body applies its function parameters OCaml style, fully or partially.
+// body applies its function parameters ML style, fully or partially.
 //
 // How to write it:
 // * `rsml! { fn f(g: &dyn Fn(i64, i64) -> i64) -> i64 { g 1 2 } }` is
@@ -25,29 +25,28 @@
 
 use rsml::rsml;
 
-pub const SUMMARY: &str =
-    "`&dyn Fn`, `F: Fn(..)`, `where F: Fn(..)` parameters, applied OCaml style";
+pub const SUMMARY: &str = "`&dyn Fn`, `F: Fn(..)`, `where F: Fn(..)` parameters, applied ML style";
 
 rsml! {
-    /// A price list run through a pricing rule given as `&dyn Fn`.
-    pub fn priced(rule: &dyn Fn(u32, u32) -> u32, quantities: &[u32], unit: u32) -> Vec<u32> {
-        // `rule !q unit` calls the rule with both arguments.
-        quantities |> .iter() |> .map(fun q -> rule !q unit) |> .collect()
-    }
+/// A price list run through a pricing rule given as `&dyn Fn`.
+pub fn priced(rule: &dyn Fn(u32, u32) -> u32, quantities: &[u32], unit: u32) -> Vec<u32> {
+    // `rule !q unit` calls the rule with both arguments.
+    quantities |> .iter() |> .map(fun q -> rule !q unit) |> .collect()
+}
 
-    /// A rule fixed to a quantity: the generic `F` is partially applied.
-    pub fn for_quantity<F: Fn(u32, u32) -> u32>(rule: F, quantity: u32) -> impl Fn(u32) -> u32 {
-        rule quantity
-    }
+/// A rule fixed to a quantity: the generic `F` is partially applied.
+pub fn for_quantity<F: Fn(u32, u32) -> u32>(rule: F, quantity: u32) -> impl Fn(u32) -> u32 {
+    rule quantity
+}
 
-    /// The same with a `where` clause, called Rust style.
-    pub fn dozen<F>(rule: F, unit: u32) -> u32
-    where
-        F: Fn(u32, u32) -> u32,
-    {
-        // `rule(12)(unit)` and `rule(12, unit)` are the same call.
-        rule(12)(unit)
-    }
+/// The same with a `where` clause, called Rust style.
+pub fn dozen<F>(rule: F, unit: u32) -> u32
+where
+    F: Fn(u32, u32) -> u32,
+{
+    // `rule(12)(unit)` and `rule(12, unit)` are the same call.
+    rule(12)(unit)
+}
 }
 
 /// The pricing rule: every tenth item is free.

@@ -40,32 +40,26 @@ fn repeat_word(word: &str, times: usize) -> String {
 }
 
 /// Celsius to Fahrenheit: one function, across `*`, `/` and `+`.
-pub fn fahrenheit(celsius: &[i64]) -> Vec<i64> {
-    ml! {
-        // `_ * 9 / 5 + 32` is `move |_0| ((_0 * 9) / 5) + 32`; as the
-        // argument of `.map(..)` it is the closure `|_0| ((_0 * 9) / 5) + 32`.
-        celsius |> .iter() |> .map(_ * 9 / 5 + 32) |> .collect()
-    }
-}
+pub fn fahrenheit(celsius: &[i64]) -> Vec<i64> { ml! {
+    // `_ * 9 / 5 + 32` is `move |_0| ((_0 * 9) / 5) + 32`; as the
+    // argument of `.map(..)` it is the closure `|_0| ((_0 * 9) / 5) + 32`.
+    celsius |> .iter() |> .map(_ * 9 / 5 + 32) |> .collect()
+}}
 
 /// Balances with 10% interest: the parentheses end the function.
-pub fn with_interest(balances: &[i64]) -> Vec<i64> {
-    ml! {
-        // `apply_to_all (add_percent 10 _) balances` is
-        // `apply_to_all(|_0| add_percent(10, _0), balances)`.
-        apply_to_all (add_percent 10 _) balances
-    }
-}
+pub fn with_interest(balances: &[i64]) -> Vec<i64> { ml! {
+    // `apply_to_all (add_percent 10 _) balances` is
+    // `apply_to_all(|_0| add_percent(10, _0), balances)`.
+    apply_to_all (add_percent 10 _) balances
+}}
 
 /// A function that writes any word three times.
-pub fn tripler() -> impl Fn(&str) -> String {
-    ml! {
-        // `repeat_word (_ : &str) 3` is
-        // `move |_0: &str| repeat_word(_0, 3)`: the typed `_` alone is a
-        // parameter of the whole call.
-        repeat_word (_ : &str) 3
-    }
-}
+pub fn tripler() -> impl Fn(&str) -> String { ml! {
+    // `repeat_word (_ : &str) 3` is
+    // `move |_0: &str| repeat_word(_0, 3)`: the typed `_` alone is a
+    // parameter of the whole call.
+    repeat_word (_ : &str) 3
+}}
 
 pub fn run() {
     println!(

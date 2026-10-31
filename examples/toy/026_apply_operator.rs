@@ -31,21 +31,17 @@ fn round_to(step: u32, total: u32) -> u32 {
 }
 
 /// Subtotal, with tax, rounded: the same as a pipeline, read right to left.
-pub fn bill(items: &[u32]) -> u32 {
-    ml! {
-        // `round_to 10 @@ with_tax 20 @@ subtotal items` is
-        // `round_to(10, with_tax(20, subtotal(items)))`.
-        round_to 10 @@ with_tax 20 @@ subtotal items
-    }
-}
+pub fn bill(items: &[u32]) -> u32 { ml! {
+    // `round_to 10 @@ with_tax 20 @@ subtotal items` is
+    // `round_to(10, with_tax(20, subtotal(items)))`.
+    round_to 10 @@ with_tax 20 @@ subtotal items
+}}
 
 /// An operation after `@@` needs no parentheses either.
-pub fn reserve(stock: u32, held: u32) -> Option<u32> {
-    ml! {
-        // `Some @@ stock - held` is `Some (stock - held)`.
-        if held <= stock then Some @@ stock - held else None
-    }
-}
+pub fn reserve(stock: u32, held: u32) -> Option<u32> { ml! {
+    // `Some @@ stock - held` is `Some (stock - held)`.
+    if held <= stock then Some @@ stock - held else None
+}}
 
 pub fn run() {
     println!("bill [199; 250] = {}", bill(&[199, 250]));

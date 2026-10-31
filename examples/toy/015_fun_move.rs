@@ -14,6 +14,9 @@
 //
 // How to write it:
 // * `fun move x -> x + by`; the rest is as for `fun` (toy 012).
+// * Rust's spelling is the same closure:
+//   `xs.iter().map(move |x| x + by)` is `xs.iter().map(fun move x -> x + by)`,
+//   and `f (move |x| x)` is `f(move |x| x)`.
 // * Without the `move` below, rustc rejects `shifted`: the closure would
 //   borrow `by`, a parameter that ends with the function.
 //
@@ -24,30 +27,24 @@ use rsml::ml;
 pub const SUMMARY: &str = "`fun move`; a returned `fun` moves, an argument borrows";
 
 /// A function that adds a tax rate: the returned `fun` owns `rate`.
-pub fn tax_adder(rate: u32) -> impl Fn(u32) -> u32 {
-    ml! {
-        // `fun price -> price + price * rate / 100` is
-        // `fun move price -> price + price * rate / 100`.
-        fun price -> price + price * rate / 100
-    }
-}
+pub fn tax_adder(rate: u32) -> impl Fn(u32) -> u32 { ml! {
+    // `fun price -> price + price * rate / 100` is
+    // `fun move price -> price + price * rate / 100`.
+    fun price -> price + price * rate / 100
+}}
 
 /// Each number shifted by `by`, lazily: the iterator outlives `by`.
-pub fn shifted(xs: &[i64], by: i64) -> impl Iterator<Item = i64> + '_ {
-    ml! {
-        // `xs.iter().map(fun move x -> x + by)` is
-        // `xs.iter().map(move |x| x + by)`.
-        xs.iter().map(fun move x -> x + by)
-    }
-}
+pub fn shifted(xs: &[i64], by: i64) -> impl Iterator<Item = i64> + '_ { ml! {
+    // `xs.iter().map(fun move x -> x + by)` is
+    // `xs.iter().map(move |x| x + by)`.
+    xs.iter().map(fun move x -> x + by)
+}}
 
 /// Each number scaled, collected at once: a borrowing closure is enough.
-pub fn scaled(xs: &[i64], k: i64) -> Vec<i64> {
-    ml! {
-        // `xs.iter().map(fun x -> x * k)` is `xs.iter().map(|x| x * k)`.
-        xs.iter().map(fun x -> x * k).collect()
-    }
-}
+pub fn scaled(xs: &[i64], k: i64) -> Vec<i64> { ml! {
+    // `xs.iter().map(fun x -> x * k)` is `xs.iter().map(|x| x * k)`.
+    xs.iter().map(fun x -> x * k).collect()
+}}
 
 /// How often a callback was called: it assigns, so it is not `move`.
 pub fn count_calls(n: u32) -> u32 {

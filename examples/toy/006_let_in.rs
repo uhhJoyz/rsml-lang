@@ -22,53 +22,43 @@ use rsml::ml;
 pub const SUMMARY: &str = "`let x = e in body`: shadowing, patterns, types, `let _`";
 
 /// A bill with a 10% tip.
-pub fn with_tip(bill: u32) -> u32 {
-    ml! {
-        // `let tip = bill / 10 in bill + tip` is
-        // `{ let tip = bill / 10; bill + tip }`.
-        let tip = bill / 10 in
-        bill + tip
-    }
-}
+pub fn with_tip(bill: u32) -> u32 { ml! {
+    // `let tip = bill / 10 in bill + tip` is
+    // `{ let tip = bill / 10; bill + tip }`.
+    let tip = bill / 10 in
+    bill + tip
+}}
 
 /// A price after a 25% discount, then a 20% tax.
-pub fn final_price(price: u32) -> u32 {
-    ml! {
-        let price = price - price / 4 in
-        // This `price` shadows the one above, which shadows the parameter.
-        let price = price + price / 5 in
-        price
-    }
-}
+pub fn final_price(price: u32) -> u32 { ml! {
+    let price = price - price / 4 in
+    // This `price` shadows the one above, which shadows the parameter.
+    let price = price + price / 5 in
+    price
+}}
 
 /// The area of a rectangle given as (width, height).
-pub fn area(size: (u32, u32)) -> u32 {
-    ml! {
-        // `let (w, h) = size in w * h` is `{ let (w, h) = size; w * h }`.
-        let (w, h) = size in
-        w * h
-    }
-}
+pub fn area(size: (u32, u32)) -> u32 { ml! {
+    // `let (w, h) = size in w * h` is `{ let (w, h) = size; w * h }`.
+    let (w, h) = size in
+    w * h
+}}
 
 /// A number read from text, doubled (0 if it is not a number).
-pub fn doubled(text: &str) -> i64 {
-    ml! {
-        // `let n : i64 = e in n * 2` is `{ let n: i64 = e; n * 2 }`: the
-        // type tells `parse` what to make.
-        let n : i64 = text.trim().parse().unwrap_or(0) in
-        n * 2
-    }
-}
+pub fn doubled(text: &str) -> i64 { ml! {
+    // `let n : i64 = e in n * 2` is `{ let n: i64 = e; n * 2 }`: the
+    // type tells `parse` what to make.
+    let n : i64 = text.trim().parse().unwrap_or(0) in
+    n * 2
+}}
 
 /// The second item from the top of a stack.
-pub fn second_from_top(mut stack: Vec<u32>) -> Option<u32> {
-    ml! {
-        // `let _ = stack.pop() in stack.pop()` is
-        // `{ let _ = stack.pop(); stack.pop() }`.
-        let _ = stack.pop() in
-        stack.pop()
-    }
-}
+pub fn second_from_top(mut stack: Vec<u32>) -> Option<u32> { ml! {
+    // `let _ = stack.pop() in stack.pop()` is
+    // `{ let _ = stack.pop(); stack.pop() }`.
+    let _ = stack.pop() in
+    stack.pop()
+}}
 
 pub fn run() {
     println!("with_tip 50 = {}", with_tip(50));

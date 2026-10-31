@@ -1,6 +1,6 @@
 // Toy 097: arrays, `[|a; b; c|]`.
 //
-// What it is: OCaml's array literal, made a Rust array `[a, b, c]`: a
+// What it is: the array literal, made a Rust array `[a, b, c]`: a
 // fixed number of items, no heap. `[| |]` is an empty array.
 //
 // When to use it: for fixed-size data (a colour, a week, a small table),
@@ -22,39 +22,31 @@ use rsml::ml;
 pub const SUMMARY: &str = "Arrays: `[|a; b|]` is `[a, b]`; array patterns `[|r; g; b|]`";
 
 /// Orange, as red, green and blue.
-pub fn orange() -> [u8; 3] {
-    ml! {
-        // `[|1; 2; 3|]` is `[1, 2, 3]`.
-        [|255; 165; 0|]
-    }
-}
+pub fn orange() -> [u8; 3] { ml! {
+    // `[|1; 2; 3|]` is `[1, 2, 3]`.
+    [|255; 165; 0|]
+}}
 
 /// The brightness of a colour, from its three parts.
-pub fn brightness(rgb: [u8; 3]) -> u32 {
-    ml! {
-        match rgb with
-        // `r`, `g` and `b` are `&u8`: `!r` reads one.
-        | [|r; g; b|] -> (!r as u32 + !g as u32 + !b as u32) / 3
-        | _ -> 0
-    }
-}
+pub fn brightness(rgb: [u8; 3]) -> u32 { ml! {
+    match rgb with
+    // `r`, `g` and `b` are `&u8`: `!r` reads one.
+    | [|r; g; b|] -> (!r as u32 + !g as u32 + !b as u32) / 3
+    | _ -> 0
+}}
 
 /// The weekend: the last two days of the week.
-pub fn weekend() -> Vec<&'static str> {
-    ml! {
-        let week = [|"Mon"; "Tue"; "Wed"; "Thu"; "Fri"; "Sat"; "Sun"|] in
-        // An array is indexed as in Rust: `week[5..]` is a slice of it.
-        week[5..].to_vec()
-    }
-}
+pub fn weekend() -> Vec<&'static str> { ml! {
+    let week = [|"Mon"; "Tue"; "Wed"; "Thu"; "Fri"; "Sat"; "Sun"|] in
+    // An array is indexed as in Rust: `week[5..]` is a slice of it.
+    week[5..].to_vec()
+}}
 
 /// The sum of a slice, called with an array.
-pub fn total_of_three() -> i64 {
-    ml! {
-        // `sum &[|1; 2; 3|]` is `sum(&[1, 2, 3])`.
-        sum &[|1; 2; 3|]
-    }
-}
+pub fn total_of_three() -> i64 { ml! {
+    // `sum &[|1; 2; 3|]` is `sum(&[1, 2, 3])`.
+    sum &[|1; 2; 3|]
+}}
 
 fn sum(xs: &[i64]) -> i64 {
     xs.iter().sum()

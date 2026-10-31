@@ -21,34 +21,28 @@ use rsml::ml;
 pub const SUMMARY: &str = "`(std::cmp::max 0 : i64 -> i64)` is a partial application";
 
 /// Balances, with debts shown as zero.
-pub fn floored(balances: &[i64]) -> Vec<i64> {
-    ml! {
-        // `(std::cmp::max 0 : i64 -> i64)` is
-        // `move |arg2| std::cmp::max(0, arg2)`.
-        let floor_at_zero = (std::cmp::max 0 : i64 -> i64) in
-        balances |> .iter() |> .copied() |> .map(floor_at_zero) |> .collect()
-    }
-}
+pub fn floored(balances: &[i64]) -> Vec<i64> { ml! {
+    // `(std::cmp::max 0 : i64 -> i64)` is
+    // `move |arg2| std::cmp::max(0, arg2)`.
+    let floor_at_zero = (std::cmp::max 0 : i64 -> i64) in
+    balances |> .iter() |> .copied() |> .map(floor_at_zero) |> .collect()
+}}
 
 /// Only the arrows of a function type count, so its types can be `_`.
-pub fn capped(balances: &[i64]) -> Vec<i64> {
-    ml! {
-        // `(std::cmp::min 100 : _ -> _)` is
-        // `move |arg2| std::cmp::min(100, arg2)`. The types are not
-        // checked at all: `(std::cmp::min 100 : String -> bool)` is
-        // `move |arg2| std::cmp::min(100, arg2)` too.
-        balances |> .iter() |> .copied() |> .map((std::cmp::min 100 : _ -> _)) |> .collect()
-    }
-}
+pub fn capped(balances: &[i64]) -> Vec<i64> { ml! {
+    // `(std::cmp::min 100 : _ -> _)` is
+    // `move |arg2| std::cmp::min(100, arg2)`. The types are not
+    // checked at all: `(std::cmp::min 100 : String -> bool)` is
+    // `move |arg2| std::cmp::min(100, arg2)` too.
+    balances |> .iter() |> .copied() |> .map((std::cmp::min 100 : _ -> _)) |> .collect()
+}}
 
 /// With a plain type, a check: `(t : i64)` must be an `i64`.
-pub fn total(balances: &[i64]) -> i64 {
-    ml! {
-        // `(t : i64)` is `{ let typed: i64 = t; typed }`.
-        let t = balances |> .iter() |> .sum in
-        (t : i64)
-    }
-}
+pub fn total(balances: &[i64]) -> i64 { ml! {
+    // `(t : i64)` is `{ let typed: i64 = t; typed }`.
+    let t = balances |> .iter() |> .sum in
+    (t : i64)
+}}
 
 pub fn run() {
     let balances = [120, -30, 250];

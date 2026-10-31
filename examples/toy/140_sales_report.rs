@@ -20,72 +20,72 @@ use std::collections::BTreeMap;
 pub const SUMMARY: &str = "A sales report: pipelines over records, `_.units`, `.1`, `@`";
 
 rsml! {
-    /// One sale: what, where, how many, at what price in cents.
-    #[derive(Debug, Clone)]
-    pub struct Sale {
-        pub item: &'static str,
-        pub region: &'static str,
-        pub units: u32,
-        pub cents: u32,
-    }
+/// One sale: what, where, how many, at what price in cents.
+#[derive(Debug, Clone)]
+pub struct Sale {
+    pub item: &'static str,
+    pub region: &'static str,
+    pub units: u32,
+    pub cents: u32,
+}
 
-    /// The sales of the day.
-    pub fn sales() -> Vec<Sale> {
-        // `Sale { item; region; units; cents }` takes each field from the
-        // variable of its name.
-        let sale item region units cents = Sale { item; region; units; cents } in
-        [sale "tea" "north" 3 250;
-         sale "coffee" "north" 5 300;
-         sale "tea" "south" 10 250;
-         sale "cake" "south" 2 400;
-         sale "coffee" "south" 1 300]
-    }
+/// The sales of the day.
+pub fn sales() -> Vec<Sale> {
+    // `Sale { item; region; units; cents }` takes each field from the
+    // variable of its name.
+    let sale item region units cents = Sale { item; region; units; cents } in
+    [sale "tea" "north" 3 250;
+     sale "coffee" "north" 5 300;
+     sale "tea" "south" 10 250;
+     sale "cake" "south" 2 400;
+     sale "coffee" "south" 1 300]
+}
 
-    pub fn revenue(s: &Sale) -> u32 {
-        s.units * s.cents
-    }
+pub fn revenue(s: &Sale) -> u32 {
+    s.units * s.cents
+}
 
-    /// The revenue of each region, in cents.
-    pub fn by_region(sales: &[Sale]) -> BTreeMap<&'static str, u32> {
-        let mut totals = BTreeMap.new () in
-        for s in sales do
-          let c = totals.entry(s.region).or_insert(0) in
-          *c <- *c + revenue s
-        done;
-        totals
-    }
+/// The revenue of each region, in cents.
+pub fn by_region(sales: &[Sale]) -> BTreeMap<&'static str, u32> {
+    let mut totals = BTreeMap.new () in
+    for s in sales do
+      let c = totals.entry(s.region).or_insert(0) in
+      *c <- *c + revenue s
+    done;
+    totals
+}
 
-    /// The item that sold the most units, with the units.
-    pub fn best_seller(sales: &[Sale]) -> Option<(&'static str, u32)> {
-        let mut units = BTreeMap.new () in
-        for s in sales do
-          let c = units.entry(s.item).or_insert(0) in
-          *c <- *c + s.units
-        done;
-        // `.1` is a function of a pair, its second field.
-        units |> .into_iter() |> .max_by_key(.1)
-    }
+/// The item that sold the most units, with the units.
+pub fn best_seller(sales: &[Sale]) -> Option<(&'static str, u32)> {
+    let mut units = BTreeMap.new () in
+    for s in sales do
+      let c = units.entry(s.item).or_insert(0) in
+      *c <- *c + s.units
+    done;
+    // `.1` is a function of a pair, its second field.
+    units |> .into_iter() |> .max_by_key(.1)
+}
 
-    /// The average price of the units sold, in cents.
-    pub fn average_price(sales: &[Sale]) -> f64 {
-        let total = sales |> .iter() |> .map(revenue) |> .sum::<u32>() in
-        let units = sales |> .iter() |> .map(_.units) |> .sum::<u32>() in
-        // `total as f64 /. units as f64` is `(total as f64) / (units as f64)`.
-        total as f64 /. units as f64
-    }
+/// The average price of the units sold, in cents.
+pub fn average_price(sales: &[Sale]) -> f64 {
+    let total = sales |> .iter() |> .map(revenue) |> .sum::<u32>() in
+    let units = sales |> .iter() |> .map(_.units) |> .sum::<u32>() in
+    // `total as f64 /. units as f64` is `(total as f64) / (units as f64)`.
+    total as f64 /. units as f64
+}
 
-    /// The report, one line per region, then the best seller.
-    pub fn report(sales: &[Sale]) -> Vec<String> {
-        let lines =
-          by_region sales
-          |> .iter()
-          |> .map(fun (region, cents) -> format!("{:<6}{:>8.2}", region, !cents as f64 /. 100.0))
-          |> .collect::<Vec<_>>()
-        in
-        match best_seller sales with
-        | Some (item, units) -> lines @ [format!("best seller: {} ({} units)", item, units)]
-        | None -> lines
-    }
+/// The report, one line per region, then the best seller.
+pub fn report(sales: &[Sale]) -> Vec<String> {
+    let lines =
+      by_region sales
+      |> .iter()
+      |> .map(fun (region, cents) -> format!("{:<6}{:>8.2}", region, !cents as f64 /. 100.0))
+      |> .collect::<Vec<_>>()
+    in
+    match best_seller sales with
+    | Some (item, units) -> lines @ [format!("best seller: {} ({} units)", item, units)]
+    | None -> lines
+}
 }
 
 pub fn run() {

@@ -2,7 +2,7 @@
 //
 // What it is: a `(` written right after a function (a name, a path, or a
 // closing `)` or `]`) is a Rust call: each item between the parentheses is
-// one argument. With a space it is OCaml's application of one value.
+// one argument. With a space it is an ML-style application to one value.
 //
 // When to use it: when Rust's spelling reads better, for example calls
 // with several computed arguments, or to call what a call returns.
@@ -38,38 +38,30 @@ fn standard_tax() -> u32 {
 }
 
 /// The price of 50 with tax, with the tax rate from a function call.
-pub fn taxed() -> u32 {
-    ml! {
-        // Written as in Rust, and `price(50, standard_tax())` is
-        // `price 50 (standard_tax ())`.
-        price(50, standard_tax())
-    }
-}
+pub fn taxed() -> u32 { ml! {
+    // Written as in Rust, and `price(50, standard_tax())` is
+    // `price 50 (standard_tax ())`.
+    price(50, standard_tax())
+}}
 
 /// A spaced tuple is one argument.
-pub fn pair_total(a: u32, b: u32) -> u32 {
-    ml! {
-        // `total (a, b)` is `total((a, b))`.
-        total (a, b)
-    }
-}
+pub fn pair_total(a: u32, b: u32) -> u32 { ml! {
+    // `total (a, b)` is `total((a, b))`.
+    total (a, b)
+}}
 
 /// Calls what `discount(10)` returns: a closure.
-pub fn on_sale(p: u32) -> (u32, u32) {
-    ml! {
-        // `discount(10)(p)` calls the closure that `discount(10)` returns;
-        // `discount(10) p` is `discount(10)(p)`.
-        (discount(10)(p), discount(10) p)
-    }
-}
+pub fn on_sale(p: u32) -> (u32, u32) { ml! {
+    // `discount(10)(p)` calls the closure that `discount(10)` returns;
+    // `discount(10) p` is `discount(10)(p)`.
+    (discount(10)(p), discount(10) p)
+}}
 
 /// A Rust call with a placeholder is a function of the missing argument.
-pub fn prices(bases: &[u32]) -> Vec<u32> {
-    ml! {
-        // `price(_, 10)` is `fun p -> price(p, 10)`.
-        bases.iter().copied().map(price(_, 10)).collect()
-    }
-}
+pub fn prices(bases: &[u32]) -> Vec<u32> { ml! {
+    // `price(_, 10)` is `fun p -> price(p, 10)`.
+    bases.iter().copied().map(price(_, 10)).collect()
+}}
 
 pub fn run() {
     println!("price(50, standard_tax()) = {}", taxed());

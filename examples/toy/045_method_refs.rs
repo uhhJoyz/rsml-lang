@@ -1,12 +1,12 @@
 // Toy 045: methods as functions, `.len s`, `.push cart item`.
 //
 // What it is: where an expression starts, `.name` is the method `name` as
-// a function of its receiver and arguments, written OCaml style:
+// a function of its receiver and arguments, written ML style:
 // `.push cart item` is `cart.push(item)`. The first argument is the
 // receiver, every other one goes to the method.
 //
 // When to use it: in pipelines (toy 046), and wherever the method should
-// read like the other functions of an OCaml expression.
+// read like the other functions of an rsml expression.
 //
 // How to write it: `.name receiver arg1 arg2 ..`.
 // * The receiver alone is a call without arguments: `.len s` is
@@ -24,32 +24,26 @@ use rsml::ml;
 pub const SUMMARY: &str = "`.len s`, `.push cart item`: the receiver comes first";
 
 /// A cart with one more item, and its size.
-pub fn add_item(mut cart: Vec<String>, item: &str) -> (Vec<String>, usize) {
-    ml! {
-        // `.push cart (String.from item)` is `cart.push(String::from(item))`.
-        .push cart (String.from item);
-        // `.len cart` is `cart.len()`.
-        let size = .len cart in
-        (cart, size)
-    }
-}
+pub fn add_item(mut cart: Vec<String>, item: &str) -> (Vec<String>, usize) { ml! {
+    // `.push cart (String.from item)` is `cart.push(String::from(item))`.
+    .push cart (String.from item);
+    // `.len cart` is `cart.len()`.
+    let size = .len cart in
+    (cart, size)
+}}
 
 /// Whether the cart holds an item.
-pub fn has(cart: &[String], item: &str) -> bool {
-    ml! {
-        // `.contains cart &item.to_string()` is
-        // `cart.contains(&item.to_string())`.
-        .contains cart &item.to_string()
-    }
-}
+pub fn has(cart: &[String], item: &str) -> bool { ml! {
+    // `.contains cart &item.to_string()` is
+    // `cart.contains(&item.to_string())`.
+    .contains cart &item.to_string()
+}}
 
 /// The item at a position, if any.
-pub fn item_at(cart: &[String], i: usize) -> Option<&String> {
-    ml! {
-        // `.get cart i` is `cart.get(i)`.
-        .get cart i
-    }
-}
+pub fn item_at(cart: &[String], i: usize) -> Option<&String> { ml! {
+    // `.get cart i` is `cart.get(i)`.
+    .get cart i
+}}
 
 pub fn run() {
     let (cart, size) = add_item(vec!["tea".to_string()], "milk");

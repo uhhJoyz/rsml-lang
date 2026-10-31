@@ -1,6 +1,6 @@
 // Toy 085: the endless loop, `while true do .. done`, and `break e`.
 //
-// What it is: OCaml's endless loop is `while true do .. done`; it is
+// What it is: the endless loop is `while true do .. done`; it is
 // Rust's `loop`, which rustc would ask for: `while true do break done` is
 // `loop { break; }`. Like Rust's `loop`, it can give a value: `break e`
 // leaves it with `e`.
@@ -21,24 +21,20 @@ use rsml::ml;
 pub const SUMMARY: &str = "`while true do .. break e .. done`: Rust's `loop`, with a value";
 
 /// The first square number at least as large as `n`.
-pub fn square_at_least(n: u64) -> u64 {
-    ml! {
-        let mut k = 0 in
-        // `while true do f () done` is `loop { f(); }`.
-        while true do
-          if k * k >= n then break k * k;
-          k <- k + 1
-        done
-    }
-}
+pub fn square_at_least(n: u64) -> u64 { ml! {
+    let mut k = 0 in
+    // `while true do f () done` is `loop { f(); }`.
+    while true do
+      if k * k >= n then break k * k;
+      k <- k + 1
+    done
+}}
 
 /// The first free seat number, from a list of taken ones.
-pub fn first_free(taken: &[u32]) -> u32 {
-    ml! {
-        let mut seat = 1 in
-        while true do if not (taken.contains(&seat)) then break seat else seat <- seat + 1 done
-    }
-}
+pub fn first_free(taken: &[u32]) -> u32 { ml! {
+    let mut seat = 1 in
+    while true do if not (taken.contains(&seat)) then break seat else seat <- seat + 1 done
+}}
 
 pub fn run() {
     println!("square_at_least 20 = {}", square_at_least(20));

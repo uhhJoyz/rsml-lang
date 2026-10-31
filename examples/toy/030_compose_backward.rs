@@ -31,23 +31,19 @@ fn round_to(step: u32, cents: u32) -> u32 {
 }
 
 /// A heading: the title in upper case, in brackets.
-pub fn heading(title: &str) -> String {
-    ml! {
-        // `bracket << str::to_uppercase` is
-        // `move |argument| bracket(str::to_uppercase(argument))`.
-        let shout = bracket << str::to_uppercase in
-        shout title
-    }
-}
+pub fn heading(title: &str) -> String { ml! {
+    // `bracket << str::to_uppercase` is
+    // `move |argument| bracket(str::to_uppercase(argument))`.
+    let shout = bracket << str::to_uppercase in
+    shout title
+}}
 
 /// The price of toy 029, rounded after the tax, composed backwards.
-pub fn rounded_price(cents: u32) -> u32 {
-    ml! {
-        // `round_to 10 << add_tax 20` is `add_tax 20 >> round_to 10`.
-        let price = round_to 10 << add_tax 20 in
-        price cents
-    }
-}
+pub fn rounded_price(cents: u32) -> u32 { ml! {
+    // `round_to 10 << add_tax 20` is `add_tax 20 >> round_to 10`.
+    let price = round_to 10 << add_tax 20 in
+    price cents
+}}
 
 pub fn run() {
     println!("heading \"menu\" = {:?}", heading("menu"));

@@ -1,7 +1,7 @@
 // Toy 004: borrowed arguments `f &xs`, `f &mut xs`, and labels `~x:e`.
 //
 // What it is: values move into a call, as in Rust; `&xs` lends them and
-// `&mut xs` lends them for changing. OCaml's labels, `~name:value` and
+// `&mut xs` lends them for changing. Labels, `~name:value` and
 // `~name` (short for `~name:name`), give an argument to the parameter of
 // that name, in any order.
 //
@@ -38,33 +38,27 @@ fn add_tax(prices: &mut [u32], percent: u32) {
 }
 
 /// The total before and after a 10% tax.
-pub fn totals(mut prices: Vec<u32>) -> (u32, u32) {
-    ml! {
-        // `total &prices` is `total(&prices)`: `prices` is only lent.
-        let before = total &prices in
-        // `add_tax &mut prices 10` is `add_tax(&mut prices, 10)`.
-        add_tax &mut prices 10;
-        (before, total &prices)
-    }
-}
+pub fn totals(mut prices: Vec<u32>) -> (u32, u32) { ml! {
+    // `total &prices` is `total(&prices)`: `prices` is only lent.
+    let before = total &prices in
+    // `add_tax &mut prices 10` is `add_tax(&mut prices, 10)`.
+    add_tax &mut prices 10;
+    (before, total &prices)
+}}
 
 /// Labels say what the arguments are, in any order.
-pub fn label(name: &str, price: u32) -> String {
-    ml! {
-        let describe ~(name : &str) ~(price : u32) = format!("{name}: {price}") in
-        // Given `let f ~x ~y = x - y`, `f ~y:1 ~x:3` is `f(3, 1)`.
-        describe ~price:(price * 2) ~name
-    }
-}
+pub fn label(name: &str, price: u32) -> String { ml! {
+    let describe ~(name : &str) ~(price : u32) = format!("{name}: {price}") in
+    // Given `let f ~x ~y = x - y`, `f ~y:1 ~x:3` is `f(3, 1)`.
+    describe ~price:(price * 2) ~name
+}}
 
 /// A label left out: `describe ~price` waits for the name.
-pub fn price_tags(names: &[&str], price: u32) -> Vec<String> {
-    ml! {
-        let describe ~(name : &str) ~(price : u32) = format!("{name}: {price}") in
-        let with_price = describe ~price in
-        names.iter().map(fun n -> with_price n).collect()
-    }
-}
+pub fn price_tags(names: &[&str], price: u32) -> Vec<String> { ml! {
+    let describe ~(name : &str) ~(price : u32) = format!("{name}: {price}") in
+    let with_price = describe ~price in
+    names.iter().map(fun n -> with_price n).collect()
+}}
 
 pub fn run() {
     println!("totals [100; 250] = {:?}", totals(vec![100, 250]));

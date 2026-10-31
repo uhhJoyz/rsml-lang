@@ -36,22 +36,18 @@ fn standard() -> Item {
 }
 
 /// The standard item at another price.
-pub fn priced(price: u32) -> Item {
-    ml! {
-        // `{ p with price = 5 }` is `{ let mut record = p; record.price = 5; record }`.
-        { standard () with price }
-    }
-}
+pub fn priced(price: u32) -> Item { ml! {
+    // `{ p with price = 5 }` is `{ let mut record = p; record.price = 5; record }`.
+    { standard () with price }
+}}
 
 /// The large size: both new values read the old item before it moves.
-pub fn large(item: Item) -> Item {
-    ml! {
-        // `format!` only borrows `item.name`; moving it out with
-        // `item.name + ".."` would leave `item` partly moved, and rustc
-        // would refuse to move the rest into the new record.
-        { item with name = format!("{} (large)", item.name); price = 2 * item.price }
-    }
-}
+pub fn large(item: Item) -> Item { ml! {
+    // `format!` only borrows `item.name`; moving it out with
+    // `item.name + ".."` would leave `item` partly moved, and rustc
+    // would refuse to move the rest into the new record.
+    { item with name = format!("{} (large)", item.name); price = 2 * item.price }
+}}
 
 #[derive(Debug, PartialEq)]
 pub struct Size {
@@ -60,14 +56,12 @@ pub struct Size {
 }
 
 /// Width and height swapped, in one update.
-pub fn turned(s: Size) -> Size {
-    ml! {
-        // `{ s with width = s.height; height = s.width }` is
-        // `{ let value1 = s.height; let value2 = s.width; let mut record = s;
-        // record.width = value1; record.height = value2; record }`.
-        { s with width = s.height; height = s.width }
-    }
-}
+pub fn turned(s: Size) -> Size { ml! {
+    // `{ s with width = s.height; height = s.width }` is
+    // `{ let value1 = s.height; let value2 = s.width; let mut record = s;
+    // record.width = value1; record.height = value2; record }`.
+    { s with width = s.height; height = s.width }
+}}
 
 pub fn run() {
     println!("priced 4 = {:?}", priced(4));

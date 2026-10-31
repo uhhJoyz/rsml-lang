@@ -9,7 +9,7 @@
 // When to use it: whenever an argument is computed.
 //
 // How to write it: `f (x + 1) y`, `f (g x)`, `f (-1)`. The gotchas:
-// * `f -1` is a subtraction, `f - 1`, as in OCaml.
+// * `f -1` is a subtraction, `f - 1`.
 // * `f s.len () 2` passes the field `s.len`, then `()`: a method call has
 //   no space before its parenthesis, `s.len()` (toy 052).
 //
@@ -28,30 +28,24 @@ fn double(x: i64) -> i64 {
 }
 
 /// `x + 1`, kept between -1 and 10.
-pub fn next_level(x: i64) -> i64 {
-    ml! {
-        // `clamp (-1) (x + 1) 10` is `clamp(-1, x + 1, 10)`.
-        clamp (-1) (x + 1) 10
-    }
-}
+pub fn next_level(x: i64) -> i64 { ml! {
+    // `clamp (-1) (x + 1) 10` is `clamp(-1, x + 1, 10)`.
+    clamp (-1) (x + 1) 10
+}}
 
 /// An application as an argument is in parentheses too.
-pub fn doubled_level(x: i64) -> i64 {
-    ml! {
-        // `clamp 0 (double x) 10` is `clamp(0, double(x), 10)`.
-        clamp 0 (double x) 10
-    }
-}
+pub fn doubled_level(x: i64) -> i64 { ml! {
+    // `clamp 0 (double x) 10` is `clamp(0, double(x), 10)`.
+    clamp 0 (double x) 10
+}}
 
 /// Fields and method calls after a name are atoms: no parentheses needed.
-pub fn width_or_len(size: (i64, i64), word: &str) -> i64 {
-    ml! {
-        // `std::cmp::max size.0 (word.len() as i64)` is
-        // `std::cmp::max(size.0, word.len() as i64)`; the cast needs the
-        // parentheses, `word.len()` alone would not.
-        std::cmp::max size.0 (word.len() as i64)
-    }
-}
+pub fn width_or_len(size: (i64, i64), word: &str) -> i64 { ml! {
+    // `std::cmp::max size.0 (word.len() as i64)` is
+    // `std::cmp::max(size.0, word.len() as i64)`; the cast needs the
+    // parentheses, `word.len()` alone would not.
+    std::cmp::max size.0 (word.len() as i64)
+}}
 
 /// Without parentheses, `-` is subtraction.
 pub fn minus_one(x: i64) -> i64 {

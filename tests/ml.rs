@@ -42,9 +42,9 @@ fn composition() {
     assert_eq!(ml! { 5 |> (double >> add 1 >> double) }, 22);
     assert_eq!(ml! { (double >> double) 3 }, 12);
     let h = ml! {
-        let add x y = x + y in
-        let inc = add 1 in
-        inc >> inc >> inc
+    let add x y = x + y in
+    let inc = add 1 in
+    inc >> inc >> inc
     };
     assert_eq!(h(0), 3);
 }
@@ -52,15 +52,15 @@ fn composition() {
 #[test]
 fn partial_application() {
     let add5 = ml! {
-        external add : _ -> _ -> _ ;;
-        add 5
+    external add : _ -> _ -> _ ;;
+    add 5
     };
     assert_eq!(add5(1), 6);
     assert_eq!(add5(2), 7);
     let r = ml! {
-        let mul x y = x * y in
-        let triple = mul 3 in
-        triple 4 + triple 5
+    let mul x y = x * y in
+    let triple = mul 3 in
+    triple 4 + triple 5
     };
     assert_eq!(r, 27);
     assert_eq!(
@@ -74,14 +74,14 @@ fn partial_application() {
     // Rust functions returning closures are declared with a parenthesized result.
     assert_eq!(
         ml! {
-            external adder : _ -> (_ -> _) ;;
-            adder 1 2
+        external adder : _ -> (_ -> _) ;;
+        adder 1 2
         },
         3
     );
     let add1 = ml! {
-        external adder : _ -> (_ -> _) ;;
-        adder 1
+    external adder : _ -> (_ -> _) ;;
+    adder 1
     };
     assert_eq!(add1(2), 3);
 }
@@ -90,12 +90,12 @@ fn partial_application() {
 fn partial_application_evaluates_arguments_once() {
     let mut calls = 0;
     let p = ml! {
-        let add3 a b c = a + b + c in
-        add3
-          (begin
-             calls <- calls + 1;
-             10
-           end)
+    let add3 a b c = a + b + c in
+    add3
+      (begin
+         calls <- calls + 1;
+         10
+       end)
     };
     assert_eq!(p(1, 2) + p(3, 4), 30);
     assert_eq!(calls, 1);
@@ -124,15 +124,15 @@ fn closures_capture() {
     assert_eq!(unit(), 42);
 }
 
-fn returns_closure(n: i32) -> impl Fn(i32) -> i32 {
-    ml! { fun x -> x + n }
-}
+fn returns_closure(n: i32) -> impl Fn(i32) -> i32 { ml! {
+    fun x -> x + n
+}}
 
 // Closures passed as arguments borrow their environment, as in Rust; one
 // that outlives the function says so with `fun move`.
-fn returns_iterator(xs: &[i32], n: i32) -> impl Iterator<Item = i32> + '_ {
-    ml! { xs.iter().map(fun move x -> x + n).filter(fun x -> x % 2 = 0) }
-}
+fn returns_iterator(xs: &[i32], n: i32) -> impl Iterator<Item = i32> + '_ { ml! {
+    xs.iter().map(fun move x -> x + n).filter(fun x -> x % 2 = 0)
+}}
 
 #[test]
 fn escaping_closures_move() {
@@ -147,55 +147,55 @@ fn escaping_closures_move() {
 fn let_forms() {
     assert_eq!(
         ml! {
-            let x = 1 in
-            let y = x + 1 in
-            x + y
+        let x = 1 in
+        let y = x + 1 in
+        x + y
         },
         3
     );
     assert_eq!(
         ml! {
-            let x = 1
-            and y = 2 in
-            x + y
+        let x = 1
+        and y = 2 in
+        x + y
         },
         3
     );
     let x = 10;
     assert_eq!(
         ml! {
-            let x = 1
-            and y = x in
-            x + y
+        let x = 1
+        and y = x in
+        x + y
         },
         11
     );
     assert_eq!(
         ml! {
-            let (a, b) = (1, 2) in
-            a * 10 + b
+        let (a, b) = (1, 2) in
+        a * 10 + b
         },
         12
     );
     assert_eq!(
         ml! {
-            let f () = 7 in
-            f ()
+        let f () = 7 in
+        f ()
         },
         7
     );
     assert_eq!(
         ml! {
-            let x : u8 = 5 in
-            x
+        let x : u8 = 5 in
+        x
         },
         5u8
     );
     assert_eq!(
         ml! {
-            let a = 1
-            let b = a + 1 ;;
-            a + b
+        let a = 1
+        let b = a + 1 ;;
+        a + b
         },
         3
     );
@@ -204,24 +204,24 @@ fn let_forms() {
 #[test]
 fn let_rec() {
     let r = ml! {
-        let rec fact (n : i64) : i64 = if n <= 1 then 1 else n * fact (n - 1) in
-        fact 10
+    let rec fact (n : i64) : i64 = if n <= 1 then 1 else n * fact (n - 1) in
+    fact 10
     };
     assert_eq!(r, 3628800);
     let r = ml! {
-        let rec sum : &[i64] -> i64 = function [] -> 0 | x :: rest -> x + sum rest in
-        sum &[1; 2; 3; 4]
+    let rec sum : &[i64] -> i64 = function [] -> 0 | x :: rest -> x + sum rest in
+    sum &[1; 2; 3; 4]
     };
     assert_eq!(r, 10);
     let r = ml! {
-        let rec even (n : i64) : bool = if n = 0 then true else odd (n - 1)
-        and odd (n : i64) : bool = if n = 0 then false else even (n - 1) in
-        (even 10, odd 7)
+    let rec even (n : i64) : bool = if n = 0 then true else odd (n - 1)
+    and odd (n : i64) : bool = if n = 0 then false else even (n - 1) in
+    (even 10, odd 7)
     };
     assert_eq!(r, (true, true));
     let r = ml! {
-        let rec len (l : &['a]) : i64 = match l with [] -> 0 | _ :: t -> 1 + len t in
-        len &["a"; "b"]
+    let rec len (l : &['a]) : i64 = match l with [] -> 0 | _ :: t -> 1 + len t in
+    len &["a"; "b"]
     };
     assert_eq!(r, 2);
 }
@@ -243,10 +243,10 @@ struct Point {
 fn match_patterns() {
     let area = |s: Shape| -> f64 {
         ml! {
-            match s with
-            | Shape::Circle r -> 3.0 *. r *. r
-            | Shape::Rect (w, h) -> w *. h
-            | Shape::Dot -> 0.0
+        match s with
+        | Shape::Circle r -> 3.0 *. r *. r
+        | Shape::Rect (w, h) -> w *. h
+        | Shape::Dot -> 0.0
         }
     };
     assert_eq!(area(Shape::Rect(2.0, 3.0)), 6.0);
@@ -255,11 +255,7 @@ fn match_patterns() {
 
     let classify = |n: i32| -> &'static str {
         ml! {
-            match n with
-            | 0 -> "zero"
-            | 1 | 2 | 4 -> "small"
-            | n when n < 0 -> "negative"
-            | _ -> "big"
+        match n with 0 -> "zero" | 1 | 2 | 4 -> "small" | n when n < 0 -> "negative" | _ -> "big"
         }
     };
     assert_eq!(classify(0), "zero");
@@ -300,8 +296,8 @@ fn list_patterns() {
     let zs = [5, 6];
     assert_eq!(
         ml! {
-            let [a; b] = zs in
-            !a * !b
+        let [a; b] = zs in
+        !a * !b
         },
         30
     );
@@ -334,8 +330,8 @@ fn operators() {
     assert_eq!(ml! { -3 + 1 }, -2);
     assert_eq!(
         ml! {
-            let ( +! ) a b = a * 10 + b in
-            1 +! 2 +! 3
+        let ( +! ) a b = a * 10 + b in
+        1 +! 2 +! 3
         },
         123
     );
@@ -346,18 +342,18 @@ fn operators() {
 fn control_flow() {
     let mut out = Vec::new();
     ml! {
-        for i = 1 to 3 do out.push(i) done;
-        for i = 3 downto 1 do out.push(i * 10) done
+    for i = 1 to 3 do out.push(i) done;
+    for i = 3 downto 1 do out.push(i * 10) done
     };
     assert_eq!(out, vec![1, 2, 3, 30, 20, 10]);
     let r = ml! {
-        let i = ref 0 in
-        let total = ref 0 in
-        while !i < 5 do
-          total := !total + !i;
-          incr i
-        done;
-        !total
+    let i = ref 0 in
+    let total = ref 0 in
+    while !i < 5 do
+      total := !total + !i;
+      incr i
+    done;
+    !total
     };
     assert_eq!(r, 10);
     assert_eq!(
@@ -372,10 +368,10 @@ fn refs() {
         *r += 1
     }
     let r = ml! {
-        let count = ref 0 in
-        .for_each (.into_iter [1; 2; 3]) (fun x -> count := !count + x);
-        bump count;
-        !count
+    let count = ref 0 in
+    .for_each (.into_iter [1; 2; 3]) (fun x -> count := !count + x);
+    bump count;
+    !count
     };
     assert_eq!(r, 7);
 }
@@ -452,12 +448,12 @@ fn sections() {
     // The rest of the expression is evaluated once, when the function is made.
     let mut calls = 0;
     let f = ml! {
-        add
-          (begin
-             calls <- calls + 1;
-             1
-           end)
-          _
+    add
+      (begin
+         calls <- calls + 1;
+         1
+       end)
+      _
     };
     assert_eq!(f(1) + f(2), 5);
     assert_eq!(calls, 1);
@@ -480,8 +476,8 @@ fn rust_interop() {
     let r#fn = 3;
     assert_eq!(
         ml! {
-            let r#loop = 2 in
-            r#loop + 1
+        let r#loop = 2 in
+        r#loop + 1
         },
         r#fn
     );
@@ -494,21 +490,24 @@ fn comments() {
 }
 
 #[test]
-fn open_is_use() {
+fn use_items() {
     assert_eq!(
         ml! {
-            open std::cmp ;;
-            max 3 4
+        use std::cmp::*;
+        max 3 4
         },
         4
     );
     assert_eq!(
         ml! {
-            let open std::cmp in
-            min 3 4
+        let x = 3 in
+        use std::cmp::min;
+        min x 4
         },
         3
     );
+    let open = 5;
+    assert_eq!(ml! { open + 1 }, 6);
 }
 
 #[test]
@@ -523,11 +522,11 @@ fn assert_false_is_unreachable() {
 #[test]
 fn iterator_pipelines_are_lazy() {
     let r: Vec<i64> = ml! {
-        std::iter::successors (Some 1) (fun x -> Some (x + 1))
-        |> Iterator::map _ (fun x -> x * x)
-        |> Iterator::filter _ (fun x -> !x mod 2 = 1)
-        |> Iterator::take _ 4
-        |> Iterator::collect
+    std::iter::successors (Some 1) (fun x -> Some (x + 1))
+    |> Iterator::map _ (fun x -> x * x)
+    |> Iterator::filter _ (fun x -> !x mod 2 = 1)
+    |> Iterator::take _ 4
+    |> Iterator::collect
     };
     assert_eq!(r, vec![1, 9, 25, 49]);
 }

@@ -1,6 +1,6 @@
 // Toy 067: comparisons `=` and `<>`, and `not`.
 //
-// What it is: OCaml compares with `=` and `<>`; they are Rust's `==` and
+// What it is: rsml compares with `=` and `<>`; they are Rust's `==` and
 // `!=`: `a = b` is `a == b` and `a <> b` is `a != b`. `==` and `!=` are
 // accepted as themselves. `not e` negates, `&&` and `||` are as in Rust.
 //
@@ -25,35 +25,29 @@ use rsml::ml;
 pub const SUMMARY: &str = "`a = b`, `a <> b`, `not (a = b)`; `!` is not negation";
 
 /// Whether a password and its confirmation match, and are long enough.
-pub fn valid(password: &str, again: &str) -> bool {
-    ml! {
-        // `password = again && password.len() >= 8` is
-        // `(password == again) && (password.len() >= 8)`.
-        password = again && password.len() >= 8
-    }
-}
+pub fn valid(password: &str, again: &str) -> bool { ml! {
+    // `password = again && password.len() >= 8` is
+    // `(password == again) && (password.len() >= 8)`.
+    password = again && password.len() >= 8
+}}
 
 /// Why a password is refused, if it is.
-pub fn problem(password: &str, again: &str) -> Option<&'static str> {
-    ml! {
-        if password <> again then
-          Some "they differ"
-        else if not (password.len() >= 8) then
-          Some "too short"
-        else
-          None
-    }
-}
+pub fn problem(password: &str, again: &str) -> Option<&'static str> { ml! {
+    if password <> again then
+      Some "they differ"
+    else if not (password.len() >= 8) then
+      Some "too short"
+    else
+      None
+}}
 
 /// Whether an answer is neither empty nor a default.
-pub fn answered(answer: &str) -> bool {
-    ml! {
-        // `let is_default = answer = "n/a" in`: the first `=` binds, the
-        // second compares.
-        let is_default = answer = "n/a" in
-        not answer.is_empty() && not is_default
-    }
-}
+pub fn answered(answer: &str) -> bool { ml! {
+    // `let is_default = answer = "n/a" in`: the first `=` binds, the
+    // second compares.
+    let is_default = answer = "n/a" in
+    not answer.is_empty() && not is_default
+}}
 
 pub fn run() {
     println!(

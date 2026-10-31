@@ -9,9 +9,9 @@
 //
 // How to write it: give the parameter a closure type (`impl Fn(..)`, also
 // `impl FnMut(..)`, `&dyn Fn(..)` or a generic bounded by `Fn(..)`: toy
-// 113), then use it OCaml style in the body.
+// 113), then use it ML style in the body.
 // * Its arguments in `Fn(a, b)` count, one each: `discount 10` misses one.
-// * The caller passes any closure, written in Rust or in OCaml.
+// * The caller passes any closure, written in Rust or in rsml.
 //
 // Reference: [Arity and partial application](../../docs/notation.md#arity-and-partial-application)
 
@@ -20,16 +20,16 @@ use rsml::rsml;
 pub const SUMMARY: &str = "A parameter `discount: impl Fn(u32, u32) -> u32` allows `discount 10`";
 
 rsml! {
-    /// Each price with a 10% discount, as `discount` computes it.
-    pub fn sale(discount: impl Fn(u32, u32) -> u32, prices: &[u32]) -> Vec<u32> {
-        // `discount 10` is a closure waiting for the price.
-        prices |> .iter() |> .copied() |> .map(discount 10) |> .collect()
-    }
+/// Each price with a 10% discount, as `discount` computes it.
+pub fn sale(discount: impl Fn(u32, u32) -> u32, prices: &[u32]) -> Vec<u32> {
+    // `discount 10` is a closure waiting for the price.
+    prices |> .iter() |> .copied() |> .map(discount 10) |> .collect()
+}
 
-    /// The parameter called with every argument: a plain call.
-    pub fn one_sale(discount: impl Fn(u32, u32) -> u32, price: u32) -> u32 {
-        discount 25 price
-    }
+/// The parameter called with every argument: a plain call.
+pub fn one_sale(discount: impl Fn(u32, u32) -> u32, price: u32) -> u32 {
+    discount 25 price
+}
 }
 
 // In full: `rsml! { fn inc(add: impl Fn(i64, i64) -> i64)

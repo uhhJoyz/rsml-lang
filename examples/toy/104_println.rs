@@ -1,10 +1,11 @@
-// Toy 104: `println!` with OCaml arguments.
+// Toy 104: `println!` with rsml arguments.
 //
 // What it is: the arguments of std's printing macros, `print!`,
-// `println!`, `eprint!` and `eprintln!`, are OCaml expressions. The format
-// string stays as written; each argument after it, up to a `,`, is OCaml.
+// `println!`, `eprint!` and `eprintln!`, are rsml expressions. The format
+// string stays as written; each argument after it, up to a `,`, is rsml
+// code.
 //
-// When to use it: to print from OCaml code, with pipelines, applications
+// When to use it: to print from rsml code, with pipelines, applications
 // and comparisons as arguments.
 //
 // How to write it:
@@ -20,35 +21,35 @@
 
 use rsml::rsml;
 
-pub const SUMMARY: &str = "`println!(\"{} items\", items |> .len)`: macro arguments are OCaml";
+pub const SUMMARY: &str = "`println!(\"{} items\", items |> .len)`: macro arguments are rsml";
 
 rsml! {
-    /// Prints a shopping list: a count, then the numbered items on a line.
-    pub fn print_list(items: &[&str]) {
-        // `println!("{} items:", items |> .len)` is
-        // `println!("{} items:", items.len())`.
-        println!("{} items:", items |> .len);
-        for (i, item) in items.iter().enumerate() do
-          // `print!("{}. {} ", i + 1, item)` stays `print!("{}. {} ", i + 1, item)`.
-          print!("{}. {} ", i + 1, item)
-        done;
-        println!()
-    }
+/// Prints a shopping list: a count, then the numbered items on a line.
+pub fn print_list(items: &[&str]) {
+    // `println!("{} items:", items |> .len)` is
+    // `println!("{} items:", items.len())`.
+    println!("{} items:", items |> .len);
+    for (i, item) in items.iter().enumerate() do
+      // `print!("{}. {} ", i + 1, item)` stays `print!("{}. {} ", i + 1, item)`.
+      print!("{}. {} ", i + 1, item)
+    done;
+    println!()
+}
 
-    /// Prints each item on its own line, through a placeholder function.
-    pub fn print_each(items: &[&str]) {
-        // `.for_each(println!("- {}", _))` is
-        // `.for_each(fun item -> println!("- {}", item))`.
-        items |> .iter() |> .for_each(println!("- {}", _))
-    }
+/// Prints each item on its own line, through a placeholder function.
+pub fn print_each(items: &[&str]) {
+    // `.for_each(println!("- {}", _))` is
+    // `.for_each(fun item -> println!("- {}", item))`.
+    items |> .iter() |> .for_each(println!("- {}", _))
+}
 
-    /// The total in cents; a warning goes to stderr when it is over a limit.
-    pub fn checked_total(prices: &[u32], limit: u32) -> u32 {
-        let total = prices |> .iter |> .sum::<u32> in
-        // `eprintln!` takes OCaml too: `total - limit` is an argument.
-        if total > limit then eprintln!("total {total} is over {limit} by {}", total - limit);
-        total
-    }
+/// The total in cents; a warning goes to stderr when it is over a limit.
+pub fn checked_total(prices: &[u32], limit: u32) -> u32 {
+    let total = prices |> .iter |> .sum::<u32> in
+    // `eprintln!` takes rsml code too: `total - limit` is an argument.
+    if total > limit then eprintln!("total {total} is over {limit} by {}", total - limit);
+    total
+}
 }
 
 pub fn run() {

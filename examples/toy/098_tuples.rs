@@ -20,42 +20,34 @@ use rsml::ml;
 pub const SUMMARY: &str = "Tuples: `(q, r)`, `p.0`, `let (q, r) = .. in`, `f (a, b)`";
 
 /// The quotient and the remainder, as one pair.
-pub fn divide(n: i64, d: i64) -> (i64, i64) {
-    ml! {
-        // `(n / d, n mod d)` is `(n / d, n % d)`.
-        (n / d, n mod d)
-    }
-}
+pub fn divide(n: i64, d: i64) -> (i64, i64) { ml! {
+    // `(n / d, n mod d)` is `(n / d, n % d)`.
+    (n / d, n mod d)
+}}
 
 /// Minutes and seconds back to seconds, through the pair.
-pub fn seconds(total: i64) -> i64 {
-    ml! {
-        // `let (q, r) = divide 17 5 in q * 10 + r` is
-        // `{ let (q, r) = divide(17, 5); (q * 10) + r }`.
-        let (minutes, secs) = divide total 60 in
-        minutes * 60 + secs
-    }
-}
+pub fn seconds(total: i64) -> i64 { ml! {
+    // `let (q, r) = divide 17 5 in q * 10 + r` is
+    // `{ let (q, r) = divide(17, 5); (q * 10) + r }`.
+    let (minutes, secs) = divide total 60 in
+    minutes * 60 + secs
+}}
 
 /// How far a point is from the origin, walking along the grid.
-fn manhattan(p: (i64, i64)) -> i64 {
-    ml! { p.0.abs() + p.1.abs() }
-}
+fn manhattan(p: (i64, i64)) -> i64 { ml! {
+    p.0.abs() + p.1.abs()
+}}
 
-pub fn walk() -> i64 {
-    ml! {
-        // `manhattan (3, -4)` is `manhattan((3, -4))`: one tuple.
-        manhattan (3, -4)
-    }
-}
+pub fn walk() -> i64 { ml! {
+    // `manhattan (3, -4)` is `manhattan((3, -4))`: one tuple.
+    manhattan (3, -4)
+}}
 
 /// Nested tuples come apart in one pattern.
-pub fn total(order: (&str, (u32, u32))) -> u32 {
-    ml! {
-        let (_, (count, price)) = order in
-        count * price
-    }
-}
+pub fn total(order: (&str, (u32, u32))) -> u32 { ml! {
+    let (_, (count, price)) = order in
+    count * price
+}}
 
 pub fn run() {
     println!("divide 17 5 = {:?}", divide(17, 5));

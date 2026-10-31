@@ -88,7 +88,13 @@ asm() {
     return $status
 }
 
-rustfmt_check() { cargo fmt --all -- --check && echo "nothing to reformat"; }
+# rustfmt alone on the crates without `ml!` code: in src, tests and examples
+# (tests/edition2021 includes the tests), `rsml-fmt --rustfmt` runs rustfmt,
+# and puts back what rustfmt undoes (`fn f() { ml! {` .. `}}`).
+rustfmt_check() {
+    cargo fmt -p rsml-compiler -p rsml-macros -p rsml-fmt -- --check &&
+        echo "nothing to reformat outside src, tests, examples"
+}
 rsmlfmt_check() {
     # The formatter's fixtures (rsml-fmt/tests/fixtures) stay messy: not here.
     target/debug/rsml-fmt --rustfmt --check src tests examples &&
@@ -167,7 +173,7 @@ else
     check fuzz-long fuzz_long
 fi
 if [ $QUICK = 1 ]; then
-    for c in completion highlight spans format-lsp nvim-query vim latency; do skip $c "--quick"; done
+    for c in completion highlight spans format-lsp nvim-query nvim-rsml vim latency; do skip $c "--quick"; done
 elif ! has "${RUST_ANALYZER:-rust-analyzer}"; then
     for c in completion highlight format-lsp latency; do skip $c "no rust-analyzer"; done
     check spans python3 scripts/check_spans.py
@@ -185,8 +191,10 @@ fi
 if [ $QUICK = 0 ]; then
     if has nvim; then
         check nvim-query nvim --headless -u NONE -l scripts/check_nvim_query.lua
+        check nvim-rsml nvim --headless -u NONE -l scripts/check_nvim_rsml.lua
     else
         skip nvim-query "no nvim"
+        skip nvim-rsml "no nvim"
     fi
     if has vim; then
         check vim ./scripts/check_vim.sh

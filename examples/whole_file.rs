@@ -1,5 +1,5 @@
 //! A whole file written in one `rsml!`: the items are Rust, the function
-//! bodies are OCaml. `cargo run --example whole_file` runs it, and
+//! bodies are rsml code. `cargo run --example whole_file` runs it, and
 //! `cargo test` runs its tests.
 //!
 //! Comments like this one and `#![..]` attributes stay outside the macro:

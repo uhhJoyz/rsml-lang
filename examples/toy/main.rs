@@ -116,8 +116,6 @@ mod let_in;
 mod let_mut;
 #[path = "010_let_mut_function.rs"]
 mod let_mut_function;
-#[path = "061_let_open.rs"]
-mod let_open;
 #[path = "008_let_rec.rs"]
 mod let_rec;
 #[path = "009_let_rec_and.rs"]
@@ -152,8 +150,6 @@ mod nested_modules;
 mod numbered_placeholders;
 #[path = "127_ocaml_comments.rs"]
 mod ocaml_comments;
-#[path = "060_open.rs"]
-mod open;
 #[path = "033_operator_sections.rs"]
 mod operator_sections;
 #[path = "072_or_patterns.rs"]
@@ -276,6 +272,10 @@ mod typed_placeholders;
 mod unit_rules;
 #[path = "121_unsafe_blocks.rs"]
 mod unsafe_blocks;
+#[path = "061_use_in_expressions.rs"]
+mod use_in_expressions;
+#[path = "060_use_items.rs"]
+mod use_items;
 #[path = "107_vec_macro.rs"]
 mod vec_macro;
 #[path = "084_while_loops.rs"]
@@ -510,8 +510,12 @@ const TOYS: &[(&str, &str, fn())] = &[
     ),
     ("058_rust_paths", rust_paths::SUMMARY, rust_paths::run),
     ("059_dotted_paths", dotted_paths::SUMMARY, dotted_paths::run),
-    ("060_open", open::SUMMARY, open::run),
-    ("061_let_open", let_open::SUMMARY, let_open::run),
+    ("060_use_items", use_items::SUMMARY, use_items::run),
+    (
+        "061_use_in_expressions",
+        use_in_expressions::SUMMARY,
+        use_in_expressions::run,
+    ),
     ("062_cons", cons::SUMMARY, cons::run),
     ("063_append", append::SUMMARY, append::run),
     (

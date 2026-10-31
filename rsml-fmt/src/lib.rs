@@ -1,4 +1,4 @@
-//! A formatter for the OCaml in Rust files: `ml! { .. }` blocks and the
+//! A formatter for the rsml code in Rust files: `ml! { .. }` blocks and the
 //! function bodies inside `rsml! { .. }`. rustfmt leaves macro bodies
 //! alone, so this formats exactly those and nothing else.
 //!
@@ -60,7 +60,7 @@ pub enum BlockKind {
     FnBody,
 }
 
-/// A piece of OCaml in a Rust file.
+/// A piece of rsml code in a Rust file.
 #[derive(Clone)]
 pub struct Block {
     pub kind: BlockKind,
@@ -73,6 +73,9 @@ pub struct Block {
     pub body: Option<rsml_compiler::items::FnBody>,
     /// `rsmlfmt:` directives of the enclosing `rsml!` block.
     inherited: Vec<Directive>,
+    /// For an `ml!` block that is all of a Rust function's body: that body
+    /// (see [`Config::hug_fn_body`]).
+    fn_body: Option<Group>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -119,7 +122,7 @@ fn format_blocks(src: &str, cfg: &Config) -> Result<(String, bool, Vec<Warning>)
     let mut edits = Vec::new();
     for b in &blocks {
         match format_block(src, b, cfg) {
-            Ok(Some(text)) => edits.push((range(b.group.span()), text)),
+            Ok(Some(edit)) => edits.push(edit),
             Ok(None) => {}
             Err(message) => warnings.push(Warning {
                 line: b.group.span().start().line,
@@ -190,7 +193,7 @@ fn rust_items(
 /// Whether a missing rustfmt was reported already.
 static RUSTFMT_MISSING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
-/// Formats bare OCaml (the inside of a block), starting at column 0.
+/// Formats bare rsml code (the inside of a block), starting at column 0.
 pub fn format_ml(code: &str, cfg: &Config) -> Result<String, String> {
     let mut cfg = cfg.clone();
     cfg.block_indent = 0;
@@ -208,7 +211,7 @@ pub fn format_ml(code: &str, cfg: &Config) -> Result<String, String> {
     Ok(body.to_string())
 }
 
-/// The OCaml blocks of a Rust source file, in order.
+/// The rsml blocks of a Rust source file, in order.
 pub fn blocks(src: &str) -> Result<Vec<Block>, String> {
     let ts: TokenStream = src
         .parse()
@@ -221,6 +224,8 @@ pub fn blocks(src: &str) -> Result<Vec<Block>, String> {
 fn find_blocks(src: &str, ts: TokenStream, out: &mut Vec<Block>) {
     let toks: Vec<TokenTree> = ts.into_iter().collect();
     let mut i = 0;
+    // From `fn name` to its body (or the `;` of a declaration).
+    let mut in_signature = false;
     while i < toks.len() {
         // The blocks in a `macro_rules!` are templates (`ml! { $e + 1 }`),
         // made into code only where the macro is used: left alone.
@@ -248,6 +253,7 @@ fn find_blocks(src: &str, ts: TokenStream, out: &mut Vec<Block>) {
                     params: Vec::new(),
                     body: None,
                     inherited: Vec::new(),
+                    fn_body: None,
                 });
             } else {
                 let inherited = directives(&Source::new(src, g));
@@ -258,17 +264,65 @@ fn find_blocks(src: &str, ts: TokenStream, out: &mut Vec<Block>) {
                         params: f.params.iter().map(|(n, _)| n.clone()).collect(),
                         body: Some(f),
                         inherited: inherited.clone(),
+                        fn_body: None,
                     });
                 }
             }
             i += 3;
             continue;
         }
-        if let TokenTree::Group(g) = &toks[i] {
-            find_blocks(src, g.stream(), out);
+        match &toks[i] {
+            // Not `fn(..)`, a pointer type (`-> fn(i64) -> i64`).
+            TokenTree::Ident(kw)
+                if kw == "fn" && matches!(toks.get(i + 1), Some(TokenTree::Ident(_))) =>
+            {
+                in_signature = true;
+            }
+            TokenTree::Punct(p) if p.as_char() == ';' => in_signature = false,
+            TokenTree::Group(g) => {
+                let body = in_signature && g.delimiter() == Delimiter::Brace;
+                if body {
+                    in_signature = false;
+                }
+                match body.then(|| whole_body_block(src, g)).flatten() {
+                    Some(b) => out.push(b),
+                    None => find_blocks(src, g.stream(), out),
+                }
+            }
+            _ => {}
         }
         i += 1;
     }
+}
+
+/// The `ml! { .. }` block that is all of the function body `body`, with
+/// nothing but white space around it.
+fn whole_body_block(src: &str, body: &Group) -> Option<Block> {
+    let toks: Vec<TokenTree> = body.stream().into_iter().collect();
+    let [
+        TokenTree::Ident(name),
+        TokenTree::Punct(bang),
+        TokenTree::Group(g),
+    ] = &toks[..]
+    else {
+        return None;
+    };
+    if name != "ml" || bang.as_char() != '!' || g.delimiter() != Delimiter::Brace {
+        return None;
+    }
+    let before = &src[range(body.span_open()).end..range(name.span()).start];
+    let after = &src[range(g.span()).end..range(body.span_close()).start];
+    if !before.trim().is_empty() || !after.trim().is_empty() {
+        return None;
+    }
+    Some(Block {
+        kind: BlockKind::Ml,
+        group: g.clone(),
+        params: Vec::new(),
+        body: None,
+        inherited: Vec::new(),
+        fn_body: Some(body.clone()),
+    })
 }
 
 /// `rsmlfmt:` comments before the first token of a block.
@@ -295,9 +349,14 @@ fn directives(source: &Source) -> Vec<Directive> {
         .collect()
 }
 
-/// The new text of a block's group, or `None` to leave it alone.
-fn format_block(src: &str, b: &Block, cfg: &Config) -> Result<Option<String>, String> {
-    let Some(text) = layout_block(src, b, cfg)? else {
+/// The range to replace and its new text (the block's group, or the
+/// function body it is all of), or `None` to leave it alone.
+fn format_block(
+    src: &str,
+    b: &Block,
+    cfg: &Config,
+) -> Result<Option<(std::ops::Range<usize>, String)>, String> {
+    let Some((r, text)) = layout_block(src, b, cfg)? else {
         return Ok(None);
     };
     // A safety net: formatting never changes what the block means. A
@@ -306,16 +365,23 @@ fn format_block(src: &str, b: &Block, cfg: &Config) -> Result<Option<String>, St
     let new: TokenStream = text
         .parse()
         .map_err(|_| "not formatted: the result would not lex (a formatter bug)".to_string())?;
-    let new = match new.into_iter().next() {
+    let mut new = match new.into_iter().next() {
         Some(TokenTree::Group(g)) => g.stream(),
         _ => TokenStream::new(),
     };
+    // `{ ml! { .. } }`: the block is the group in the body.
+    if b.fn_body.is_some() {
+        new = match new.into_iter().find(|t| matches!(t, TokenTree::Group(_))) {
+            Some(TokenTree::Group(g)) => g.stream(),
+            _ => TokenStream::new(),
+        };
+    }
     if expansion_key(b.group.stream(), b) != expansion_key(new, b) {
         return Err(
             "not formatted: the result would expand differently (a formatter bug)".to_string(),
         );
     }
-    Ok(Some(text))
+    Ok(Some((r, text)))
 }
 
 /// A block's expansion as text, without the markers that only tell editors
@@ -377,8 +443,13 @@ fn without_markers(ts: TokenStream) -> TokenStream {
     out
 }
 
-/// The new text of a block's group, or `None` to leave it alone.
-fn layout_block(src: &str, b: &Block, cfg: &Config) -> Result<Option<String>, String> {
+/// The range to replace and its new text, or `None` to leave the block
+/// alone (see [`format_block`]).
+fn layout_block(
+    src: &str,
+    b: &Block,
+    cfg: &Config,
+) -> Result<Option<(std::ops::Range<usize>, String)>, String> {
     let source = Source::new(src, &b.group);
     let mut cfg = cfg.clone();
     for d in b.inherited.iter().chain(&directives(&source)) {
@@ -415,17 +486,49 @@ fn layout_block(src: &str, b: &Block, cfg: &Config) -> Result<Option<String>, St
     };
     let open_r = range(b.group.span_open());
     let close_r = range(b.group.span_close());
-    let line_start = src[..open_r.start].rfind('\n').map_or(0, |i| i + 1);
-    let line_indent: String = src[line_start..]
-        .chars()
-        .take_while(|c| *c == ' ' || *c == '\t')
-        .collect();
     let opts = |indent: usize| Opts {
         width: cfg.max_width,
         indent,
         start_col: indent,
         max_blank_lines: cfg.max_blank_lines,
     };
+    let crlf = |text: String| {
+        if src.contains("\r\n") {
+            text.replace('\n', "\r\n")
+        } else {
+            text
+        }
+    };
+
+    // All of a function's body: `{ ml! {` on the function's line, or the
+    // block on a line of its own in the body.
+    if let Some(fn_body) = &b.fn_body {
+        let body_r = range(fn_body.span());
+        let fn_indent = line_indent(src, body_r.start);
+        let inner = fn_indent.chars().count() + cfg.fn_body_indent;
+        // `{ ml! {` must fit after the signature.
+        let fits = source.column(body_r.start) + "{ ml! {".len() <= cfg.max_width;
+        if cfg.hug_fn_body && fits {
+            let indent = inner + cfg.block_indent;
+            let body = render(&doc, &opts(indent), false);
+            let text = format!("{{ ml! {{\n{}{body}\n{fn_indent}}}}}", " ".repeat(indent));
+            return Ok(Some((body_r, crlf(text))));
+        }
+        let pad = " ".repeat(inner);
+        let one_line = cfg.single_line_blocks != config::SingleLineBlocks::Never;
+        let step = cfg.block_indent;
+        let group = group_text(
+            &doc,
+            &cfg,
+            (open, close),
+            (&pad, step),
+            inner + 4,
+            0,
+            one_line,
+        );
+        let text = format!("{{\n{pad}ml! {group}\n{fn_indent}}}");
+        return Ok(Some((body_r, crlf(text))));
+    }
 
     let one_line = match b.kind {
         BlockKind::Ml => match cfg.single_line_blocks {
@@ -435,28 +538,60 @@ fn layout_block(src: &str, b: &Block, cfg: &Config) -> Result<Option<String>, St
         },
         BlockKind::FnBody => cfg.fn_single_line,
     };
+    // A function body is indented as one, whatever `block_indent` says.
+    let step = match b.kind {
+        BlockKind::Ml => cfg.block_indent,
+        BlockKind::FnBody => cfg.fn_body_indent,
+    };
+    let suffix = src[close_r.end..].split('\n').next().unwrap_or("");
+    let text = group_text(
+        &doc,
+        &cfg,
+        (open, close),
+        (&line_indent(src, open_r.start), step),
+        source.column(open_r.start),
+        suffix.trim_end().chars().count(),
+        one_line,
+    );
+    Ok(Some((open_r.start..close_r.end, crlf(text))))
+}
+
+/// The white space starting the line that holds `pos`.
+fn line_indent(src: &str, pos: usize) -> String {
+    let line_start = src[..pos].rfind('\n').map_or(0, |i| i + 1);
+    src[line_start..]
+        .chars()
+        .take_while(|c| *c == ' ' || *c == '\t')
+        .collect()
+}
+
+/// A block's group: on one line when allowed (`one_line`) and it fits,
+/// starting at `column` and followed by `suffix` columns on its line, else
+/// with its body on lines of its own, `step` columns in from `indent`.
+fn group_text(
+    doc: &doc::Doc,
+    cfg: &Config,
+    (open, close): (&str, &str),
+    (indent, step): (&str, usize),
+    column: usize,
+    suffix: usize,
+    one_line: bool,
+) -> String {
+    let opts = |indent: usize| Opts {
+        width: cfg.max_width,
+        indent,
+        start_col: indent,
+        max_blank_lines: cfg.max_blank_lines,
+    };
     if one_line && !doc.has_hard() {
-        let inner = render(&doc, &opts(0), true);
+        let inner = render(doc, &opts(0), true);
         let pad = if open == "{" { " " } else { "" };
-        let suffix = src[close_r.end..].split('\n').next().unwrap_or("");
-        let width = source.column(open_r.start)
-            + 2
-            + 2 * pad.len()
-            + inner.chars().count()
-            + suffix.trim_end().chars().count();
+        let width = column + 2 + 2 * pad.len() + inner.chars().count() + suffix;
         if width <= cfg.max_width {
-            return Ok(Some(format!("{open}{pad}{inner}{pad}{close}")));
+            return format!("{open}{pad}{inner}{pad}{close}");
         }
     }
-
-    let body_indent = line_indent.chars().count() + cfg.block_indent;
-    let body = render(&doc, &opts(body_indent), false);
-    let mut text = format!(
-        "{open}\n{}{body}\n{line_indent}{close}",
-        " ".repeat(body_indent)
-    );
-    if src.contains("\r\n") {
-        text = text.replace('\n', "\r\n");
-    }
-    Ok(Some(text))
+    let body_indent = indent.chars().count() + step;
+    let body = render(doc, &opts(body_indent), false);
+    format!("{open}\n{}{body}\n{indent}{close}", " ".repeat(body_indent))
 }

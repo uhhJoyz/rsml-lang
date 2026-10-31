@@ -1,13 +1,13 @@
 // Toy 033: operator sections, `( + )`, `( * )`, `( - )`.
 //
 // What it is: an operator in parentheses is a function of its two
-// operands, as in OCaml. `( + )` is a closure that adds, ready to pass
-// where Rust wants a function, such as `fold`.
+// operands. `( + )` is a closure that adds, ready to pass where Rust
+// wants a function, such as `fold`.
 //
 // When to use it: instead of writing `fun a b -> a + b` for an argument.
 //
 // How to write it: the operator between `(` and `)`, with spaces.
-// * `( * )` must keep its spaces: `(*` opens an OCaml comment.
+// * `( * )` must keep its spaces: `(*` opens an ML comment.
 // * Applied to both operands, a section is just the operation:
 //   `( - ) a b` is `a - b`. Applied to one, see toy 034.
 //
@@ -18,48 +18,38 @@ use rsml::ml;
 pub const SUMMARY: &str = "An operator as a function: `( + )`, `( * )`, `( - )`";
 
 /// The total of the prices.
-pub fn total(prices: &[i64]) -> i64 {
-    ml! {
-        // `( + )` is `|lhs, rhs| lhs + rhs`; `fold` calls it with the total
-        // so far and each `&i64`.
-        prices |> .iter() |> .fold(0, ( + ))
-    }
-}
+pub fn total(prices: &[i64]) -> i64 { ml! {
+    // `( + )` is `|lhs, rhs| lhs + rhs`; `fold` calls it with the total
+    // so far and each `&i64`.
+    prices |> .iter() |> .fold(0, ( + ))
+}}
 
 /// The product of the factors, 1 for none.
-pub fn product(factors: &[i64]) -> i64 {
-    ml! {
-        // `( * )` is `|lhs, rhs| lhs * rhs`.
-        factors |> .iter() |> .copied() |> .fold(1, ( * ))
-    }
-}
+pub fn product(factors: &[i64]) -> i64 { ml! {
+    // `( * )` is `|lhs, rhs| lhs * rhs`.
+    factors |> .iter() |> .copied() |> .fold(1, ( * ))
+}}
 
 /// The change from a payment.
-pub fn change(paid: i64, price: i64) -> i64 {
-    ml! {
-        // `( - ) paid price` is `paid - price`: no closure at all.
-        ( - ) paid price
-    }
-}
+pub fn change(paid: i64, price: i64) -> i64 { ml! {
+    // `( - ) paid price` is `paid - price`: no closure at all.
+    ( - ) paid price
+}}
 
 /// A section is a value: here one of three, picked by a character.
-pub fn operation(op: char) -> fn(i64, i64) -> i64 {
-    ml! {
-        // None of these closures captures anything, so each one can be the
-        // plain function pointer that the return type asks for.
-        match op with '+' -> ( + ) | '-' -> ( - ) | _ -> ( * )
-    }
-}
+pub fn operation(op: char) -> fn(i64, i64) -> i64 { ml! {
+    // None of these closures captures anything, so each one can be the
+    // plain function pointer that the return type asks for.
+    match op with '+' -> ( + ) | '-' -> ( - ) | _ -> ( * )
+}}
 
 /// `a op b`, through the function `operation` picks.
-pub fn calculate(op: char, a: i64, b: i64) -> i64 {
-    ml! {
-        // `operation op a b` would be `operation(op, a, b)`, three
-        // arguments for a function of one: call it first, then its result.
-        let f = operation op in
-        f a b
-    }
-}
+pub fn calculate(op: char, a: i64, b: i64) -> i64 { ml! {
+    // `operation op a b` would be `operation(op, a, b)`, three
+    // arguments for a function of one: call it first, then its result.
+    let f = operation op in
+    f a b
+}}
 
 pub fn run() {
     println!("total [3; 4; 5] = {}", total(&[3, 4, 5]));

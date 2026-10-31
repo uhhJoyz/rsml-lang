@@ -1,11 +1,11 @@
-// Toy 117: `async fn` and `const fn` with OCaml bodies.
+// Toy 117: `async fn` and `const fn` with rsml bodies.
 //
 // What it is: an `rsml!` function may be `async` or `const`, as in Rust;
-// only the body is OCaml.
+// only the body is rsml code.
 // * An `async fn` returns a future, so the macro gives it no closure to
 //   call after its arguments: `total 1 2` is a plain call that makes the
 //   future, and `.await` (toy 120) runs it.
-// * A `const fn` can run at compile time; its OCaml body must be what
+// * A `const fn` can run at compile time; its rsml body must be what
 //   Rust allows in a `const fn` (arithmetic, `if`, `match`, ..).
 //
 // When to use it: `async fn` for code that waits (on I/O, a timer, a
@@ -24,29 +24,29 @@ use std::future::Future;
 use std::pin::pin;
 use std::task::{Context, Poll, Waker};
 
-pub const SUMMARY: &str = "`async fn` and `const fn` in `rsml!`, OCaml bodies";
+pub const SUMMARY: &str = "`async fn` and `const fn` in `rsml!`, rsml bodies";
 
 rsml! {
-    /// Seconds in a number of days, at compile time when it can be.
-    pub const fn seconds_in(days: u64) -> u64 {
-        days * 24 * 60 * 60
-    }
+/// Seconds in a number of days, at compile time when it can be.
+pub const fn seconds_in(days: u64) -> u64 {
+    days * 24 * 60 * 60
+}
 
-    /// A week in seconds, computed by the compiler.
-    pub const WEEK: u64 = seconds_in(7);
+/// A week in seconds, computed by the compiler.
+pub const WEEK: u64 = seconds_in(7);
 
-    /// The total of two orders, as a future.
-    pub async fn total(a: u32, b: u32) -> u32 {
-        a + b
-    }
+/// The total of two orders, as a future.
+pub async fn total(a: u32, b: u32) -> u32 {
+    a + b
+}
 
-    /// Awaits two futures one after the other.
-    pub async fn both() -> u32 {
-        let first = total 1 2 |> .await in
-        // `|>` binds looser than `+`: the parentheses keep `.await` on
-        // the future.
-        first + (total 10 20 |> .await)
-    }
+/// Awaits two futures one after the other.
+pub async fn both() -> u32 {
+    let first = total 1 2 |> .await in
+    // `|>` binds looser than `+`: the parentheses keep `.await` on
+    // the future.
+    first + (total 10 20 |> .await)
+}
 }
 
 /// Runs a future that never has to wait, with the no-op waker of `std`.

@@ -1,8 +1,8 @@
 #![deny(warnings)]
 
-//! Rust's own syntax inside OCaml: calls and indexing written without a
-//! space, method sections, `for .. in`, ranges, `return` / `break` /
-//! `continue` and `unsafe` / `async` blocks.
+//! Rust's own syntax inside rsml code: calls and indexing written without
+//! a space, method sections, closures, guards, `for .. in`, ranges,
+//! `return` / `break` / `continue` and `unsafe` / `async` blocks.
 
 use rsml::{ml, rsml};
 
@@ -42,26 +42,26 @@ fn calls_written_rust_style() {
 #[test]
 fn rust_style_calls_of_known_functions() {
     let r = ml! {
-        let add3 x y z = x + y + z in
-        let add1 = add3(0, 1) in
-        add3(1, 2, 3) + add1(10) + add3(1)(1)(1)
+    let add3 x y z = x + y + z in
+    let add1 = add3(0, 1) in
+    add3(1, 2, 3) + add1(10) + add3(1)(1)(1)
     };
     assert_eq!(r, 6 + 11 + 3);
     let curried = ml! {
-        let mul x y = x * y in
-        mul(3)
+    let mul x y = x * y in
+    mul(3)
     };
     assert_eq!(curried(4), 12);
     // Extra arguments apply the result.
     let r = ml! {
-        let make x = fun y -> x + y in
-        make(1, 2)
+    let make x = fun y -> x + y in
+    make(1, 2)
     };
     assert_eq!(r, 3);
     assert_eq!(
         ml! {
-            external add : _ -> _ -> _ ;;
-            (add(5) >> adder(1))(1)
+        external add : _ -> _ -> _ ;;
+        (add(5) >> adder(1))(1)
         },
         7
     );
@@ -94,8 +94,8 @@ fn method_sections() {
     );
     let mut v = vec![1];
     ml! {
-        .push(2) v;
-        v |> .push(3)
+    .push(2) v;
+    v |> .push(3)
     };
     assert_eq!(v, [1, 2, 3]);
     // As a value, a function of the receiver.
@@ -205,40 +205,40 @@ fn ranges() {
 }
 
 rsml! {
-    fn first_negative(xs: &[i32]) -> Option<usize> {
-        for (i, x) in xs.iter().enumerate() do if !x < 0 then return Some(i) done;
-        None
-    }
+fn first_negative(xs: &[i32]) -> Option<usize> {
+    for (i, x) in xs.iter().enumerate() do if !x < 0 then return Some(i) done;
+    None
+}
 
-    fn sum_until_zero(xs: &[i32]) -> i32 {
-        let mut total = 0 in
-        let mut i = 0 in
-        while true do
-          if i = xs.len() || xs[i] = 0 then break;
-          i <- i + 1;
-          if xs[i - 1] < 0 then continue;
-          total <- total + xs[i - 1]
-        done;
-        total
-    }
+fn sum_until_zero(xs: &[i32]) -> i32 {
+    let mut total = 0 in
+    let mut i = 0 in
+    while true do
+      if i = xs.len() || xs[i] = 0 then break;
+      i <- i + 1;
+      if xs[i - 1] < 0 then continue;
+      total <- total + xs[i - 1]
+    done;
+    total
+}
 
-    fn find_power(base: u32, limit: u32) -> u32 {
-        let mut p = 1 in
-        while true do
-          if p * base > limit then return p;
-          p <- p * base
-        done
-    }
+fn find_power(base: u32, limit: u32) -> u32 {
+    let mut p = 1 in
+    while true do
+      if p * base > limit then return p;
+      p <- p * base
+    done
+}
 
-    fn first_even(xs: &[i32]) -> i32 {
-        let mut it = xs.iter() in
-        while true do
-          match it.next() with
-          | Some x when !x mod 2 = 0 -> break !x
-          | Some _ -> continue
-          | None -> break -1
-        done
-    }
+fn first_even(xs: &[i32]) -> i32 {
+    let mut it = xs.iter() in
+    while true do
+      match it.next() with
+      | Some x when !x mod 2 = 0 -> break !x
+      | Some _ -> continue
+      | None -> break -1
+    done
+}
 }
 
 #[test]
@@ -251,8 +251,8 @@ fn return_break_continue() {
     assert_eq!(first_even(&[1]), -1);
     let early = |n: i32| -> i32 {
         ml! {
-            if n < 0 then return 0;
-            n * 2
+        if n < 0 then return 0;
+        n * 2
         }
     };
     assert_eq!(early(-1), 0);
@@ -268,10 +268,10 @@ fn unsafe_and_async_blocks() {
     assert_eq!(ml! { unsafe { unchecked_double 21 } }, 42);
     assert_eq!(
         ml! {
-            unsafe {
-              let y = 2 in
-              unchecked_double(y)
-            }
+        unsafe {
+          let y = 2 in
+          unchecked_double(y)
+        }
         },
         4
     );
@@ -279,10 +279,10 @@ fn unsafe_and_async_blocks() {
     let fut = ml! { async { n + 1 } };
     assert_eq!(block_on(fut), 6);
     let fut = ml! {
-        async move {
-          let m = n * 2 in
-          m
-        }
+    async move {
+      let m = n * 2 in
+      m
+    }
     };
     assert_eq!(block_on(fut), 10);
     let nested = ml! { async { (async { 1 }).await + 1 } };
@@ -305,12 +305,12 @@ fn assignments_like_rust_compound_ones() {
     // scripts/check_clippy.sh): OCaml has no `+=`.
     let mut x = 1;
     let r = ml! {
-        let c = ref 10 in
-        x <- x + 1;
-        x <- 2 * x;
-        c := !c - 1;
-        incr c;
-        !c + x
+    let c = ref 10 in
+    x <- x + 1;
+    x <- 2 * x;
+    c := !c - 1;
+    incr c;
+    !c + x
     };
     assert_eq!((r, x), (14, 4));
 }
@@ -335,4 +335,82 @@ fn adjacent_constructor_applications() {
     // Spaced, the method is the argument's.
     let s = "ab";
     assert_eq!(ml! { Some (s).len() }, Some(2));
+}
+
+#[test]
+fn rust_closures() {
+    let xs = [1i64, 2, 3];
+    assert_eq!(
+        ml! { xs |> .iter() |> .map(|x: &i64| !x * 2) |> .sum::<i64>() },
+        12
+    );
+    let k = 10;
+    let f = ml! { |x: i32| x + k };
+    assert_eq!(f(1), 11);
+    let g = ml! { move |a, b| a * b + k };
+    assert_eq!(g(2, 3), 16);
+    let h = ml! { || k };
+    assert_eq!(h(), 10);
+    // Known arity: a partial application, and a direct call.
+    let inc = ml! {
+    let add = |x: i32, y: i32| x + y in
+    add 1
+    };
+    assert_eq!(inc(2), 3);
+    assert_eq!(ml! { (|(a, b): (i32, i32)| a - b) (5, 2) }, 3);
+    // The body reaches as far as a `fun` body: over `;`.
+    let (mut evens, mut odds) = (0, 0);
+    ml! {
+    xs
+    |> .iter()
+    |> .for_each(|x|
+         if !x mod 2 = 0 then evens <- evens + !x else odds <- odds + 1;
+         ())
+    };
+    assert_eq!((evens, odds), (2, 2));
+}
+
+#[derive(Clone, Copy)]
+enum Outer {
+    X,
+    Y,
+}
+
+#[derive(Clone, Copy)]
+enum Inner {
+    P,
+    Q,
+}
+
+#[test]
+fn guards_and_nested_matches() {
+    let sign = |n: i32| ml! { match n with 0 -> 0 | n if n > 0 -> 1 | _ -> -1 };
+    assert_eq!((sign(5), sign(0), sign(-5)), (1, 0, -1));
+    // `Outer::Y` cannot be a case of the `match` on an `Inner`.
+    let pick = |a: Outer, b: Inner| {
+        ml! {
+        match a with
+        | Outer::X ->
+            match b with
+            | Inner::P -> 1
+            | Inner::Q -> 2
+        | Outer::Y -> 3
+        }
+    };
+    assert_eq!((pick(Outer::X, Inner::Q), pick(Outer::Y, Inner::P)), (2, 3));
+    // After the inner `None`, a second `None` is the outer one's.
+    let depth = |o: Option<Option<i32>>| {
+        ml! {
+        match o with
+        | Some i ->
+            match i with
+            | Some _ -> 2
+            | None -> 1
+        | None -> 0
+        }
+    };
+    assert_eq!(
+        (depth(Some(Some(1))), depth(Some(None)), depth(None)),
+        (2, 1, 0)
+    );
 }

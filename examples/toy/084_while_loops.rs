@@ -17,30 +17,26 @@ use rsml::ml;
 pub const SUMMARY: &str = "`while n > 1 do .. done`: loop while a condition holds";
 
 /// The steps of the Collatz sequence from `n` down to 1.
-pub fn collatz_steps(n: u64) -> u32 {
-    ml! {
-        let mut n = n in
-        let mut steps = 0 in
-        while n > 1 do
-          n <- if n mod 2 = 0 then n / 2 else 3 * n + 1;
-          steps <- steps + 1
-        done;
-        steps
-    }
-}
+pub fn collatz_steps(n: u64) -> u32 { ml! {
+    let mut n = n in
+    let mut steps = 0 in
+    while n > 1 do
+      n <- if n mod 2 = 0 then n / 2 else 3 * n + 1;
+      steps <- steps + 1
+    done;
+    steps
+}}
 
 /// How many years until a savings account doubles, at `rate` percent.
-pub fn years_to_double(rate: f64) -> u32 {
-    ml! {
-        let mut amount = 1.0 in
-        let mut years = 0 in
-        while amount < 2.0 do
-          amount <- amount *. (1.0 +. rate /. 100.0);
-          years <- years + 1
-        done;
-        years
-    }
-}
+pub fn years_to_double(rate: f64) -> u32 { ml! {
+    let mut amount = 1.0 in
+    let mut years = 0 in
+    while amount < 2.0 do
+      amount <- amount *. (1.0 +. rate /. 100.0);
+      years <- years + 1
+    done;
+    years
+}}
 
 pub fn run() {
     println!("collatz_steps 6 = {}", collatz_steps(6));

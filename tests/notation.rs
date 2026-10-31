@@ -91,8 +91,8 @@ fn application() {
     let y = 2;
     assert_eq!(
         ml! {
-            let g ~a ~b = f a b in
-            g ~b:y ~a:1
+        let g ~a ~b = f a b in
+        g ~b:y ~a:1
         },
         12
     );
@@ -108,37 +108,37 @@ fn application() {
 fn arity_and_partial_application() {
     assert_eq!(
         ml! {
-            let add x y = x + y in
-            add 1 2
+        let add x y = x + y in
+        add 1 2
         },
         3
     );
     let inc = ml! {
-        let add x y = x + y in
-        add 1
+    let add x y = x + y in
+    add 1
     };
     assert_eq!(inc(2), 3);
     let expensive = || 5;
     let add5 = ml! {
-        let add x y = x + y in
-        add (expensive ())
+    let add x y = x + y in
+    add (expensive ())
     };
     assert_eq!(add5(1), 6);
     let inc = ml! {
-        external add : i64 -> i64 -> i64 ;;
-        add 1
+    external add : i64 -> i64 -> i64 ;;
+    add 1
     };
     assert_eq!(inc(1), 2);
     assert_eq!(
         ml! {
-            external adder : i64 -> (i64 -> i64) ;;
-            adder 1 2
+        external adder : i64 -> (i64 -> i64) ;;
+        adder 1 2
         },
         3
     );
     let plus1 = ml! {
-        external plus : _ -> _ -> _ = "std::ops::Add::add" ;;
-        plus 1i64
+    external plus : _ -> _ -> _ = "std::ops::Add::add" ;;
+    plus 1i64
     };
     assert_eq!(plus1(2), 3);
     let add6 = ml! { (add 6 : i64 -> i64) };
@@ -146,9 +146,9 @@ fn arity_and_partial_application() {
 }
 
 rsml! {
-    fn add_all(add: impl Fn(i64, i64) -> i64, xs: Vec<i64>) -> Vec<i64> {
-        xs |> .into_iter |> .map _ (add 10) |> .collect
-    }
+fn add_all(add: impl Fn(i64, i64) -> i64, xs: Vec<i64>) -> Vec<i64> {
+    xs |> .into_iter |> .map _ (add 10) |> .collect
+}
 }
 
 #[test]
@@ -181,8 +181,8 @@ fn composition() {
     assert_eq!(ml! { (g >> h) 1 }, 4);
     assert_eq!(ml! { 1 |> (g >> h) }, 4);
     let add3 = ml! {
-        let add x y = x + y in
-        add 1 >> add 2
+    let add x y = x + y in
+    add 1 >> add 2
     };
     assert_eq!(add3(0), 3);
     let count: fn(&Vec<i64>) -> usize = ml! { .iter >> .count };
@@ -201,30 +201,30 @@ fn operator_sections_and_user_operators() {
     assert_eq!(modulo(7, 3), 1);
     assert_eq!(
         ml! {
-            let ( +! ) a b = a + 2 * b in
-            1 +! 2
+        let ( +! ) a b = a + 2 * b in
+        1 +! 2
         },
         5
     );
     let o: Option<i64> = None;
     assert_eq!(
         ml! {
-            let ( |? ) o d = Option::unwrap_or o d in
-            o |? 0
+        let ( |? ) o d = Option::unwrap_or o d in
+        o |? 0
         },
         0
     );
     // An operator that mutates what it captures.
     assert_eq!(
         ml! {
-            let mut calls = 0 in
-            let ( +! ) a b =
-              calls <- calls + 1;
-              a + b
-            in
-            let a = 1 +! 2 in
-            let _ = a +! 3 in
-            calls
+        let mut calls = 0 in
+        let ( +! ) a b =
+          calls <- calls + 1;
+          a + b
+        in
+        let a = 1 +! 2 in
+        let _ = a +! 3 in
+        calls
         },
         2
     );
@@ -306,8 +306,8 @@ fn methods_as_functions() {
     assert_eq!(count(&xs), 4);
     // A receiver evaluated once, which the method mutates.
     let firsts = ml! {
-        let mut next = .nth (0..10) _ in
-        (next 0, next 0)
+    let mut next = .nth (0..10) _ in
+    (next 0, next 0)
     };
     assert_eq!(firsts, (Some(0), Some(1)));
 }
@@ -333,8 +333,8 @@ fn rust_style_methods_fields_and_calls() {
     assert_eq!(ml! { swap (1, 2) }, (2, 1));
     assert_eq!(
         ml! {
-            let add x y = x + y in
-            add(1)(2) + add(1, 2)
+        let add x y = x + y in
+        add(1)(2) + add(1, 2)
         },
         6
     );
@@ -385,93 +385,94 @@ fn lambdas() {
 fn local_functions_and_bindings() {
     assert_eq!(
         ml! {
-            let f x = x * 2 in
-            f 3
+        let f x = x * 2 in
+        f 3
         },
         6
     );
     assert_eq!(
         ml! {
-            let rec fact (n : i64) : i64 = if n = 0 then 1 else n * fact (n - 1) in
-            fact 5
+        let rec fact (n : i64) : i64 = if n = 0 then 1 else n * fact (n - 1) in
+        fact 5
         },
         120
     );
     assert_eq!(
         ml! {
-            let rec f : i64 -> i64 = function 0 -> 1 | n -> n * f (n - 1) in
-            f 5
+        let rec f : i64 -> i64 = function 0 -> 1 | n -> n * f (n - 1) in
+        f 5
         },
         120
     );
     assert!(ml! {
-        let rec even (n : u32) : bool = if n = 0 then true else odd (n - 1)
-        and odd (n : u32) : bool = if n = 0 then false else even (n - 1) in
-        even 10
+    let rec even (n : u32) : bool = if n = 0 then true else odd (n - 1)
+    and odd (n : u32) : bool = if n = 0 then false else even (n - 1) in
+    even 10
     });
     assert_eq!(
         ml! {
-            let rec id (x : 'a) : 'a = x in
-            id 1
+        let rec id (x : 'a) : 'a = x in
+        id 1
         },
         1
     );
     assert_eq!(
         ml! {
-            let x = 1
-            let y = 2 ;;
-            x + y
+        let x = 1
+        let y = 2 ;;
+        x + y
         },
         3
     );
     assert_eq!(
         ml! {
-            open std::cmp ;;
-            max 1 2
+        use std::cmp::max;
+        max 1 2
         },
         2
     );
     assert_eq!(
         ml! {
-            let open std::cmp in
-            min 1 2
+        let a = 1 in
+        use std::cmp::{max, min};
+        min a (max 1 2)
         },
         1
     );
     assert_eq!(
         ml! {
-            let r = ref 0 in
-            incr r;
-            r := !r + 1;
-            !r
+        let r = ref 0 in
+        incr r;
+        r := !r + 1;
+        !r
         },
         2
     );
     assert_eq!(
         ml! {
-            let mut n = 0 in
-            n <- n + 1;
-            n
+        let mut n = 0 in
+        n <- n + 1;
+        n
         },
         1
     );
     // A function that mutates what it captures.
     assert_eq!(
         ml! {
-            let c = ref 0 in
-            let mut next () =
-              incr c;
-              !c
-            in
-            next () + next ()
+        let c = ref 0 in
+        let mut next () =
+          incr c;
+          !c
+        in
+        next () + next ()
         },
         3
     );
     let mut v = Vec::new();
     ml! {
-        let mut push x = v.push(x) in
-        push 1;
-        push 2
+    let mut push x = v.push(x) in
+    push 1;
+    push 2
     };
     assert_eq!(v, [1, 2]);
 }
@@ -530,14 +531,14 @@ fn control_flow() {
     assert_eq!(ml! { if c then 1 else 2 }, 1);
     let mut out = Vec::new();
     ml! {
-        out.push(1);
-        out.push(2)
+    out.push(1);
+    out.push(2)
     };
     ml! {
-        begin
-          out.push(3);
-          out.push(4)
-        end
+    begin
+      out.push(3);
+      out.push(4)
+    end
     };
     let n = 2;
     ml! { for i = 0 to n do out.push(i) done };
@@ -554,19 +555,19 @@ fn control_flow() {
     assert_eq!(total, 20);
     let first_big = |xs: &[i64]| -> Option<i64> {
         ml! {
-            for x in xs do if !x > 10 then return Some(!x) done;
-            None
+        for x in xs do if !x > 10 then return Some(!x) done;
+        None
         }
     };
     assert_eq!(first_big(&[1, 20, 30]), Some(20));
     let r = ml! {
-        let i = ref 0 in
-        while true do
-          incr i;
-          if !i mod 2 = 1 then continue;
-          if !i > 5 then break
-        done;
-        !i
+    let i = ref 0 in
+    while true do
+      incr i;
+      if !i mod 2 = 1 then continue;
+      if !i > 5 then break
+    done;
+    !i
     };
     assert_eq!(r, 6);
     assert_eq!(ml! { (0..4).sum::<i64>() + (1..=3).sum::<i64>() }, 12);
@@ -607,8 +608,8 @@ fn types() {
     let n = 3;
     assert_eq!(ml! { (n : i64) + 1 }, 4);
     let s = ml! {
-        let t : (i64 * String) = (1, String::from("a")) in
-        t
+    let t : (i64 * String) = (1, String::from("a")) in
+    t
     };
     assert_eq!(s, (1, String::from("a")));
     let c = ml! { (fun x -> x : i64 -> i64) };
@@ -644,52 +645,52 @@ fn std_macros_take_ocaml() {
 }
 
 rsml! {
-    fn sum3(a: i64, b: i64, c: i64) -> i64 {
-        a + b + c
+fn sum3(a: i64, b: i64, c: i64) -> i64 {
+    a + b + c
+}
+
+fn adder3(n: i64) -> impl Fn(i64) -> i64 {
+    fun m -> n + m
+}
+
+fn sibling_partial() -> Vec<i64> {
+    [|1; 2|] |> .iter() |> .copied() |> .map(sum3 10 20) |> .collect()
+}
+
+fn sibling_groups() -> i64 {
+    adder3 1 2
+}
+
+struct Meters(f64);
+
+impl Meters {
+    fn new(a: f64, b: f64) -> Meters {
+        Meters(a +. b)
     }
 
-    fn adder3(n: i64) -> impl Fn(i64) -> i64 {
-        fun m -> n + m
+    fn from_parts() -> Meters {
+        let half = Self::new 0.5 in
+        half 0.5
     }
+}
 
-    fn sibling_partial() -> Vec<i64> {
-        [|1; 2|] |> .iter() |> .copied() |> .map(sum3 10 20) |> .collect()
+#[rust]
+fn rust_body(xs: &[i64]) -> i64 {
+    let mut total = 0;
+    for x in xs {
+        total += *x;
     }
-
-    fn sibling_groups() -> i64 {
-        adder3 1 2
+    if let Some(first) = xs.first() {
+        total * first
+    } else {
+        0
     }
+}
 
-    struct Meters(f64);
-
-    impl Meters {
-        fn new(a: f64, b: f64) -> Meters {
-            Meters(a +. b)
-        }
-
-        fn from_parts() -> Meters {
-            let half = Self::new 0.5 in
-            half 0.5
-        }
-    }
-
-    #[rust]
-    fn rust_body(xs: &[i64]) -> i64 {
-        let mut total = 0;
-        for x in xs {
-            total += *x;
-        }
-        if let Some(first) = xs.first() {
-            total * first
-        } else {
-            0
-        }
-    }
-
-    fn derefs(p: &mut i64, q: &&i64) -> i64 {
-        *p <- *p + **q;
-        *p
-    }
+fn derefs(p: &mut i64, q: &&i64) -> i64 {
+    *p <- *p + **q;
+    *p
+}
 }
 
 #[test]

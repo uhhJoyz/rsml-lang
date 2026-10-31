@@ -31,30 +31,24 @@ fn round_to(step: u32, cents: u32) -> u32 {
 }
 
 /// One price, with tax and rounded, by a composition given its argument.
-pub fn price(cents: u32) -> u32 {
-    ml! {
-        // `(add_tax 20 >> round_to 10) cents` is
-        // `round_to(10, add_tax(20, cents))`.
-        (add_tax 20 >> round_to 10) cents
-    }
-}
+pub fn price(cents: u32) -> u32 { ml! {
+    // `(add_tax 20 >> round_to 10) cents` is
+    // `round_to(10, add_tax(20, cents))`.
+    (add_tax 20 >> round_to 10) cents
+}}
 
 /// The same, with the price piped in.
-pub fn piped_price(cents: u32) -> u32 {
-    ml! {
-        // `cents |> (add_tax 20 >> round_to 10)` is
-        // `round_to(10, add_tax(20, cents))`.
-        cents |> (add_tax 20 >> round_to 10)
-    }
-}
+pub fn piped_price(cents: u32) -> u32 { ml! {
+    // `cents |> (add_tax 20 >> round_to 10)` is
+    // `round_to(10, add_tax(20, cents))`.
+    cents |> (add_tax 20 >> round_to 10)
+}}
 
 /// The length of a word without its spaces, Rust-call style.
-pub fn trimmed_length(word: &str) -> usize {
-    ml! {
-        // `(str::trim >> str::len)(word)` is `str::len(str::trim(word))`.
-        (str::trim >> str::len)(word)
-    }
-}
+pub fn trimmed_length(word: &str) -> usize { ml! {
+    // `(str::trim >> str::len)(word)` is `str::len(str::trim(word))`.
+    (str::trim >> str::len)(word)
+}}
 
 pub fn run() {
     println!("(add_tax 20 >> round_to 10) 1249 = {}", price(1249));

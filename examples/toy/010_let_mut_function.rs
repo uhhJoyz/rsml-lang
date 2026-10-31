@@ -24,31 +24,27 @@ use rsml::ml;
 pub const SUMMARY: &str = "`let mut next () = ..`: a local function that changes its captures";
 
 /// Three ticket numbers from a counter that starts at 100.
-pub fn tickets() -> (u32, u32, u32) {
-    ml! {
-        let counter = ref 100 in
-        // `next` increments `counter`, so it is `let mut`.
-        let mut next () =
-          incr counter;
-          !counter
-        in
-        let first = next () in
-        let second = next () in
-        (first, second, next ())
-    }
-}
+pub fn tickets() -> (u32, u32, u32) { ml! {
+    let counter = ref 100 in
+    // `next` increments `counter`, so it is `let mut`.
+    let mut next () =
+      incr counter;
+      !counter
+    in
+    let first = next () in
+    let second = next () in
+    (first, second, next ())
+}}
 
 /// A log that a local function appends to.
-pub fn log_lines(events: &[&str]) -> Vec<String> {
-    ml! {
-        let mut log = Vec.new () in
-        // `note` pushes onto `log`: `let mut note e = log.push(..)`.
-        let mut note (e : &str) = log.push(format!("event: {e}")) in
-        for e in events do note !e done;
-        // The last call of `note` is above, so `log` is free again.
-        log
-    }
-}
+pub fn log_lines(events: &[&str]) -> Vec<String> { ml! {
+    let mut log = Vec.new () in
+    // `note` pushes onto `log`: `let mut note e = log.push(..)`.
+    let mut note (e : &str) = log.push(format!("event: {e}")) in
+    for e in events do note !e done;
+    // The last call of `note` is above, so `log` is free again.
+    log
+}}
 
 pub fn run() {
     println!("tickets () = {:?}", tickets());
@@ -75,12 +71,12 @@ mod tests {
     fn the_header_example() {
         assert_eq!(
             ml! {
-                let c = ref 0 in
-                let mut next () =
-                  incr c;
-                  !c
-                in
-                next ()
+            let c = ref 0 in
+            let mut next () =
+              incr c;
+              !c
+            in
+            next ()
             },
             1
         );

@@ -3,11 +3,11 @@
 rsml's macros are ordinary procedural macros, so rust-analyzer understands
 the code inside `ml! { .. }` and `rsml! { .. }` through their expansion:
 semantic highlighting, hover, go to definition, diagnostics and completion
-all work inside OCaml code, in any editor that runs rust-analyzer (Neovim
+all work inside rsml code, in any editor that runs rust-analyzer (Neovim
 with blink.cmp or nvim-cmp, VS Code, Helix, Zed, ..). Inlay hints do not:
 rust-analyzer shows none inside a macro call written with `!`, any macro
 (not even for `let q = 5u8;` in a `macro_rules!` call), so the types of
-`let`s in OCaml code are not shown inline. Hover shows them. For every
+`let`s in rsml code are not shown inline. Hover shows them. For every
 notation the macros accept, and what completes where, see
 [notation.md](notation.md). For files of thousands of lines, see
 [Big files](#big-files).
@@ -55,14 +55,14 @@ same way, the expansion of a block that uses them starts with
 `const _: usize = 1 + 1 + ..;`, one `+` per operator character, each
 carrying that character's span.
 
-OCaml keywords that Rust has too (`let`, `in`, `if`, `else`, `match`,
+rsml keywords that Rust has too (`let`, `in`, `if`, `else`, `match`,
 `for`, `while`, `do`, `as`) are colored as keywords anyway, and `match`,
 `if`, `for` and `while` become the same Rust keywords. The others have
 no Rust token in the expansion, so the expansion also starts with a
 `const _: () = { .. };` holding one for each: `if true {}` with its `if`
 at a `then` or `when`, `match () { .. }` for `with` and `function`,
 `loop { break }` for `done`, `to`, `downto` and `til`, `let _ = 0;` for `fun`,
-`rec`, `and`, `begin`, `end`, `open` and `external`. Control-flow
+`rec`, `and`, `begin`, `end` and `external`. Control-flow
 keywords are thus colored as control flow, and the rest as keywords. The
 `|` of a match arm or or-pattern gets a `|` operator (`0 | 0`), and each
 `->` a `=>` (the generated match arms' own `=>` carry the arms' `->`).
@@ -70,19 +70,19 @@ Both constants are evaluated at compile time and generate no code; their
 other tokens point at the first token of the code, so they do not seem to
 contain it (clippy skips constants).
 
-`(* comments *)` are not Rust comments: Rust reads them as a group of
-tokens, which the macros drop, and editors color them as code. Prefer
-`//` and `/* */`. They are real Rust comments, colored as comments
+ML comments (`(* .. *)`) are not Rust comments: Rust reads them as a
+group of tokens, which the macros drop, and editors color them as code.
+Prefer `//` and `/* */`. They are real Rust comments, colored as comments
 everywhere, and they may contain quotes and apostrophes, which can break
-a `(* .. *)` comment (`(* say "hi *)` does not lex). rsml-fmt rewrites
-`(* *)` comments into Rust ones with `comments = "rust"`, and Neovim (below)
-and Vim ([Highlighting in Vim](#highlighting-in-vim)) can be taught to
-color them.
+an ML comment (`(* say "hi *)` does not lex). rsml-fmt rewrites ML
+comments into Rust ones with `comments = "rust"`, and Neovim (below) and
+Vim ([Highlighting in Vim](#highlighting-in-vim)) can be taught to color
+them.
 
 ### Neovim: coloring `(* *)` comments
 
-rust-analyzer gives the tokens of a `(* .. *)` comment no semantic token
-(the macros drop them), so tree-sitter's highlighting shows, and to
+rust-analyzer gives the tokens of an ML comment no semantic token (the
+macros drop them), so tree-sitter's highlighting shows, and to
 tree-sitter's Rust grammar the comment is a token tree that starts with
 `(*` and ends with `*)`. `editors/nvim/queries/rust/highlights.scm`
 extends Neovim's Rust highlights to color such token trees inside macro
@@ -113,17 +113,86 @@ nvim --headless -u NONE -l scripts/check_nvim_query.lua
 
 Helix and Zed were not checked, and the query is not written for them.
 
+### Neovim: hiding the macros
+
+`editors/nvim/lua/rsml/init.lua`, a Lua module, hides `ml! {`, `rsml! {`
+and their closing `}`, so that rsml code reads as the body it is, and
+gives the lines they were on a background, so that a block's start and
+end still show. A block on one line gets the background on its code
+instead: `assert_eq!(ml! { 1 + 2 }, 3)` shows as `assert_eq!(1 + 2, 3)`
+with `1 + 2` marked. The macros are hidden with extmarks that conceal
+them, with 'conceallevel' set to 2 locally in Rust windows; the cursor's
+line shows its text as written, as 'concealcursor' is empty by default.
+While the cursor is in rsml code (inside a block's brackets), the
+statusline starts with "- RSML -". `:RsmlToggle` shows or hides the
+macros.
+
+Add the checkout's `editors/nvim` to the runtimepath (the same entry
+installs the query of the previous section) and call `setup`:
+
+```lua
+vim.opt.runtimepath:append("/path/to/rsml/editors/nvim")
+require("rsml").setup()
+```
+
+or, with lazy.nvim:
+
+```lua
+{ dir = "/path/to/rsml/editors/nvim", config = function() require("rsml").setup() end }
+```
+
+The options, with their defaults:
+
+```lua
+require("rsml").setup({
+    conceal = true,          -- hide `ml! {`, `rsml! {` and their `}`
+    indicator = "- RSML -",  -- what the statusline shows in rsml code
+    statusline = true,       -- put the indicator at the front of 'statusline'
+})
+```
+
+With `statusline = true`, `setup` prepends
+`%{%v:lua.require'rsml'.statusline_item()%}` to the global 'statusline'
+(to Neovim's default one when it is empty). A statusline plugin draws its
+own: set `statusline = false` and add `require("rsml").statusline`, which
+returns the indicator in rsml code and `""` elsewhere, as a component;
+with lualine, `sections = { lualine_a = { "mode", require("rsml").statusline } }`.
+The colors are the highlight groups `RsmlBlock` (the marked lines,
+linked to `CursorLine` by default) and `RsmlMode` (the indicator, linked
+to `ModeMsg`); `setup` links them only if they are not defined, so a
+definition of your own wins.
+
+It needs tree-sitter's Rust parser (nvim-treesitter's, for example), as
+the query does, but not highlighting by tree-sitter: it finds the blocks
+with the parser, also inside the arguments of other macros. It goes well
+with the layout rsml-fmt gives a function whose body is one `ml!` block
+(`hug_fn_body`, see [rsml-fmt's README](../rsml-fmt/README.md#layout)),
+`fn f() -> T { ml! {` .. `}}`: the function's first line then reads as
+plain Rust, `fn f() -> T {`, and its last as `}`.
+
+`scripts/check_nvim_rsml.lua` opens a file with a hugged function, a
+block on lines of its own, one in `assert_eq!`'s arguments and an `rsml!`
+in a headless Neovim with the module on the runtimepath, and checks what
+each line shows, which lines are marked, where the cursor is in rsml
+code, the statusline, and the marks after an edit and after
+`:RsmlToggle` (with Neovim 0.12; lazy.nvim and lualine were not run).
+`scripts/check_all.sh` runs it as its `nvim-rsml` check:
+
+```sh
+nvim --headless -u NONE -l scripts/check_nvim_rsml.lua
+```
+
 ## Big files
 
 rust-analyzer expands a macro call again whenever its contents change, and
 twice for each completion, so the time a completion takes grows with the
 macro call it is in, not with the file. `scripts/check_latency.py`
-measures it: the same functions as plain Rust, in one whole-file `rsml!`,
-and in one `rsml!` per ten pairs of functions (about 110 lines), with the
-median time of a completion after `xs.` in the last function (Apple M4
-Pro, rust-analyzer of 2026-07-18):
+measures it: the same functions as plain Rust (no macros), in one
+whole-file `rsml!`, and in one `rsml!` per ten pairs of functions (about
+110 lines), with the median time of a completion after `xs.` in the last
+function (Apple M4 Pro, rust-analyzer of 2026-07-18):
 
-| lines | plain Rust | one `rsml!` | one `rsml!`, macros optimized | one `rsml!` per ~110 lines |
+| lines |  no macros | one `rsml!` | one `rsml!`, macros optimized | one `rsml!` per ~110 lines |
 |------:|-----------:|------------:|------------------------------:|---------------------------:|
 |   500 |       8 ms |       37 ms |                         29 ms |                      14 ms |
 |  1500 |      11 ms |       97 ms |                         72 ms |                      13 ms |
@@ -156,7 +225,7 @@ opt-level = 3
 ## Formatting on save
 
 `rsml-fmt --rustfmt` formats a whole file: rustfmt for the Rust, then the
-OCaml in `ml!` and `rsml!` (and, through rustfmt, the Rust inside
+rsml code in `ml!` and `rsml!` (and, through rustfmt, the Rust inside
 `rsml!`). It reads the file on stdin and writes the result to stdout, so
 it can stand in for rustfmt wherever an editor runs rustfmt. If the file
 is not valid Rust it writes nothing and exits with status 2, and the
@@ -367,23 +436,23 @@ augroup END
 Vim's Rust syntax (`$VIMRUNTIME/syntax/rust.vim`) reads the code inside
 the macros as Rust, and that is mostly right: strings, characters, `'a`
 (colored as a lifetime), numbers, `//` and `/* */` comments, operators
-and the keywords Rust shares with OCaml (`let`, `in`, `if`, `else`,
+and the keywords rsml shares with Rust (`let`, `in`, `if`, `else`,
 `match`, `for`, `while`, `as`, `ref`, `mod`) are colored as in Rust, and
-the code after a block is colored correctly. The rest of OCaml is not:
-`then`, `with`, `fun`, `done` and the like are left uncolored, `(* *)`
+the code after a block is colored correctly. The rest of rsml is not:
+`then`, `with`, `fun`, `done` and the like are left uncolored, ML
 comments are colored as code, and `do` as an error (a word Rust
 reserves).
 
 `editors/vim/after/syntax/rust.vim` adds to Vim's Rust syntax, inside the
 bodies of `ml!` and `rsml!` calls only (written with `{}`, `()` or `[]`):
 
-* `(* .. *)` comments, nested ones included, as comments. A comment
+* ML comments (`(* .. *)`), nested ones included, as comments. A comment
   starts with `(*` and ends with the `*)` that closes its parentheses, as
   the macros read it, so `( * )` and `( ** )` (operator sections) and
   `( *x)` or `(*x)` (dereferences) are not comments (the macros also
   take `( * c * )`, spaced, for a comment; this does not);
 * `then`, `when`, `with` and `function` as conditionals; `do`, `done`,
-  `to`, `downto` and `til` as loops; `fun`, `rec`, `and`, `begin`, `end`, `open`,
+  `to`, `downto` and `til` as loops; `fun`, `rec`, `and`, `begin`, `end`,
   `external`, `not` and `assert` as keywords; and `land`, `lor`, `lxor`,
   `lsl`, `lsr`, `asr` and `or` as operators. A Rust name spelled the same
   stays as it is after `.`, `::` or `r#` (`c.then(f)`, `r#end`), as does a
@@ -417,8 +486,8 @@ of [Neovim: coloring `(* *)` comments](#neovim-coloring---comments).
 `scripts/check_vim.sh` runs a headless Vim without plugins (and Neovim, if
 installed): the filter, `'formatprg'` and the format-on-save function above
 (taken from this page) on messy and broken files, and the highlighting of a
-sample with and without the syntax file, at OCaml positions and at every
-position outside the macros:
+sample with and without the syntax file, at positions in rsml code and at
+every position outside the macros:
 
 ```sh
 scripts/check_vim.sh
@@ -447,14 +516,14 @@ was run. The settings, from their documentation (coc-rust-analyzer's
 
 ## Errors
 
-rustc's errors point at the OCaml code they are about: a type mismatch at
+rustc's errors point at the rsml code they are about: a type mismatch at
 the expression that has the wrong type (`len` in `xs |> .len`, `"a"` in
 `if c then 1 else "a"`), an unknown method at its name, a missing match
 arm at the scrutinee, an over-applied function at the function. Rust code
 that the macros generate (a call's parentheses, a closure's `|x|`, a
-block's braces, `move`) is located at the OCaml token it stands for, and
+block's braces, `move`) is located at the rsml token it stands for, and
 keeps the macro's context, so lints treat it as generated, as before.
-Where an expression starts and ends with a token written in the OCaml
+Where an expression starts and ends with a token written in the rsml
 code, the error covers the whole of it (`function Some x -> x | None ->
 0`); otherwise it points at one token, its first. Only rustc's
 expansion is located this way; rust-analyzer's own diagnostics on the
@@ -538,7 +607,7 @@ clippy, unfinished code is still a single error with the usual message.
   `add ‸`, `plus ‸` (for a local `let plus x y`, a closure-typed
   parameter, a function of the same `rsml!` or `Self::make` in its
   `impl`), `plus ‸ 2`, `plus 1 ‸`, `plus(‸)`. After a function whose arity
-  the macro knows, at an argument written OCaml style with more missing
+  the macro knows, at an argument written ML style with more missing
   after it (`plus ‸`), values of the type of that argument's parameter are
   listed first, when the type is declared.
 * **`.` and `::` complete immediately**, as trigger characters: methods
@@ -600,12 +669,12 @@ the receiver is `xs`, and in `geometry::‸ &shape` the argument is
   shows `impl Fn(i64, i64, i64) -> i64` rather than
   `fn add3(i64, i64, i64) -> i64`.
 * Field names in a record *pattern* (`Point { ‸ } -> ..`) are not offered:
-  OCaml record patterns may leave fields out, so the expansion always ends
-  them with `..`, and rust-analyzer only offers missing fields.
+  a record pattern may leave fields out, so the expansion always ends
+  it with `..`, and rust-analyzer only offers missing fields.
 * The types of an `external` declaration are not completed; only their
   arrows matter, so they are not part of the expansion.
 * `a;` at the very end of a block is a value-less sequence in
-  rust-analyzer's view (`{ a; () }`), while rustc keeps OCaml's meaning
+  rust-analyzer's view (`{ a; () }`), while rustc keeps rsml's meaning
   (the value of `a`). Only the types rust-analyzer shows for such a block
   differ.
 
@@ -660,7 +729,7 @@ it starts with `rsml!`, an item.
 | being typed | `std::cmp::ma‸` | `max` |
 | leading `::` | `::std::‸` | `cmp` |
 | enum variants | `Shape::‸` | `Circle`, `Rect` |
-| enum variants, OCaml style | `Shape.‸` | `Circle`, `Rect` |
+| enum variants, ML style | `Shape.‸` | `Circle`, `Rect` |
 | after generic arguments | `Vec::<i64>::‸` | `new` |
 | head of an application | `geometry::ar‸ &shape` | `area` |
 | empty head of an application | `geometry::‸ &shape` | `area` |
@@ -774,10 +843,9 @@ it starts with `rsml!`, an item.
 | `and` | `let a = 1 and b = ‸ in a + b` | `n` |
 | next toplevel phrase | `let x = 1 let y = x‸` | `x` |
 | next `let .. in` | `let x = 1 in let y = ‸ in y` | `x` |
-| `let open` | `let open std::cmp in ‸` | `max`, `min` |
-| `open` phrase | `open std::cmp ;; ‸` | `max`, `min` |
-| module of `open` | `open std::‸` | `cmp` |
-| module of `let open` | `let open std::‸ in max 1 2` | `cmp` |
+| after `use` | `use std::cmp::*; ‸` | `max`, `min` |
+| `use` in an expression | `let x = 1 in use std::cmp::*; ‸` | `max`, `min` |
+| module of `use` | `use std::‸;` | `cmp` |
 | `external` name | `external add : i64 -> i64 -> i64 ;; ad‸ 1` | `add` |
 | record pattern | `let Point { x; y } = p in ‸` | `x`, `y` |
 
@@ -790,6 +858,10 @@ it starts with `rsml!`, an item.
 | annotated parameter | `fun (x : &str) -> x.‸` | `len`, `trim` |
 | parameter type | `fun (x : ‸) -> x` | `str`, `String`, `i64` |
 | `fun move` | `fun move x -> ‸` | `x` |
+| Rust-style closure body | `\|x\| ‸` | `x` |
+| Rust-style typed parameter | `\|x: &str\| x.‸` | `len`, `trim` |
+| Rust-style `move` closure | `move \|x\| ‸` | `x` |
+| Rust-style closure argument | `xs.iter().map(\|x\| x.‸)` | `abs`, `pow` |
 | closure argument of a method ref | `xs \|> .iter \|> .map _ (fun x -> x.‸)` | `abs`, `pow` |
 | `function` body | `function Some x -> ‸ \| None -> 0` | `x` |
 | `function` pattern | `function ‸` | `Some`, `None` |
@@ -809,8 +881,10 @@ it starts with `rsml!`, an item.
 | path pattern | `match o with Option::‸` | `Some`, `None` |
 | next pattern | `match o with Some x -> 1 \| ‸` | `None` |
 | guard | `match o with Some x when ‸ -> 1 \| _ -> 0` | `x` |
+| `if` guard | `match o with Some x if ‸ -> 1 \| _ -> 0` | `x` |
+| case after a nested match | `match o with Some x -> match n with 0 -> 1 \| _ -> 2 \| None -> ‸` | `n` |
 | enum variant patterns | `match shape with Shape::‸` | `Circle`, `Rect` |
-| enum variant patterns, OCaml style | `match shape with Shape.‸` | `Circle`, `Rect` |
+| enum variant patterns, ML style | `match shape with Shape.‸` | `Circle`, `Rect` |
 | lowercase path pattern | `match ord with std::cmp::Ordering::‸` | `Less`, `Equal`, `Greater` |
 | literal case body | `match n with 0 -> ‸ \| _ -> 1` | `n` |
 | tuple pattern | `match (n, o) with (0, Some x) -> x.‸ \| _ -> 0` | `len`, `trim` |
@@ -879,7 +953,7 @@ it starts with `rsml!`, an item.
 |---|---|---|
 | closure in a Rust-style call | `xs.iter().map(fun x -> x.‸)` | `abs`, `pow` |
 | turbofish type | `xs.iter().cloned().collect::<‸>()` | `Vec` |
-| after a Rust-style chain with an OCaml closure | `xs.iter().map(fun x -> x + 1).‸` | `sum`, `collect` |
+| after a Rust-style chain with a `fun` closure | `xs.iter().map(fun x -> x + 1).‸` | `sum`, `collect` |
 
 **Types**
 

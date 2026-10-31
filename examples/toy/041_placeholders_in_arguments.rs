@@ -12,7 +12,7 @@
 // * `xs.iter().map(_ * 2)` is `xs.iter().map(|_0| _0 * 2)`.
 // * A method of the parameter: `xs.iter().map(_.len())` is
 //   `xs.iter().map(|_0| _0.len())`.
-// * As an OCaml argument, in parentheses:
+// * As an ML-style argument, in parentheses:
 //   `count_where (_ > 0) xs` is `count_where(|_0| _0 > 0, xs)`.
 // * Each `_` is a new parameter: `(_ > 0 && _ < 10)` is a function of
 //   two. To use one parameter twice, number it (toy 039):
@@ -29,34 +29,28 @@ fn count_where(test: impl Fn(&i64) -> bool, xs: &[i64]) -> usize {
 }
 
 /// The prices, doubled.
-pub fn doubled(prices: &[i64]) -> Vec<i64> {
-    ml! {
-        // `map` passes a `&i64`, and `&i64 * i64` gives an `i64`.
-        prices |> .iter() |> .map(_ * 2) |> .collect()
-    }
-}
+pub fn doubled(prices: &[i64]) -> Vec<i64> { ml! {
+    // `map` passes a `&i64`, and `&i64 * i64` gives an `i64`.
+    prices |> .iter() |> .map(_ * 2) |> .collect()
+}}
 
 /// The length of each word.
-pub fn lengths(words: &[&str]) -> Vec<usize> {
-    ml! {
-        // `_.len()` calls the method on the parameter.
-        words |> .iter() |> .map(_.len()) |> .collect()
-    }
-}
+pub fn lengths(words: &[&str]) -> Vec<usize> { ml! {
+    // `_.len()` calls the method on the parameter.
+    words |> .iter() |> .map(_.len()) |> .collect()
+}}
 
 /// How many ratings are from 1 to 9.
-pub fn valid_ratings(ratings: &[i64]) -> usize {
-    ml! {
-        // `(_0 > &0 && _0 < &10)` is `move |_0| (_0 > (&0)) && (_0 < (&10))`:
-        // one parameter, a `&i64`, compared with references.
-        count_where (_0 > &0 && _0 < &10) ratings
-    }
-}
+pub fn valid_ratings(ratings: &[i64]) -> usize { ml! {
+    // `(_0 > &0 && _0 < &10)` is `move |_0| (_0 > (&0)) && (_0 < (&10))`:
+    // one parameter, a `&i64`, compared with references.
+    count_where (_0 > &0 && _0 < &10) ratings
+}}
 
 /// Whether any word is empty.
-pub fn any_empty(words: &[&str]) -> bool {
-    ml! { words |> .iter() |> .any(_.is_empty()) }
-}
+pub fn any_empty(words: &[&str]) -> bool { ml! {
+    words |> .iter() |> .any(_.is_empty())
+}}
 
 pub fn run() {
     println!("doubled [3; 5] = {:?}", doubled(&[3, 5]));

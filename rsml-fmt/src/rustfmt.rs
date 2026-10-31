@@ -205,8 +205,8 @@ pub fn rsml_block(
     }
     skeleton.push_str(&src[at..close.start]);
 
-    // The items' indentation: flush left if they were, else one level in
-    // from the line with `rsml! {`.
+    // The items' indentation: flush left if they were, else that of the
+    // line with `rsml! {`, or one level in with `indent_rsml_items`.
     let line_start = src[..open.start].rfind('\n').map_or(0, |i| i + 1);
     let tab = tab_spaces(env);
     let line_indent: usize = src[line_start..open.start]
@@ -221,7 +221,7 @@ pub fn rsml_block(
     let levels = if multiline && first_col == 0 {
         0
     } else {
-        line_indent / tab + 1
+        line_indent / tab + usize::from(cfg.indent_rsml_items)
     };
     // Formatted inside `levels` nested modules, the items get their
     // indentation from rustfmt itself, and fit its width.

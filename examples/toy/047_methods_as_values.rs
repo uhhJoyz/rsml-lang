@@ -11,7 +11,7 @@
 // * In a method's argument list it starts an expression, so no
 //   parentheses: `xs.iter().map(.len)` is
 //   `xs.iter().map(|receiver| receiver.len())`.
-// * As an OCaml argument it needs parentheses, `(.len)`: after a value,
+// * As an ML-style argument it needs parentheses, `(.len)`: after a value,
 //   `.len` is that value's field, so `f .len` is `f.len`, and
 //   `apply_all (.len) xs` is `apply_all(|receiver| receiver.len(), xs)`.
 // * A closure that calls a method needs its receiver's type. Inside
@@ -29,27 +29,23 @@ fn apply_all<'a>(f: impl Fn(&'a str) -> &'a str, xs: &[&'a str]) -> Vec<&'a str>
 }
 
 /// The length of each word.
-pub fn lengths(words: &[&str]) -> Vec<usize> {
-    ml! { words |> .iter() |> .map(.len) |> .collect() }
-}
+pub fn lengths(words: &[&str]) -> Vec<usize> { ml! {
+    words |> .iter() |> .map(.len) |> .collect()
+}}
 
 /// The words without their spaces, through a function that takes one.
-pub fn trimmed<'a>(words: &[&'a str]) -> Vec<&'a str> {
-    ml! {
-        // `apply_all (.trim) words` is
-        // `apply_all(|receiver| receiver.trim(), words)`.
-        apply_all (.trim) words
-    }
-}
+pub fn trimmed<'a>(words: &[&'a str]) -> Vec<&'a str> { ml! {
+    // `apply_all (.trim) words` is
+    // `apply_all(|receiver| receiver.trim(), words)`.
+    apply_all (.trim) words
+}}
 
 /// A stored method, with the type of its receiver given.
-pub fn shouted(words: &[&str]) -> Vec<String> {
-    ml! {
-        // `.to_uppercase (_ : &str)` is `move |_0: &str| _0.to_uppercase()`.
-        let shout = .to_uppercase (_ : &str) in
-        words |> .iter() |> .map(fun w -> shout !w) |> .collect()
-    }
-}
+pub fn shouted(words: &[&str]) -> Vec<String> { ml! {
+    // `.to_uppercase (_ : &str)` is `move |_0: &str| _0.to_uppercase()`.
+    let shout = .to_uppercase (_ : &str) in
+    words |> .iter() |> .map(fun w -> shout !w) |> .collect()
+}}
 
 pub fn run() {
     println!(

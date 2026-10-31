@@ -25,35 +25,29 @@ fn clamp(low: i64, x: i64, high: i64) -> i64 {
 }
 
 /// Readings forced into 0..=100.
-pub fn percents(readings: &[i64]) -> Vec<i64> {
-    ml! {
-        // `clamp 0 _ 100` is `move |_0| clamp(0, _0, 100)`.
-        let to_percent = clamp 0 _ 100 in
-        readings |> .iter() |> .map(fun r -> to_percent !r) |> .collect()
-    }
-}
+pub fn percents(readings: &[i64]) -> Vec<i64> { ml! {
+    // `clamp 0 _ 100` is `move |_0| clamp(0, _0, 100)`.
+    let to_percent = clamp 0 _ 100 in
+    readings |> .iter() |> .map(fun r -> to_percent !r) |> .collect()
+}}
 
 /// Every reading doubled.
-pub fn doubled(readings: &[i64]) -> Vec<i64> {
-    ml! {
-        // `_ * 2` is the closure `|_0| _0 * 2`; `map` gives it each `&i64`.
-        readings |> .iter() |> .map(_ * 2) |> .collect()
-    }
-}
+pub fn doubled(readings: &[i64]) -> Vec<i64> { ml! {
+    // `_ * 2` is the closure `|_0| _0 * 2`; `map` gives it each `&i64`.
+    readings |> .iter() |> .map(_ * 2) |> .collect()
+}}
 
 /// One reading, clamped: the pipe fills the hole, no closure is made.
-pub fn one_percent(reading: i64) -> i64 {
-    ml! { reading |> clamp 0 _ 100 }
-}
+pub fn one_percent(reading: i64) -> i64 { ml! {
+    reading |> clamp 0 _ 100
+}}
 
 /// How many readings are present; `_` in the pattern is the wildcard.
-pub fn present(readings: &[Option<i64>]) -> usize {
-    ml! {
-        // `iter` gives references, so `o` has type `&Option<i64>`.
-        let count (o : &Option<i64>) = match o with Some _ -> 1 | None -> 0 in
-        readings |> .iter() |> .map(count) |> .sum()
-    }
-}
+pub fn present(readings: &[Option<i64>]) -> usize { ml! {
+    // `iter` gives references, so `o` has type `&Option<i64>`.
+    let count (o : &Option<i64>) = match o with Some _ -> 1 | None -> 0 in
+    readings |> .iter() |> .map(count) |> .sum()
+}}
 
 pub fn run() {
     let readings = [-5, 42, 130];

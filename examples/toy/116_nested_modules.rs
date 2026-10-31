@@ -1,9 +1,9 @@
 // Toy 116: modules inside `rsml!`, and `use super::*`.
 //
 // What it is: an `rsml!` block may hold `mod` items, whose function
-// bodies are OCaml too. A module knows the arities of its own functions,
-// and those of its parent when it imports them, as Rust code would see
-// them: `use super::*` brings all, `use super::name` one.
+// bodies are rsml code too. A module knows the arities of its own
+// functions, and those of its parent when it imports them, as Rust code
+// would see them: `use super::*` brings all, `use super::name` one.
 //
 // When to use it: to group the functions of a file, or for a
 // `#[cfg(test)] mod tests` whose tests partially apply the functions
@@ -24,29 +24,29 @@ use rsml::rsml;
 pub const SUMMARY: &str = "`mod` in `rsml!`: `use super::*` brings the parent's arities along";
 
 rsml! {
-    /// Degrees from one scale to another: `x * factor + offset`.
-    pub fn convert(offset: f64, factor: f64, x: f64) -> f64 {
-        x *. factor +. offset
+/// Degrees from one scale to another: `x * factor + offset`.
+pub fn convert(offset: f64, factor: f64, x: f64) -> f64 {
+    x *. factor +. offset
+}
+
+pub mod weather {
+    use super::*;
+
+    /// Celsius to Fahrenheit: `convert 32.0 1.8` is partial here too.
+    pub fn fahrenheit(celsius: &[f64]) -> Vec<f64> {
+        celsius |> .iter() |> .copied() |> .map(convert 32.0 1.8) |> .collect()
     }
+}
 
-    pub mod weather {
-        use super::*;
+pub mod kitchen {
+    use super::convert;
 
-        /// Celsius to Fahrenheit: `convert 32.0 1.8` is partial here too.
-        pub fn fahrenheit(celsius: &[f64]) -> Vec<f64> {
-            celsius |> .iter() |> .copied() |> .map(convert 32.0 1.8) |> .collect()
-        }
+    /// Gas mark from Celsius, roughly: one name imported.
+    pub fn gas_mark(celsius: f64) -> f64 {
+        let mark = convert (-7.0) (1.0 /. 14.0) in
+        (mark celsius).round()
     }
-
-    pub mod kitchen {
-        use super::convert;
-
-        /// Gas mark from Celsius, roughly: one name imported.
-        pub fn gas_mark(celsius: f64) -> f64 {
-            let mark = convert (-7.0) (1.0 /. 14.0) in
-            (mark celsius).round()
-        }
-    }
+}
 }
 
 pub fn run() {

@@ -10,7 +10,6 @@
 // * Both ends are literals: numbers (negative ones too) or characters.
 // * `..` stops before its end however it is spaced, in a pattern as in an
 //   expression (toy 088): `1..3` matches 1 and 2, as `(1..3).count()` is 2.
-//   OCaml's `'a' .. 'z'` would include `'z'`; rsml follows Rust.
 // * Both ends are needed:
 //   `match n with ..=0 -> 0 | _ -> 1` is an error: "expected a pattern",
 //   and `match n with 90.. -> 0 | _ -> 1` is an error: "expected the end
@@ -24,28 +23,24 @@ pub const SUMMARY: &str =
     "Range patterns: `'a'..='z'` includes its end, `0..10` leaves it out, as in Rust";
 
 /// What kind of character `c` is.
-pub fn kind(c: char) -> &'static str {
-    ml! {
-        // `match c with 'a'..='z' -> 1 | _ -> 0` is
-        // `match c { 'a'..='z' => 1, _ => 0, }`.
-        match c with 'a'..='z' | 'A'..='Z' -> "letter" | '0'..='9' -> "digit" | _ -> "other"
-    }
-}
+pub fn kind(c: char) -> &'static str { ml! {
+    // `match c with 'a'..='z' -> 1 | _ -> 0` is
+    // `match c { 'a'..='z' => 1, _ => 0, }`.
+    match c with 'a'..='z' | 'A'..='Z' -> "letter" | '0'..='9' -> "digit" | _ -> "other"
+}}
 
 /// A band of temperatures, in degrees.
-pub fn band(t: i32) -> &'static str {
-    ml! {
-        // A pattern range leaves its end out, spaced or not:
-        // `match n with 1 .. 3 -> 1 | _ -> 0` is `match n { 1..3 => 1, _ => 0, }`.
-        match t with -273..0 -> "freezing" | 0..16 -> "cold" | 16..26 -> "mild" | _ -> "hot"
-    }
-}
+pub fn band(t: i32) -> &'static str { ml! {
+    // A pattern range leaves its end out, spaced or not:
+    // `match n with 1 .. 3 -> 1 | _ -> 0` is `match n { 1..3 => 1, _ => 0, }`.
+    match t with -273..0 -> "freezing" | 0..16 -> "cold" | 16..26 -> "mild" | _ -> "hot"
+}}
 
 /// The number of letters from `a` to `e` in an expression range, which
 /// stops before its end too.
-pub fn letters_before_e() -> usize {
-    ml! { ('a'..'e').count() }
-}
+pub fn letters_before_e() -> usize { ml! {
+    ('a'..'e').count()
+}}
 
 pub fn run() {
     println!(

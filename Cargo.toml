@@ -1,10 +1,10 @@
 [package]
 # `rsml` is taken on crates.io; the library keeps the name (see [lib]).
 name = "rsml-lang"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.88"
-description = "OCaml expression syntax inside Rust function bodies, lowered at compile time to plain Rust"
+description = "ML-style expression syntax inside Rust function bodies, lowered at compile time to plain Rust"
 license = "MIT"
 repository = "https://github.com/uhhJoyz/rsml-lang"
 keywords = ["ocaml", "macro", "functional", "pipeline", "syntax"]
@@ -21,7 +21,7 @@ name = "rsml"
 members = ["rsml-compiler", "rsml-fmt", "rsml-macros", "tests/edition2021"]
 
 [dependencies]
-rsml-macros = { path = "rsml-macros", version = "0.1.0" }
+rsml-macros = { path = "rsml-macros", version = "0.2.0" }
 
 # The whole-file example has tests of its own: `cargo test` runs them.
 [[example]]

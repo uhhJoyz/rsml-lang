@@ -10,7 +10,7 @@
 //   `adder 1 2` calls `adder(1)`, then the closure it returns with 2;
 // * a pattern parameter such as `(a, b): (u32, u32)` counts as one.
 //
-// When to use it: always, in `rsml!`: write the block's functions OCaml
+// When to use it: always, in `rsml!`: write the block's functions ML
 // style and partially apply them freely.
 //
 // How to write it: nothing to declare. In full:
@@ -30,36 +30,32 @@ use rsml::rsml;
 pub const SUMMARY: &str = "Functions of one `rsml!` are known: `with_tax 20` is partial";
 
 rsml! {
-    /// A price with tax, in cents.
-    pub fn with_tax(rate: u32, cents: u32) -> u32 {
-        cents + cents * rate / 100
-    }
+/// A price with tax, in cents.
+pub fn with_tax(rate: u32, cents: u32) -> u32 {
+    cents + cents * rate / 100
+}
 
-    /// The tax rate today: a function without parameters.
-    pub fn rate_today() -> u32 {
-        20
-    }
+/// The tax rate today: a function without parameters.
+pub fn rate_today() -> u32 {
+    20
+}
 
-    /// A discount function, returned: `discount 10` is a closure.
-    pub fn discount(percent: u32) -> impl Fn(u32) -> u32 {
-        fun cents -> cents - cents * percent / 100
-    }
+/// A discount function, returned: `discount 10` is a closure.
+pub fn discount(percent: u32) -> impl Fn(u32) -> u32 {
+    fun cents -> cents - cents * percent / 100
+}
 
-    /// A basket's prices with today's tax and 10% off.
-    pub fn basket(prices: &[u32]) -> Vec<u32> {
-        // `with_tax (rate_today ())` waits for the price, and
-        // `discount 10 >> ..` composes the returned closure.
-        prices
-        |> .iter()
-        |> .copied()
-        |> .map(with_tax (rate_today ()) >> discount 10)
-        |> .collect()
-    }
+/// A basket's prices with today's tax and 10% off.
+pub fn basket(prices: &[u32]) -> Vec<u32> {
+    // `with_tax (rate_today ())` waits for the price, and
+    // `discount 10 >> ..` composes the returned closure.
+    prices |> .iter() |> .copied() |> .map(with_tax (rate_today ()) >> discount 10) |> .collect()
+}
 
-    /// One price: `discount 10` makes the closure, which gets `cents`.
-    pub fn one(cents: u32) -> u32 {
-        discount 10 cents
-    }
+/// One price: `discount 10` makes the closure, which gets `cents`.
+pub fn one(cents: u32) -> u32 {
+    discount 10 cents
+}
 }
 
 pub fn run() {

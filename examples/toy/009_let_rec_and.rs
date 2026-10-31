@@ -20,36 +20,30 @@ use rsml::ml;
 pub const SUMMARY: &str = "Mutual recursion `let rec .. and ..`; `let a = .. and b = ..`";
 
 /// "even" or "odd", by two functions that call each other.
-pub fn parity(n: u32) -> &'static str {
-    ml! {
-        let rec even (k : u32) : bool = if k = 0 then true else odd (k - 1)
-        and odd (k : u32) : bool = if k = 0 then false else even (k - 1) in
-        if even n then "even" else "odd"
-    }
-}
+pub fn parity(n: u32) -> &'static str { ml! {
+    let rec even (k : u32) : bool = if k = 0 then true else odd (k - 1)
+    and odd (k : u32) : bool = if k = 0 then false else even (k - 1) in
+    if even n then "even" else "odd"
+}}
 
 /// One step of the Fibonacci sequence: (a, b) becomes (b, a + b).
-pub fn fib_step(a: u64, b: u64) -> (u64, u64) {
-    ml! {
-        // `let a = b and b = a + b in (a, b)` is
-        // `{ let value1 = b; let value2 = a + b; let a = value1; let b = value2; (a, b) }`:
-        // `a + b` uses the old `a`.
-        let a = b
-        and b = a + b in
-        (a, b)
-    }
-}
+pub fn fib_step(a: u64, b: u64) -> (u64, u64) { ml! {
+    // `let a = b and b = a + b in (a, b)` is
+    // `{ let value1 = b; let value2 = a + b; let a = value1; let b = value2; (a, b) }`:
+    // `a + b` uses the old `a`.
+    let a = b
+    and b = a + b in
+    (a, b)
+}}
 
 /// The same step with `let .. in`, one after the other: the second `let`
 /// would see the new `a`, so the old one is saved first.
-pub fn fib_step_in_turn(a: u64, b: u64) -> (u64, u64) {
-    ml! {
-        let old_a = a in
-        let a = b in
-        let b = old_a + b in
-        (a, b)
-    }
-}
+pub fn fib_step_in_turn(a: u64, b: u64) -> (u64, u64) { ml! {
+    let old_a = a in
+    let a = b in
+    let b = old_a + b in
+    (a, b)
+}}
 
 pub fn run() {
     println!("parity 10 = {}, parity 7 = {}", parity(10), parity(7));

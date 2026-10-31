@@ -1,10 +1,11 @@
 //! The translator behind [`rsml`](https://docs.rs/rsml): lexer, parser and
-//! code generator for the OCaml subset accepted by `ml!` and `rsml!`.
+//! code generator for the rsml code accepted by `ml!` and `rsml!`.
 //!
 //! This is an ordinary library (proc-macro crates cannot export anything but
 //! macros), so the macros in `rsml-macros` and the formatter in `rsml-fmt`
 //! share one parser.
 
+mod arms;
 pub mod ast;
 mod codegen;
 pub mod items;
@@ -755,7 +756,7 @@ mod tests {
         // `!` dereferences, so a Rust negation would assert the opposite.
         check_error(
             "assert!(!xs.is_empty())",
-            "`!` dereferences in OCaml and binds tighter than `.`",
+            "`!` dereferences, and binds tighter than `.`",
         );
         check_error("debug_assert!(!v[0], \"msg\")", "binds tighter than `.`");
         check("assert!(not (xs.is_empty()))", "assert!(!xs.is_empty())");
@@ -1124,13 +1125,130 @@ mod tests {
     }
 
     #[test]
+    fn rust_closures() {
+        check("xs.map(|x| x + 1)", "xs.map(|x| x + 1)");
+        check("|x: i32| x + c", "move |x: i32| x + c");
+        check("|| 1", "move || 1");
+        check("f (move |x| x)", "f(move |x| x)");
+        check("f (|a, b| a + b)", "f(|a, b| a + b)");
+        check("f (|(a, b)| a + b)", "f(|(a, b)| a + b)");
+        check("f (|&x| x)", "f(|&x| x)");
+        check("f (|mut acc| acc)", "f(|mut acc| acc)");
+        // The same closure as `fun`: its arity is known, and it is applied
+        // directly.
+        check(
+            "let add = |x, y| x + y in add 1",
+            "{ let add = |x, y| x + y; move |arg2| add(1, arg2) }",
+        );
+        check("(|x| x + 1) 2", "{ let x = 2; x + 1 }");
+        // The body reaches as far as `fun`'s: over `;` too.
+        check("f (|x| a <- x; b <- x)", "f(|x| { a = x; b = x })");
+        // `||` is still `or` after an operand.
+        check("a || b", "a || b");
+        // A `|` after a case's `return` is the next case.
+        check(
+            "match x with A -> return | B | C -> 1",
+            "match x { A => return, B | C => 1, }",
+        );
+        // A closure as a case's body, but not the next case's `|`.
+        check(
+            "match x with A -> |y| y + 1 | B -> |y| y",
+            "match x { A => move |y| y + 1, B => move |y| y, }",
+        );
+        check_error(
+            "match x with A -> | B -> 1",
+            "expected an expression before `|`",
+        );
+        check_error(
+            "match x with A -> | B | C -> 1",
+            "expected an expression before `|`",
+        );
+    }
+
+    #[test]
+    fn rust_guards() {
+        check(
+            "match x with A | B if c -> 1 | _ -> 2",
+            "match x { A | B if c => 1, _ => 2, }",
+        );
+        check(
+            "match x with Some y when y > 0 -> y | _ -> 0",
+            "match x { Some(y) if y > 0 => y, _ => 0, }",
+        );
+    }
+
+    /// An inner `match` leaves the cases it cannot take to the enclosing
+    /// one (see `arms.rs`).
+    #[test]
+    fn nested_matches() {
+        // Another type: `A::Y` is no `B`.
+        check(
+            "match a with A::X -> match b with B::P -> 1 | B::Q -> 2 | A::Y -> 3",
+            "match a { A::X => match b { B::P => 1, B::Q => 2, }, A::Y => 3, }",
+        );
+        // After the inner `_`, no case could be taken.
+        check(
+            "match a with A -> match b with X -> 1 | _ -> 2 | B -> 3",
+            "match a { A => match b { X => 1, _ => 2, }, B => 3, }",
+        );
+        // `None` is matched already.
+        check(
+            "match a with Some x -> match x with Some y -> y | None -> 0 | None -> 3",
+            "match a { Some(x) => match x { Some(y) => y, None => 0, }, None => 3, }",
+        );
+        // Literals and tuples show their type too, and `function` nests
+        // like `match`.
+        check(
+            "match a with 0 -> match s with \"x\" -> 1 | _ -> 2 | _ -> 3",
+            "match a { 0 => match ::rsml::__rt::as_str(&s) { \"x\" => 1, _ => 2, }, _ => 3, }",
+        );
+        check(
+            "match a with A::X -> f (function B::P -> 1) | A::Y -> 2",
+            "match a { A::X => f(|argument| match argument { B::P => 1, }), A::Y => 2, }",
+        );
+        check(
+            "match p with (0, b) -> match b with 0 -> 1 | n -> n | (_, _) -> 0",
+            "match p { (0, b) => match b { 0 => 1, n => n, }, (_, _) => 0, }",
+        );
+        // Through `let .. in`, `fun` and `;`, which the case ends.
+        check(
+            "match a with A::X -> let y = 1 in fun z -> g (); match z with B::P -> y | A::Y -> 0",
+            "match a { A::X => { let y = 1; move |z| { g(); match z { B::P => y, } } }, A::Y => 0, }",
+        );
+        // Without evidence the case stays with the inner `match`, as in
+        // OCaml: here both are on the same type.
+        check(
+            "match a with Some x -> match x with Some y -> y | z -> 0",
+            "match a { Some(x) => match x { Some(y) => y, z => 0, }, }",
+        );
+        // Barriers: brackets, `begin .. end`, a `let` value.
+        check(
+            "match a with A::X -> (match b with B::P -> 1 | A::Y -> 2) | A::Y -> 3",
+            "match a { A::X => match b { B::P => 1, A::Y => 2, }, A::Y => 3, }",
+        );
+        check(
+            "match a with A::X -> begin match b with B::P -> 1 | A::Y -> 2 end | A::Y -> 3",
+            "match a { A::X => match b { B::P => 1, A::Y => 2, }, A::Y => 3, }",
+        );
+        check(
+            "match a with A::X -> let v = match b with B::P -> 1 | A::Y -> 2 in v | A::Y -> 3",
+            "match a { A::X => { let v = match b { B::P => 1, A::Y => 2, }; v }, A::Y => 3, }",
+        );
+        // `Self::A` could be of any type.
+        check(
+            "match a with A::X -> match b with Self::P -> 1 | A::Y -> 2",
+            "match a { A::X => match b { Self::P => 1, A::Y => 2, }, }",
+        );
+    }
+
+    #[test]
     fn rust_keywords_are_not_names() {
         for (src, msg) in [
             ("let loop = 1 in loop", "`loop` is a Rust keyword"),
-            ("fn x", "a closure is `fun x -> e`"),
+            ("fn x", "a closure is `|x| e`"),
             (
                 "fn f x = x",
-                "a named local function is `let f x = .. in ..`, and a closure is `fun x -> e`",
+                "a named local function is `let f x = .. in ..`, and a closure is `|x| e`",
             ),
             ("fn x = 1", "a named local function is `let x y = .. in ..`"),
             ("let f fn = 1 in f", "`fn` is a Rust keyword"),
@@ -1160,9 +1278,13 @@ mod tests {
     #[test]
     fn rust_isms_get_helpful_errors() {
         for (src, msg) in [
-            ("xs.map(|x| x + 1)", "written `fun x -> e`"),
-            ("|| 1", "`fun () -> e` for `|| e`"),
-            ("f (move |x| x)", "`fun move x -> e`"),
+            ("f |x| x", "a closure here goes in parentheses"),
+            ("f move |x| x", "a closure here goes in parentheses"),
+            (
+                "|x| -> x",
+                "a closure's body comes right after its parameters",
+            ),
+            ("|x y| x", "expected `,` or the `|` that closes"),
             ("if let Some(x) = o { x } else { 0 }", "Rust's `if let`"),
             ("if let Some(x) = o then x else 0", "Rust's `if let`"),
             (
@@ -1299,11 +1421,32 @@ mod tests {
     }
 
     #[test]
-    fn open_is_a_glob_import() {
-        check("open std::cmp ;; max a b", "{ use std::cmp::*; max(a, b) }");
+    fn use_items() {
+        check("use std::cmp::*; max a b", "{ use std::cmp::*; max(a, b) }");
         check(
-            "let open std::cmp in max a b",
-            "{ use std::cmp::*; max(a, b) }",
+            "use std::cmp::{max, min};\nlet x = 1 ;;\nmax x 2",
+            "{ use std::cmp::{max, min}; let x = 1; max(x, 2) }",
+        );
+        check(
+            "let y = 2 in use std::cmp::max; max y 3",
+            "{ let y = 2; use std::cmp::max; max(y, 3) }",
+        );
+        check(
+            "f (use std::cmp::max; max 1 2)",
+            "f({ use std::cmp::max; max(1, 2) })",
+        );
+        check(
+            "use std::cmp::max as m;; m 1 2",
+            "{ use std::cmp::max as m; m(1, 2) }",
+        );
+        // `open` is a name.
+        check("let open = 1 in open + 1", "{ let open = 1; open + 1 }");
+        check("f (|open| (op, open))", "f(|open| (op, open))");
+        check_error("use std::cmp::max max 1 2", "expected `;` after the `use`");
+        check_error("use 1;", "expected a Rust path after `use`");
+        check_error(
+            "use std::cmp::{max (), min};",
+            "expected `;` after the `use`",
         );
     }
 
@@ -1547,7 +1690,8 @@ mod tests {
         check_recovers("while n > 0 do $");
         check_recovers("for i = 0 to n do $");
         check_recovers("fun x -> x + $");
-        check_recovers("let open std::$ in max 1 2");
+        check_recovers("use std::$; max 1 2");
+        check_recovers("use std::$");
         check_recovers("(n : $)");
         check_recovers("for x in $");
         check_recovers("for x in xs do $");

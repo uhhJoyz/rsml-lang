@@ -25,27 +25,23 @@ use rsml::ml;
 pub const SUMMARY: &str = "`xs |> .iter() |> .map(f) |> .sum::<i64>()`, `.push(1) xs`";
 
 /// The total weight of the parcels over 1 kg, in grams.
-pub fn heavy_total(grams: &[i64]) -> i64 {
-    ml! { grams |> .iter() |> .copied() |> .filter(fun g -> !g > 1000) |> .sum::<i64>() }
-}
+pub fn heavy_total(grams: &[i64]) -> i64 { ml! {
+    grams |> .iter() |> .copied() |> .filter(fun g -> !g > 1000) |> .sum::<i64>()
+}}
 
 /// Two more parcels on the list.
-pub fn with_two_more(mut grams: Vec<i64>) -> Vec<i64> {
-    ml! {
-        // `.push(250) grams` is `grams.push(250)`.
-        .push(250) grams;
-        grams |> .push(4000);
-        grams
-    }
-}
+pub fn with_two_more(mut grams: Vec<i64>) -> Vec<i64> { ml! {
+    // `.push(250) grams` is `grams.push(250)`.
+    .push(250) grams;
+    grams |> .push(4000);
+    grams
+}}
 
 /// Every weight at least a minimum: `.max(min)` waits for its receiver.
-pub fn at_least(min: i64, grams: &[i64]) -> Vec<i64> {
-    ml! {
-        // `.max(min) !g` is `(*g).max(min)`.
-        grams |> .iter() |> .map(fun g -> .max(min) !g) |> .collect()
-    }
-}
+pub fn at_least(min: i64, grams: &[i64]) -> Vec<i64> { ml! {
+    // `.max(min) !g` is `(*g).max(min)`.
+    grams |> .iter() |> .map(fun g -> .max(min) !g) |> .collect()
+}}
 
 pub fn run() {
     println!(

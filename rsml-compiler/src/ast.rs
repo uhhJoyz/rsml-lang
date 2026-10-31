@@ -71,14 +71,19 @@ pub enum Expr {
         /// The parentheses.
         span: Span,
     },
-    /// `fun p.. -> body`; `fun move p.. -> body` forces a `move` closure.
+    /// `fun p.. -> body`, or Rust's `|p, ..| body`; `fun move p.. -> body`
+    /// and `move |p| body` force a `move` closure.
     Fun {
         params: Vec<Pat>,
         /// As in [`BindKind::Func`]: kept for `let f = fun ~x -> ..`.
         labels: Vec<Option<Ident>>,
         body: Box<Expr>,
+        /// `fun`, or the `move` or first `|` of a Rust-style closure.
         span: Span,
         is_move: bool,
+        /// The opening and closing `|` of a Rust-style closure (the same
+        /// span twice for `||`), `None` for `fun`.
+        bars: Option<(Span, Span)>,
     },
     Function {
         arms: Vec<Arm>,
@@ -98,11 +103,17 @@ pub enum Expr {
         body: Box<Expr>,
         span: Span,
     },
-    /// `open path`: a Rust glob import (`use path::*;`) for `body`.
-    Open {
-        module: Path,
+    /// `use tree; body`: Rust's `use` item, for `body` (the rest of the
+    /// block or expression).
+    Use {
+        /// The use tree (`std::cmp::max`, `std::collections::{HashMap, HashSet}`),
+        /// as written.
+        tree: TokenStream,
         body: Box<Expr>,
+        /// The `use`.
         span: Span,
+        /// The `;`.
+        semi: Span,
     },
     If {
         cond: Box<Expr>,
@@ -406,8 +417,9 @@ pub enum Phrase {
         rust: Option<(String, Span)>,
         span: Span,
     },
-    Open {
-        module: Path,
+    /// `use tree;`
+    Use {
+        tree: TokenStream,
         span: Span,
     },
     Expr(Expr),
@@ -450,6 +462,9 @@ pub struct Binding {
 pub struct Arm {
     pub pat: Pat,
     pub guard: Option<Expr>,
+    /// The `if` of a guard written Rust's way (`p if c ->`), `None` for
+    /// `when` or no guard.
+    pub guard_if: Option<Span>,
     pub body: Expr,
     /// The spans of the `->` (none in unfinished code).
     pub arrow: Vec<Span>,
@@ -600,7 +615,7 @@ impl Expr {
             | Expr::Labeled { value: e, .. }
             | Expr::Fun { body: e, .. }
             | Expr::External { body: e, .. }
-            | Expr::Open { body: e, .. } => e.mutates(),
+            | Expr::Use { body: e, .. } => e.mutates(),
             Expr::Tuple(es) | Expr::List(es, _) | Expr::Array(es, _) => any(es),
             Expr::Function { arms, .. } => arms_mutate(arms),
             Expr::Match { scrut, arms, .. } => scrut.mutates() || arms_mutate(arms),
@@ -698,7 +713,7 @@ impl Expr {
             | Expr::Labeled { value: e, .. }
             | Expr::Fun { body: e, .. }
             | Expr::External { body: e, .. }
-            | Expr::Open { body: e, .. } => vec![&mut **e],
+            | Expr::Use { body: e, .. } => vec![&mut **e],
             Expr::Tuple(es) | Expr::List(es, _) | Expr::Array(es, _) => es.iter_mut().collect(),
             Expr::App(h, args) | Expr::Call { func: h, args, .. } => {
                 std::iter::once(&mut **h).chain(args.iter_mut()).collect()

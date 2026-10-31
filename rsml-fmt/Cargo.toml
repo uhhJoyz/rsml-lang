@@ -1,9 +1,9 @@
 [package]
 name = "rsml-fmt"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.88"
-description = "Formatter for the OCaml in rsml's `ml!` and `rsml!` blocks"
+description = "Formatter for the rsml code in `ml!` and `rsml!` blocks"
 license = "MIT"
 repository = "https://github.com/uhhJoyz/rsml-lang"
 keywords = ["ocaml", "formatter", "rustfmt", "macro"]
@@ -16,6 +16,6 @@ exclude = ["/tests/corpus.rs", "/tests/fuzz.rs", "/tests/fixtures"]
 # `span-locations` gives tokens byte offsets, which is how comments and
 # blank lines are found and put back.
 proc-macro2 = { version = "1.0.95", features = ["span-locations"] }
-rsml-compiler = { path = "../rsml-compiler", version = "0.1.0" }
+rsml-compiler = { path = "../rsml-compiler", version = "0.2.0" }
 serde = { version = "1.0", features = ["derive"] }
 toml = "1.0"

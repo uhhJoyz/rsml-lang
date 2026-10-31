@@ -39,6 +39,7 @@ fn   main( ) { let xs=vec![1,2,3];
   let n = ml!{ xs |>   .iter() |> .map(fun x ->x*2)|> .sum::<i64>() };
     assert_eq!(n,12);
     println!("{}",ml!{ if n>10 then begin println!("big"); n end else 0 }) }
+fn double(x: i64) -> i64 { ml! { x*2 } }
 
 rsml! {
 pub struct   Point{ x:i64,y :i64 }
@@ -58,15 +59,18 @@ fn main() {
     println!(
         "{}",
         ml! {
-            if n > 10 then begin
-              println!("big");
-              n
-            end
-            else
-              0
+        if n > 10 then begin
+          println!("big");
+          n
+        end
+        else
+          0
         }
     )
 }
+fn double(x: i64) -> i64 { ml! {
+    x * 2
+}}
 
 rsml! {
 pub struct Point {

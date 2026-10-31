@@ -1,6 +1,6 @@
 // Toy 099: type annotations, `(e : t)`, `let x : t = ..`, `fun (x : t)`.
 //
-// What it is: OCaml writes a type after a colon. The types are Rust's
+// What it is: a type is written after a colon. The types are Rust's
 // (`i64`, `&str`, `Vec<String>`), and an annotation does what it does in
 // Rust: it picks a type rustc could not guess, or checks one.
 //
@@ -24,28 +24,22 @@ use rsml::ml;
 pub const SUMMARY: &str = "`(e : t)`, `let x : t = ..`, `fun (x : t) -> ..`: Rust types";
 
 /// A number read from text: the annotation tells `parse` what to make.
-pub fn parsed(text: &str) -> Option<u16> {
-    ml! {
-        let n : Result<u16, _> = text.trim().parse() in
-        n.ok()
-    }
-}
+pub fn parsed(text: &str) -> Option<u16> { ml! {
+    let n : Result<u16, _> = text.trim().parse() in
+    n.ok()
+}}
 
 /// The square of a number whose type is fixed in place.
-pub fn square(n: i64) -> i64 {
-    ml! {
-        // `(n : i64).pow(2)` is `({ let typed: i64 = n; typed }).pow(2)`.
-        (n : i64).pow(2)
-    }
-}
+pub fn square(n: i64) -> i64 { ml! {
+    // `(n : i64).pow(2)` is `({ let typed: i64 = n; typed }).pow(2)`.
+    (n : i64).pow(2)
+}}
 
 /// The longest word's length: a typed parameter lets `len` be called.
-pub fn longest(words: &[&str]) -> usize {
-    ml! {
-        let length = fun (w : &str) -> w.len() in
-        words |> .iter() |> .map(fun w -> length !w) |> .max() |> .unwrap_or(0)
-    }
-}
+pub fn longest(words: &[&str]) -> usize { ml! {
+    let length = fun (w : &str) -> w.len() in
+    words |> .iter() |> .map(fun w -> length !w) |> .max() |> .unwrap_or(0)
+}}
 
 pub fn run() {
     println!(

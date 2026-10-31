@@ -24,9 +24,9 @@ fn double(x: i32) -> i32 {
 // Pipeline: `|>` is a direct call.
 #[unsafe(no_mangle)]
 #[inline(never)]
-pub fn ml_pipe(x: i32) -> i32 {
-    ml! { x |> double |> add 1 |> double }
-}
+pub fn ml_pipe(x: i32) -> i32 { ml! {
+    x |> double |> add 1 |> double
+}}
 
 #[unsafe(no_mangle)]
 #[inline(never)]
@@ -37,16 +37,10 @@ pub fn rs_pipe(x: i32) -> i32 {
 // Composition and partial application inside an iterator pipeline.
 #[unsafe(no_mangle)]
 #[inline(never)]
-pub fn ml_compose(xs: &[i32], k: i32) -> i32 {
-    ml! {
-        let step = double >> add k _ in
-        xs
-        |> .iter
-        |> .map _ (fun x -> step !x)
-        |> .filter _ (fun x -> !x land 1 = 1)
-        |> .fold _ 0 add
-    }
-}
+pub fn ml_compose(xs: &[i32], k: i32) -> i32 { ml! {
+    let step = double >> add k _ in
+    xs |> .iter |> .map _ (fun x -> step !x) |> .filter _ (fun x -> !x land 1 = 1) |> .fold _ 0 add
+}}
 
 #[unsafe(no_mangle)]
 #[inline(never)]
@@ -61,12 +55,10 @@ pub fn rs_compose(xs: &[i32], k: i32) -> i32 {
 // A local curried function, partially applied and passed to `Iterator::map`.
 #[unsafe(no_mangle)]
 #[inline(never)]
-pub fn ml_partial(xs: &[i32], k: i32) -> Vec<i32> {
-    ml! {
-        let scale a b = a * b + 1 in
-        xs |> .iter |> .map _ (scale k) |> .collect
-    }
-}
+pub fn ml_partial(xs: &[i32], k: i32) -> Vec<i32> { ml! {
+    let scale a b = a * b + 1 in
+    xs |> .iter |> .map _ (scale k) |> .collect
+}}
 
 #[unsafe(no_mangle)]
 #[inline(never)]
@@ -78,14 +70,12 @@ pub fn rs_partial(xs: &[i32], k: i32) -> Vec<i32> {
 // Pattern matching on a list and recursion: a tail call is a loop.
 #[unsafe(no_mangle)]
 #[inline(never)]
-pub fn ml_sum(xs: &[i64]) -> i64 {
-    ml! {
-        let rec go (acc : i64) (l : &[i64]) : i64 =
-          match l with [] -> acc | x :: rest -> go (acc + !x) rest
-        in
-        go 0 xs
-    }
-}
+pub fn ml_sum(xs: &[i64]) -> i64 { ml! {
+    let rec go (acc : i64) (l : &[i64]) : i64 =
+      match l with [] -> acc | x :: rest -> go (acc + !x) rest
+    in
+    go 0 xs
+}}
 
 #[unsafe(no_mangle)]
 #[inline(never)]
@@ -112,9 +102,9 @@ fn sub(a: i32, b: i32) -> i32 {
 // A section: `sub _ k` is `|x| sub(x, k)`, and `(sub _1 _0) a b` is `sub(b, a)`.
 #[unsafe(no_mangle)]
 #[inline(never)]
-pub fn ml_section(xs: &[i32], k: i32) -> i32 {
-    ml! { xs |> .iter |> .map _ (!_) |> .map _ (sub _ k) |> .fold _ 0 (add _1 _0) }
-}
+pub fn ml_section(xs: &[i32], k: i32) -> i32 { ml! {
+    xs |> .iter |> .map _ (!_) |> .map _ (sub _ k) |> .fold _ 0 (add _1 _0)
+}}
 
 #[unsafe(no_mangle)]
 #[inline(never)]
@@ -125,13 +115,13 @@ pub fn rs_section(xs: &[i32], k: i32) -> i32 {
         .fold(0, |a, b| add(b, a))
 }
 
-// A function whose whole body is OCaml.
+// A function whose whole body is rsml code.
 rsml::rsml! {
-    #[unsafe(no_mangle)]
-    #[inline(never)]
-    pub fn ml_item(x: i32) -> i32 {
-        x |> double |> add 1
-    }
+#[unsafe(no_mangle)]
+#[inline(never)]
+pub fn ml_item(x: i32) -> i32 {
+    x |> double |> add 1
+}
 }
 
 #[unsafe(no_mangle)]
@@ -144,12 +134,10 @@ pub fn rs_item(x: i32) -> i32 {
 // direct call, and `add(_, k)` in a pipeline is `add(x, k)`.
 #[unsafe(no_mangle)]
 #[inline(never)]
-pub fn ml_rust_call(x: i32, k: i32) -> i32 {
-    ml! {
-        let scale (a : i32) b = a.wrapping_mul(b) in
-        add(scale(k, x), double(x)) |> add(_, k) |> double
-    }
-}
+pub fn ml_rust_call(x: i32, k: i32) -> i32 { ml! {
+    let scale (a : i32) b = a.wrapping_mul(b) in
+    add(scale(k, x), double(x)) |> add(_, k) |> double
+}}
 
 #[unsafe(no_mangle)]
 #[inline(never)]
@@ -161,9 +149,9 @@ pub fn rs_rust_call(x: i32, k: i32) -> i32 {
 // Method sections: `xs |> .map(f)` is `xs.map(f)`.
 #[unsafe(no_mangle)]
 #[inline(never)]
-pub fn ml_method_section(xs: &[i32], k: i32) -> i32 {
-    ml! { xs |> .iter() |> .copied() |> .map(add(_, k)) |> .fold(0, add) }
-}
+pub fn ml_method_section(xs: &[i32], k: i32) -> i32 { ml! {
+    xs |> .iter() |> .copied() |> .map(add(_, k)) |> .fold(0, add)
+}}
 
 #[unsafe(no_mangle)]
 #[inline(never)]
@@ -174,9 +162,9 @@ pub fn rs_method_section(xs: &[i32], k: i32) -> i32 {
 // A range in a pipeline.
 #[unsafe(no_mangle)]
 #[inline(never)]
-pub fn ml_range(n: i32) -> i32 {
-    ml! { 0..n |> .map(fun i -> double i) |> .filter(fun i -> !i land 3 = 0) |> .fold(0, add) }
-}
+pub fn ml_range(n: i32) -> i32 { ml! {
+    0..n |> .map(fun i -> double i) |> .filter(fun i -> !i land 3 = 0) |> .fold(0, add)
+}}
 
 #[unsafe(no_mangle)]
 #[inline(never)]
@@ -187,13 +175,11 @@ pub fn rs_range(n: i32) -> i32 {
 // `for .. in` over a slice, with a `ref` accumulator.
 #[unsafe(no_mangle)]
 #[inline(never)]
-pub fn ml_for_in(xs: &[i32]) -> i32 {
-    ml! {
-        let total = ref 0 in
-        for x in xs do total := add !total (double !x) done;
-        !total
-    }
-}
+pub fn ml_for_in(xs: &[i32]) -> i32 { ml! {
+    let total = ref 0 in
+    for x in xs do total := add !total (double !x) done;
+    !total
+}}
 
 #[unsafe(no_mangle)]
 #[inline(never)]
@@ -208,16 +194,14 @@ pub fn rs_for_in(xs: &[i32]) -> i32 {
 // `while true` is `loop`, with `break`.
 #[unsafe(no_mangle)]
 #[inline(never)]
-pub fn ml_loop(limit: u32) -> u32 {
-    ml! {
-        let p = ref 1 in
-        while true do
-          if !p > limit / 2 then break;
-          p := !p * 2
-        done;
-        !p
-    }
-}
+pub fn ml_loop(limit: u32) -> u32 { ml! {
+    let p = ref 1 in
+    while true do
+      if !p > limit / 2 then break;
+      p := !p * 2
+    done;
+    !p
+}}
 
 #[unsafe(no_mangle)]
 #[inline(never)]

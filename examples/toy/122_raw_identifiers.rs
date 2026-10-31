@@ -49,33 +49,29 @@ impl Dice {
 }
 
 /// How many lines are comments.
-pub fn comment_lines(lines: &[&str]) -> usize {
-    ml! { lines |> .iter() |> .filter(fun l -> r#match "#" l) |> .count() }
-}
+pub fn comment_lines(lines: &[&str]) -> usize { ml! {
+    lines |> .iter() |> .filter(fun l -> r#match "#" l) |> .count()
+}}
 
 /// A token, built and read through its field `type`.
-pub fn describe(word: &str) -> String {
-    ml! {
-        let t = Token { r#type = "word"; text = String.from word } in
-        format!("{} {:?}", t.r#type, t.text)
-    }
-}
+pub fn describe(word: &str) -> String { ml! {
+    let t = Token { r#type = "word"; text = String.from word } in
+    format!("{} {:?}", t.r#type, t.text)
+}}
 
 /// Three rolls; `gen` and `try` are plain names here.
-pub fn rolls(dice: &mut Dice) -> Vec<u32> {
-    ml! {
-        let mut out = Vec.new () in
-        let mut try = 0 in
-        while try < 3 do
-          // `let gen = dice.gen() in out.push(gen)` is
-          // `{ let r#gen = dice.r#gen(); out.push(r#gen) }`.
-          let gen = dice.gen() in
-          out.push(gen);
-          try <- try + 1
-        done;
-        out
-    }
-}
+pub fn rolls(dice: &mut Dice) -> Vec<u32> { ml! {
+    let mut out = Vec.new () in
+    let mut try = 0 in
+    while try < 3 do
+      // `let gen = dice.gen() in out.push(gen)` is
+      // `{ let r#gen = dice.r#gen(); out.push(r#gen) }`.
+      let gen = dice.gen() in
+      out.push(gen);
+      try <- try + 1
+    done;
+    out
+}}
 
 pub fn run() {
     println!(

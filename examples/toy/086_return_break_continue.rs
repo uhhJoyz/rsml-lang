@@ -2,8 +2,7 @@
 //
 // What it is: Rust's jumps, written as in Rust: `return e` leaves the
 // function, `continue` goes on with the next round of a loop, `break`
-// leaves the loop. OCaml has none of them; rsml takes them as Rust has
-// them.
+// leaves the loop.
 //
 // When to use it: for an early exit (a guard at the top of a function, a
 // search that has found its answer) and to skip items in a loop.
@@ -23,33 +22,27 @@ use rsml::ml;
 pub const SUMMARY: &str = "Early `return e`, `continue` and `break` in loops";
 
 /// The position of the first negative reading, if any.
-pub fn first_negative(readings: &[i32]) -> Option<usize> {
-    ml! {
-        for (i, r) in readings.iter().enumerate() do if !r < 0 then return Some i done;
-        None
-    }
-}
+pub fn first_negative(readings: &[i32]) -> Option<usize> { ml! {
+    for (i, r) in readings.iter().enumerate() do if !r < 0 then return Some i done;
+    None
+}}
 
 /// The sum of the readings before the first zero, skipping odd ones.
-pub fn even_sum_until_zero(readings: &[i32]) -> i32 {
-    ml! {
-        let mut sum = 0 in
-        for &r in readings do
-          if r = 0 then break;
-          if r mod 2 <> 0 then continue;
-          sum <- sum + r
-        done;
-        sum
-    }
-}
+pub fn even_sum_until_zero(readings: &[i32]) -> i32 { ml! {
+    let mut sum = 0 in
+    for &r in readings do
+      if r = 0 then break;
+      if r mod 2 <> 0 then continue;
+      sum <- sum + r
+    done;
+    sum
+}}
 
 /// A safe division: an early return guards the divisor.
-pub fn per_person(total: u32, people: u32) -> u32 {
-    ml! {
-        if people = 0 then return 0;
-        total / people
-    }
-}
+pub fn per_person(total: u32, people: u32) -> u32 { ml! {
+    if people = 0 then return 0;
+    total / people
+}}
 
 pub fn run() {
     println!(

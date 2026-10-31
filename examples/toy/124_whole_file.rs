@@ -2,10 +2,10 @@
 //
 // What it is: one `rsml!` can hold every item of a file: `use`s, types,
 // `impl`s, constants and functions. The items are Rust, the function
-// bodies OCaml. Written flush left, with the items not indented, the file
-// reads as an ordinary module, and rustfmt and rsml-fmt keep it so.
+// bodies rsml code. Written flush left, with the items not indented, the
+// file reads as an ordinary module, and rustfmt and rsml-fmt keep it so.
 //
-// When to use it: for a module that is mostly OCaml-bodied functions.
+// When to use it: for a module that is mostly functions with rsml bodies.
 // rust-analyzer expands the whole `rsml!` on every edit, so split a file
 // of more than about 1500 lines into several (README, "Whole files").
 //
@@ -34,7 +34,7 @@ pub struct Book {
 }
 
 impl Book {
-    /// A record with OCaml fields: `Book { title = ..; pages }`.
+    /// A record written ML style: `Book { title = ..; pages }`.
     pub fn new(title: &str, pages: u32) -> Book {
         Book { title = String.from title; pages }
     }

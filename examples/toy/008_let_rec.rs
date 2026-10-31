@@ -33,44 +33,34 @@ pub const SUMMARY: &str =
     "`let rec f (n : t) : t = ..`: a recursive, nested `fn` (a loop for tail calls)";
 
 /// n! = 1 * 2 * .. * n.
-pub fn factorial(n: u64) -> u64 {
-    ml! {
-        // `let rec fact (k : u64) : u64 = if k = 0 then 1 else k * fact (k - 1) in fact n`
-        // is `{ fn fact(k: u64) -> u64 { if k == 0 { 1 } else { k * fact(k - 1) } } fact(n) }`.
-        let rec fact (k : u64) : u64 = if k = 0 then 1 else k * fact (k - 1) in
-        fact n
-    }
-}
+pub fn factorial(n: u64) -> u64 { ml! {
+    // `let rec fact (k : u64) : u64 = if k = 0 then 1 else k * fact (k - 1) in fact n`
+    // is `{ fn fact(k: u64) -> u64 { if k == 0 { 1 } else { k * fact(k - 1) } } fact(n) }`.
+    let rec fact (k : u64) : u64 = if k = 0 then 1 else k * fact (k - 1) in
+    fact n
+}}
 
 /// How many digits `n` has in base `base`.
-pub fn digit_count(n: u64, base: u64) -> u32 {
-    ml! {
-        // `base` is a parameter of `count`: a nested `fn` cannot see the
-        // `base` of `digit_count`.
-        let rec count (n : u64) (base : u64) : u32 =
-          if n < base then 1 else 1 + count (n / base) base
-        in
-        count n base
-    }
-}
+pub fn digit_count(n: u64, base: u64) -> u32 { ml! {
+    // `base` is a parameter of `count`: a nested `fn` cannot see the
+    // `base` of `digit_count`.
+    let rec count (n : u64) (base : u64) : u32 = if n < base then 1 else 1 + count (n / base) base in
+    count n base
+}}
 
 /// The Fibonacci numbers 0, 1, 1, 2, 3, 5, ..
-pub fn fibonacci(n: u64) -> u64 {
-    ml! {
-        // `let rec fib : u64 -> u64 = function 0 -> 0 | k -> k + fib (k - 1) in fib n`
-        // is `{ fn fib(argument: u64) -> u64 { match argument { 0 => 0, k => k + fib(k - 1), } } fib(n) }`.
-        let rec fib : u64 -> u64 = function 0 -> 0 | 1 -> 1 | k -> fib (k - 1) + fib (k - 2) in
-        fib n
-    }
-}
+pub fn fibonacci(n: u64) -> u64 { ml! {
+    // `let rec fib : u64 -> u64 = function 0 -> 0 | k -> k + fib (k - 1) in fib n`
+    // is `{ fn fib(argument: u64) -> u64 { match argument { 0 => 0, k => k + fib(k - 1), } } fib(n) }`.
+    let rec fib : u64 -> u64 = function 0 -> 0 | 1 -> 1 | k -> fib (k - 1) + fib (k - 2) in
+    fib n
+}}
 
 /// 1 + 2 + .. + n, by a tail call: a loop, however large `n` is.
-pub fn sum_to(n: u64) -> u64 {
-    ml! {
-        let rec go (acc : u64) (k : u64) : u64 = if k = 0 then acc else go (acc + k) (k - 1) in
-        go 0 n
-    }
-}
+pub fn sum_to(n: u64) -> u64 { ml! {
+    let rec go (acc : u64) (k : u64) : u64 = if k = 0 then acc else go (acc + k) (k - 1) in
+    go 0 n
+}}
 
 pub fn run() {
     println!(

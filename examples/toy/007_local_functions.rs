@@ -25,34 +25,28 @@ use rsml::ml;
 pub const SUMMARY: &str = "`let f x = .. in`: a local function is a Rust closure";
 
 /// The cost of 1, 3 and 10 items at `unit` each.
-pub fn price_list(unit: u32) -> (u32, u32, u32) {
-    ml! {
-        // `cost` uses the local `unit`: the closure borrows it.
-        // `let cost n = n * unit in cost 3` is
-        // `{ let cost = |n| n * unit; cost(3) }`.
-        let cost n = n * unit in
-        (cost 1, cost 3, cost 10)
-    }
-}
+pub fn price_list(unit: u32) -> (u32, u32, u32) { ml! {
+    // `cost` uses the local `unit`: the closure borrows it.
+    // `let cost n = n * unit in cost 3` is
+    // `{ let cost = |n| n * unit; cost(3) }`.
+    let cost n = n * unit in
+    (cost 1, cost 3, cost 10)
+}}
 
 /// A local function of two parameters is called with both.
-pub fn squares_sum(a: i64, b: i64) -> i64 {
-    ml! {
-        // `let sum_sq x y = x * x + y * y in sum_sq a b` is
-        // `{ let sum_sq = |x, y| (x * x) + (y * y); sum_sq(a, b) }`.
-        let sum_sq x y = x * x + y * y in
-        sum_sq a b
-    }
-}
+pub fn squares_sum(a: i64, b: i64) -> i64 { ml! {
+    // `let sum_sq x y = x * x + y * y in sum_sq a b` is
+    // `{ let sum_sq = |x, y| (x * x) + (y * y); sum_sq(a, b) }`.
+    let sum_sq x y = x * x + y * y in
+    sum_sq a b
+}}
 
 /// A parameter with a type, so that its methods can be called.
-pub fn shouts() -> (String, String) {
-    ml! {
-        // `(s : &str)` is the closure parameter `s: &str`.
-        let shout (s : &str) = s.to_uppercase() + "!" in
-        (shout "hi", shout "bye")
-    }
-}
+pub fn shouts() -> (String, String) { ml! {
+    // `(s : &str)` is the closure parameter `s: &str`.
+    let shout (s : &str) = s.to_uppercase() + "!" in
+    (shout "hi", shout "bye")
+}}
 
 pub fn run() {
     println!("price_list 4 = {:?}", price_list(4));
@@ -75,8 +69,8 @@ mod tests {
     fn the_header_example() {
         assert_eq!(
             ml! {
-                let double x = x * 2 in
-                double 3
+            let double x = x * 2 in
+            double 3
             },
             6
         );

@@ -5,7 +5,7 @@
 // receiver already says "call it", `()` after the receiver is the unit
 // value, not "no arguments" (compare toy 005).
 //
-// When to use it: for any method call written OCaml style; the rules
+// When to use it: for any method call written ML style; the rules
 // matter for `()` and for computed receivers.
 //
 // How to write it:
@@ -25,37 +25,31 @@ use std::sync::mpsc;
 pub const SUMMARY: &str = "`.send tx ()` sends `()`; `.get (f x) 0`; `.collect::<Vec<_>> it`";
 
 /// Signals sent down a channel and counted at the other end.
-pub fn signals(n: usize) -> usize {
-    ml! {
-        let (tx, rx) = mpsc::channel::<()> () in
-        for _ in 0..n do
-          // `.send tx ()` is `tx.send(())`: the unit value is sent.
-          .send tx () |> .unwrap
-        done;
-        drop tx;
-        rx.iter().count()
-    }
-}
+pub fn signals(n: usize) -> usize { ml! {
+    let (tx, rx) = mpsc::channel::<()> () in
+    for _ in 0..n do
+      // `.send tx ()` is `tx.send(())`: the unit value is sent.
+      .send tx () |> .unwrap
+    done;
+    drop tx;
+    rx.iter().count()
+}}
 
 fn words_of(line: &str) -> Vec<&str> {
     line.split_whitespace().collect()
 }
 
 /// The first word of a line: the receiver is a call, in parentheses.
-pub fn first_word(line: &str) -> Option<&str> {
-    ml! {
-        // `.get (words_of line) 0` is `words_of(line).get(0)`.
-        .get (words_of line) 0 |> .copied
-    }
-}
+pub fn first_word(line: &str) -> Option<&str> { ml! {
+    // `.get (words_of line) 0` is `words_of(line).get(0)`.
+    .get (words_of line) 0 |> .copied
+}}
 
 /// The letters of a word, in a vector.
-pub fn letters(word: &str) -> Vec<char> {
-    ml! {
-        // `.collect::<Vec<_>> (word.chars())` is `word.chars().collect::<Vec<_>>()`.
-        .collect::<Vec<_>> (word.chars())
-    }
-}
+pub fn letters(word: &str) -> Vec<char> { ml! {
+    // `.collect::<Vec<_>> (word.chars())` is `word.chars().collect::<Vec<_>>()`.
+    .collect::<Vec<_>> (word.chars())
+}}
 
 pub fn run() {
     println!("signals 3 = {}", signals(3));

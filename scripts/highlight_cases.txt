@@ -47,8 +47,8 @@ while false do () done
 == Rust-style for in -> for=keyword in=keyword do=keyword done=keyword
 for x in xs do f x done
 
-== open -> let=keyword open=keyword in=keyword
-let open std::cmp in max 1 2
+== use -> use=keyword
+use std::cmp::max; max 1 2
 
 == external -> external=keyword -=operator >=operator
 external sq : i64 -> i64 = "f" ;; sq 2

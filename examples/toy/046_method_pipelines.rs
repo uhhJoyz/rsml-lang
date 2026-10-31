@@ -23,29 +23,23 @@ use rsml::ml;
 pub const SUMMARY: &str = "`xs |> .iter |> .map _ f |> .sum::<i64>`: a method chain";
 
 /// The total of the scores that passed, doubled.
-pub fn bonus_total(scores: &[i64]) -> i64 {
-    ml! {
-        // `scores |> .iter |> .copied |> .filter _ f |> .map _ g |> .sum::<i64>`
-        // is `scores.iter().copied().filter(f).map(g).sum::<i64>()`.
-        scores |> .iter |> .copied |> .filter _ (fun s -> !s >= 50) |> .map _ (_ * 2) |> .sum::<i64>
-    }
-}
+pub fn bonus_total(scores: &[i64]) -> i64 { ml! {
+    // `scores |> .iter |> .copied |> .filter _ f |> .map _ g |> .sum::<i64>`
+    // is `scores.iter().copied().filter(f).map(g).sum::<i64>()`.
+    scores |> .iter |> .copied |> .filter _ (fun s -> !s >= 50) |> .map _ (_ * 2) |> .sum::<i64>
+}}
 
 /// The names in capitals, as a list.
-pub fn shouted(names: &[&str]) -> Vec<String> {
-    ml! {
-        // `it |> .collect::<Vec<_>>` is `it.collect::<Vec<_>>()`.
-        names |> .iter |> .map _ (fun n -> n.to_uppercase()) |> .collect::<Vec<_>>
-    }
-}
+pub fn shouted(names: &[&str]) -> Vec<String> { ml! {
+    // `it |> .collect::<Vec<_>>` is `it.collect::<Vec<_>>()`.
+    names |> .iter |> .map _ (fun n -> n.to_uppercase()) |> .collect::<Vec<_>>
+}}
 
 /// The names joined: `.join _ ", "` puts the list in the `_`.
-pub fn listed(names: &[&str]) -> String {
-    ml! {
-        // `names |> .join _ ", "` is `names.join(", ")`.
-        names |> .join _ ", "
-    }
-}
+pub fn listed(names: &[&str]) -> String { ml! {
+    // `names |> .join _ ", "` is `names.join(", ")`.
+    names |> .join _ ", "
+}}
 
 pub fn run() {
     println!("bonus_total [40; 50; 90] = {}", bonus_total(&[40, 50, 90]));

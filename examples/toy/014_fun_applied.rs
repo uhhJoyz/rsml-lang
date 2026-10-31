@@ -23,29 +23,23 @@ use rsml::ml;
 pub const SUMMARY: &str = "`(fun x -> e) v` and `v |> fun x -> e` are `let`s";
 
 /// A price with a 20% tax, the price named on the spot.
-pub fn with_tax(price: u32) -> u32 {
-    ml! {
-        // `(fun p -> p + p / 5) price` is `let p = price in p + p / 5`.
-        (fun p -> p + p / 5) price
-    }
-}
+pub fn with_tax(price: u32) -> u32 { ml! {
+    // `(fun p -> p + p / 5) price` is `let p = price in p + p / 5`.
+    (fun p -> p + p / 5) price
+}}
 
 /// Celsius to Fahrenheit, rounded: the value is piped into a `fun`.
-pub fn fahrenheit(celsius: f64) -> i64 {
-    ml! {
-        // `celsius |> fun c -> c * 9.0 / 5.0 + 32.0` is
-        // `let c = celsius in c * 9.0 / 5.0 + 32.0`.
-        (celsius |> fun c -> c * 9.0 / 5.0 + 32.0).round() as i64
-    }
-}
+pub fn fahrenheit(celsius: f64) -> i64 { ml! {
+    // `celsius |> fun c -> c * 9.0 / 5.0 + 32.0` is
+    // `let c = celsius in c * 9.0 / 5.0 + 32.0`.
+    (celsius |> fun c -> c * 9.0 / 5.0 + 32.0).round() as i64
+}}
 
 /// Three times `n`, through a partial application of a `fun`.
-pub fn tripled(n: u32) -> u32 {
-    ml! {
-        let triple = (fun x y -> x * y) 3 in
-        triple n
-    }
-}
+pub fn tripled(n: u32) -> u32 { ml! {
+    let triple = (fun x y -> x * y) 3 in
+    triple n
+}}
 
 pub fn run() {
     println!("with_tax 100 = {}", with_tax(100));

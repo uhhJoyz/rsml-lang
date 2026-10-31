@@ -13,10 +13,21 @@ pub struct Config {
     /// Maximum line width, counted from the start of the line (Rust
     /// indentation included).
     pub max_width: usize,
-    /// Spaces per nesting level inside OCaml code.
+    /// Spaces per nesting level inside rsml code.
     pub indent: usize,
-    /// Indentation of a block's body relative to the line holding its `{`.
+    /// Indentation of an `ml! { .. }` block's body relative to the line
+    /// holding its `{` (`0`: the body and the `}` line up with that line).
     pub block_indent: usize,
+    /// Indentation of a function's body relative to its line: an `rsml!`
+    /// function's, and a Rust function's that is one `ml!` block (see
+    /// `hug_fn_body`).
+    pub fn_body_indent: usize,
+    /// A Rust function whose body is one `ml! { .. }` block gets
+    /// `{ ml! {` on its line and `}}` to close: the block reads as the body.
+    pub hug_fn_body: bool,
+    /// Indent the items of an `rsml! { .. }` one level from the line with
+    /// `rsml! {` (`false`: at that line's indentation).
+    pub indent_rsml_items: bool,
     /// When an `ml! { .. }` block is kept on one line.
     pub single_line_blocks: SingleLineBlocks,
     /// Keep a short `rsml!` function body on the signature's line.
@@ -422,7 +433,10 @@ impl Default for Config {
         Config {
             max_width: 100,
             indent: 2,
-            block_indent: 4,
+            block_indent: 0,
+            fn_body_indent: 4,
+            hug_fn_body: true,
+            indent_rsml_items: false,
             single_line_blocks: SingleLineBlocks::WhenFits,
             fn_single_line: false,
             preserve_blank_lines: true,
@@ -599,10 +613,21 @@ pub const DEFAULT_TOML: &str = r#"# rsmlfmt.toml: options of rsml-fmt. Every key
 
 # Maximum line width, counted from the start of the line (Rust indentation included).
 max_width = 100
-# Spaces per nesting level inside OCaml code.
+# Spaces per nesting level inside rsml code.
 indent = 2
-# Indentation of a block's body relative to the line holding its `{`.
-block_indent = 4
+# Indentation of an `ml! { .. }` block's body relative to the line holding its `{` (0: the
+# body and the `}` line up with that line).
+block_indent = 0
+# Indentation of a function's body relative to its line: an `rsml!` function's, and a Rust
+# function's that is one `ml!` block (see `hug_fn_body`).
+fn_body_indent = 4
+# A Rust function whose body is one `ml! { .. }` block gets `{ ml! {` on its line and `}}`
+# to close, so that the block reads as the body (rustfmt alone undoes this: format with
+# `rsml-fmt --rustfmt`).
+hug_fn_body = true
+# Indent the items of an `rsml! { .. }` one level from the line with `rsml! {` (false: at
+# that line's indentation).
+indent_rsml_items = false
 # When `ml! { .. }` stays on one line: "when_fits" | "preserve" (only if it
 # already was) | "never".
 single_line_blocks = "when_fits"

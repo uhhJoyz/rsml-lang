@@ -1,9 +1,9 @@
 // Toy 036: your own operators, `let ( +^ ) a b = ..`.
 //
-// What it is: as in OCaml, `let ( op ) a b = e in ..` defines an infix
-// operator, a function of two arguments written between them. Its
-// precedence and associativity come from its first character, as in
-// OCaml: `*^` binds like `*`, `+^` like `+`.
+// What it is: `let ( op ) a b = e in ..` defines an infix operator, a
+// function of two arguments written between them. Its precedence and
+// associativity come from its first character: `*^` binds like `*`, `+^`
+// like `+`.
 //
 // When to use it: for a small algebra that reads better infix, like the
 // 2D vectors here.
@@ -23,26 +23,22 @@ use rsml::ml;
 pub const SUMMARY: &str = "Defining infix operators: `let ( +^ ) a b = ..`, precedence";
 
 /// Where a boat ends up after drifting with the wind for some hours.
-pub fn drift(start: (i64, i64), wind: (i64, i64), hours: i64) -> (i64, i64) {
-    ml! {
-        let ( +^ ) (ax, ay) (bx, by) = (ax + bx, ay + by) in
-        let ( *^ ) k (x, y) = (k * x, k * y) in
-        // `*^` starts with `*`, so it binds tighter than `+^`, as `*` does
-        // than `+`. Given `let ( +^ ) a b = a + b let ( *^ ) k v = k * v`,
-        // `p +^ 2 *^ q` is `p +^ (2 *^ q)`.
-        start +^ hours *^ wind
-    }
-}
+pub fn drift(start: (i64, i64), wind: (i64, i64), hours: i64) -> (i64, i64) { ml! {
+    let ( +^ ) (ax, ay) (bx, by) = (ax + bx, ay + by) in
+    let ( *^ ) k (x, y) = (k * x, k * y) in
+    // `*^` starts with `*`, so it binds tighter than `+^`, as `*` does
+    // than `+`. Given `let ( +^ ) a b = a + b let ( *^ ) k v = k * v`,
+    // `p +^ 2 *^ q` is `p +^ (2 *^ q)`.
+    start +^ hours *^ wind
+}}
 
 /// Where a walk of steps ends, from the origin.
-pub fn walk(steps: &[(i64, i64)]) -> (i64, i64) {
-    ml! {
-        let ( +^ ) (ax, ay) (bx, by) = (ax + bx, ay + by) in
-        // In parentheses the operator is a function, as `( + )` is (toy
-        // 033): here `fold`'s function of the position and a step.
-        steps |> .iter() |> .copied() |> .fold((0, 0), ( +^ ))
-    }
-}
+pub fn walk(steps: &[(i64, i64)]) -> (i64, i64) { ml! {
+    let ( +^ ) (ax, ay) (bx, by) = (ax + bx, ay + by) in
+    // In parentheses the operator is a function, as `( + )` is (toy
+    // 033): here `fold`'s function of the position and a step.
+    steps |> .iter() |> .copied() |> .fold((0, 0), ( +^ ))
+}}
 
 pub fn run() {
     println!("drift (1, 1) (2, -1) 3 = {:?}", drift((1, 1), (2, -1), 3));

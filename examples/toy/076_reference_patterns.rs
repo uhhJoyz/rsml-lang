@@ -22,33 +22,27 @@ use rsml::ml;
 pub const SUMMARY: &str = "Reference patterns: `for &x in ..`, `fun (&x) -> ..`, `let &x = r in`";
 
 /// The total of the prices, copied out of the slice by the pattern.
-pub fn total(prices: &[u32]) -> u32 {
-    ml! {
-        let mut sum = 0 in
-        // With `for &p in prices`, `p` has type `u32`; with `for p in
-        // prices`, it would have type `&u32`.
-        for &p in prices do sum <- sum + p done;
-        sum
-    }
-}
+pub fn total(prices: &[u32]) -> u32 { ml! {
+    let mut sum = 0 in
+    // With `for &p in prices`, `p` has type `u32`; with `for p in
+    // prices`, it would have type `&u32`.
+    for &p in prices do sum <- sum + p done;
+    sum
+}}
 
 /// The prices above a limit, doubled.
-pub fn doubled_above(prices: &[u32], limit: u32) -> Vec<u32> {
-    ml! {
-        // `xs.iter().map(fun (&p) -> p * 2)` is `xs.iter().map(|&p| p * 2)`.
-        // `filter` gives its closure a `&&u32`, so its pattern is `&&p`.
-        prices.iter().filter(fun (&&p) -> p > limit).map(fun (&p) -> p * 2).collect()
-    }
-}
+pub fn doubled_above(prices: &[u32], limit: u32) -> Vec<u32> { ml! {
+    // `xs.iter().map(fun (&p) -> p * 2)` is `xs.iter().map(|&p| p * 2)`.
+    // `filter` gives its closure a `&&u32`, so its pattern is `&&p`.
+    prices.iter().filter(fun (&&p) -> p > limit).map(fun (&p) -> p * 2).collect()
+}}
 
 /// A reference taken apart by `let` and by `match`.
-pub fn describe(best: &u32) -> String {
-    ml! {
-        // `let &b = best in b` is `{ let &b = best; b }`.
-        let &b = best in
-        match best with &0 -> String.from "nothing sold" | &n -> format!("best: {n}, again {b}")
-    }
-}
+pub fn describe(best: &u32) -> String { ml! {
+    // `let &b = best in b` is `{ let &b = best; b }`.
+    let &b = best in
+    match best with &0 -> String.from "nothing sold" | &n -> format!("best: {n}, again {b}")
+}}
 
 pub fn run() {
     println!("total [3; 4; 5] = {}", total(&[3, 4, 5]));

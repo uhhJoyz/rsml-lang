@@ -1,7 +1,7 @@
 // Toy 071: record patterns, `Order { item; qty = 0; _ }`.
 //
 // What it is: a pattern for a struct (or a struct-like variant) that
-// names its fields, OCaml style: `field` binds the field to a variable
+// names its fields, ML style: `field` binds the field to a variable
 // of the same name, `field = p` matches it against the pattern `p`.
 //
 // When to use it: to take a struct apart in `match`, `let` or `fun`, and
@@ -12,7 +12,7 @@
 //   `match o with { qty; _ } -> qty` is an error: "record patterns need
 //   the struct name in Rust: write `Point { x; y }`".
 // * Fields are separated by `;`, and may be left out: the pattern always
-//   ends with Rust's `..`. OCaml's `; _` (for "the other fields") is
+//   ends with Rust's `..`. A `; _` at the end (for "the other fields") is
 //   accepted and means the same.
 // * `qty = 0` matches, `qty = n` renames: `=`, where Rust writes `:`.
 //
@@ -29,34 +29,28 @@ pub struct Order {
 }
 
 /// A line of a receipt.
-pub fn line(o: &Order) -> String {
-    ml! {
-        // `match o with Order { item; qty = 0; _ } -> item` is
-        // `match o { Order { item, qty: 0, .. } => item, }`.
-        match o with
-        | Order { item; qty = 0; _ } -> format!("{item}: sold out")
-        | Order { item; qty = n; price } -> format!("{item}: {n} x {price}")
-    }
-}
+pub fn line(o: &Order) -> String { ml! {
+    // `match o with Order { item; qty = 0; _ } -> item` is
+    // `match o { Order { item, qty: 0, .. } => item, }`.
+    match o with
+    | Order { item; qty = 0; _ } -> format!("{item}: sold out")
+    | Order { item; qty = n; price } -> format!("{item}: {n} x {price}")
+}}
 
 /// The value of an order: `let` takes the record apart.
-pub fn value(o: &Order) -> u32 {
-    ml! {
-        // `let Order { qty; price } = o in qty * price` is
-        // `{ let Order { qty, price, .. } = o; qty * price }`.
-        let Order { qty; price } = o in
-        qty * price
-    }
-}
+pub fn value(o: &Order) -> u32 { ml! {
+    // `let Order { qty; price } = o in qty * price` is
+    // `{ let Order { qty, price, .. } = o; qty * price }`.
+    let Order { qty; price } = o in
+    qty * price
+}}
 
 /// The items of the orders: a `fun` whose parameter is a record pattern.
-pub fn items(orders: &[Order]) -> Vec<&'static str> {
-    ml! {
-        // The pattern is in parentheses, as every `fun` parameter that is
-        // more than a name.
-        orders |> .iter() |> .map(fun (Order { item; _ }) -> !item) |> .collect()
-    }
-}
+pub fn items(orders: &[Order]) -> Vec<&'static str> { ml! {
+    // The pattern is in parentheses, as every `fun` parameter that is
+    // more than a name.
+    orders |> .iter() |> .map(fun (Order { item; _ }) -> !item) |> .collect()
+}}
 
 pub fn run() {
     let orders = [

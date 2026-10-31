@@ -8,14 +8,15 @@
 In README.md, docs/notation.md, docs/editors.md, rsml-fmt/README.md and
 examples/toy/README.md:
 
-* Every row of a table with an OCaml and a Rust column: the OCaml is
-  expanded by the real compiler (as rustc sees it, without the editor
-  markers) and compared token by token with the Rust. Each code span of the
-  OCaml cell goes with the code span of the Rust cell at the same position
+* Every row of a table with an rsml and a Rust column (headers naming
+  "rsml", or "OCaml", and "Rust"): the rsml is expanded by the real
+  compiler (as rustc sees it, without the editor markers) and compared
+  token by token with the Rust. Each code span of the
+  rsml cell goes with the code span of the Rust cell at the same position
   (or with the only one). In the rows listed in ELIDED, `..` in the Rust
   stands for any tokens.
 * Every inline claim "`a` is `b`" (also "is always", "becomes"): `b` is
-  either the expansion of `a`, or OCaml with the same expansion up to the
+  either the expansion of `a`, or rsml code with the same expansion up to the
   names of closure parameters.
 * Every relative link, and every link into the repository on GitHub
   (REPO): the file exists, and so does the heading its `#anchor` names.
@@ -101,8 +102,6 @@ CONTEXT = {
 
 # Inline claims that are not compared, by file and the claim's two sides.
 CLAIMS_UNCHECKED = {
-    ("README.md", "open std::cmp", "use std::cmp::*;"):
-        "a phrase, not an expression: the tables check `open std::cmp ;; max a b`",
     ("README.md", "x", "&T"):
         "the type of a pattern's binding, which rustc infers",
     ("README.md", "rest", "&[T]"):
@@ -475,8 +474,9 @@ def snippet_request(checks, code, context):
 
 def table_rows(checks, path, used):
     for header, rows in tables(path):
-        oc = [i for i, h in enumerate(header) if "OCaml" in h]
-        rc = [i for i, h in enumerate(header) if "Rust" in h]
+        # The rsml column ("rsml in `ml!`"; older tables said "OCaml").
+        oc = [i for i, h in enumerate(header) if "rsml" in h or "OCaml" in h]
+        rc = [i for i, h in enumerate(header) if "Rust" in h and i not in oc]
         if not oc or not rc:
             continue
         for line, cells in rows:

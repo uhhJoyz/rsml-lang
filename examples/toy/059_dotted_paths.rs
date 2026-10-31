@@ -1,10 +1,10 @@
-// Toy 059: OCaml's dotted paths, `Vec.new ()`, `Shape.Circle r`.
+// Toy 059: dotted paths, `Vec.new ()`, `Shape.Circle r`.
 //
-// What it is: OCaml writes a module's item as `Module.item`. Here a
-// capitalized name followed by `.name` is the same path as with `::`:
+// What it is: a path may be written ML style, `Module.item`: a
+// capitalized name followed by `.name` is the same path as with `::`.
 // `Vec.new` is `Vec::new`, `Shape.Circle` is `Shape::Circle`.
 //
-// When to use it: when you like OCaml's look; `::` always works too.
+// When to use it: when you like the ML look; `::` always works too.
 //
 // How to write it: no spaces around the `.`.
 // * After a capitalized name, `.name` always continues the path, even a
@@ -38,39 +38,33 @@ impl Level {
 }
 
 /// A word count, built with dotted paths.
-pub fn counts(words: &[&'static str]) -> (usize, String) {
-    ml! {
-        // `HashMap.new ()` is `HashMap::new()`.
-        let mut seen = HashMap.new () in
-        for w in words do
-          let c = seen.entry(!w).or_insert(0) in
-          *c <- *c + 1
-        done;
-        // `String.from "words"` is `String::from("words")`.
-        (seen.len(), String.from "words")
-    }
-}
+pub fn counts(words: &[&'static str]) -> (usize, String) { ml! {
+    // `HashMap.new ()` is `HashMap::new()`.
+    let mut seen = HashMap.new () in
+    for w in words do
+      let c = seen.entry(!w).or_insert(0) in
+      *c <- *c + 1
+    done;
+    // `String.from "words"` is `String::from("words")`.
+    (seen.len(), String.from "words")
+}}
 
 /// A level from a number: the variants are paths too.
-pub fn level(n: u32) -> Level {
-    ml! {
-        // `Level.High` is `Level::High`.
-        if n > 5 then Level.High else Level.Low
-    }
-}
+pub fn level(n: u32) -> Level { ml! {
+    // `Level.High` is `Level::High`.
+    if n > 5 then Level.High else Level.Low
+}}
 
 /// A method of a variant: the value goes in parentheses.
-pub fn label(n: u32) -> &'static str {
-    ml! {
-        // `(Level.High).label()` is `(Level::High).label()`.
-        if n > 5 then (Level.High).label() else (Level.Low).label()
-    }
-}
+pub fn label(n: u32) -> &'static str { ml! {
+    // `(Level.High).label()` is `(Level::High).label()`.
+    if n > 5 then (Level.High).label() else (Level.Low).label()
+}}
 
 rsml! {
-    /// A bound name before `::` is a value: in `rsml!` the parameters are
-    /// bound, so `h::t` is a cons.
-    pub fn with_head(h: u32, t: Vec<u32>) -> Vec<u32> {
+/// A bound name before `::` is a value: in `rsml!` the parameters are
+/// bound, so `h::t` is a cons.
+pub fn with_head(h: u32, t: Vec<u32>) -> Vec<u32> {
         // rsmlfmt: skip
         // (The formatter would print `h :: t`; the glued spelling is the lesson.)
         h::t

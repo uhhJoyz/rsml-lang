@@ -4,7 +4,8 @@
 // What it is: a constructor with its `(` right after it, Rust style, is one
 // value, like a Rust call: what follows (`.method()`, `.field`, `.0`, `[i]`,
 // `?`) applies to the value it builds, and as an argument it is one
-// argument. Spaced, it is OCaml's application, where `.` binds tighter.
+// argument. Spaced, it is an ML-style application, where `.` binds
+// tighter.
 //
 // When to use it: to call a method on a value you just built, or to pass
 // a built value without extra parentheses.
@@ -15,7 +16,7 @@
 //   with `x`.
 // * `f Some(x) y` passes two arguments; `f Some (x) y` is
 //   `f(Some, x, y)`, three.
-// * The argument keeps OCaml's rules: `Some(1, 2)` is `Some((1, 2))`.
+// * The argument keeps the rules of toy 056: `Some(1, 2)` is `Some((1, 2))`.
 // rsml-fmt keeps the space, or its absence, as written.
 //
 // Reference: [Rust-style calls and indexing](../../docs/notation.md#rust-style-calls-and-indexing-fa-b-vi)
@@ -43,49 +44,39 @@ pub struct Meters(f64);
 
 /// A name, or "guest" when it is empty: the methods of an option built
 /// on the spot.
-pub fn name_or_guest(name: &str) -> String {
-    ml! {
-        // `Some(name).filter(..)` builds the option, then calls `filter`.
-        Some(name).filter(fun n -> not (n.is_empty())).unwrap_or("guest").to_string()
-    }
-}
+pub fn name_or_guest(name: &str) -> String { ml! {
+    // `Some(name).filter(..)` builds the option, then calls `filter`.
+    Some(name).filter(fun n -> not (n.is_empty())).unwrap_or("guest").to_string()
+}}
 
 /// The area of a rectangle and a circle, by methods of values built here.
-pub fn areas(w: f64, h: f64) -> f64 {
-    ml! {
-        // `Shape::Rect(w, h).area()` is `Shape::Rect(w, h).area()`.
-        Shape::Rect(w, h).area() +. Shape::Circle(1.0).area()
-    }
-}
+pub fn areas(w: f64, h: f64) -> f64 { ml! {
+    // `Shape::Rect(w, h).area()` is `Shape::Rect(w, h).area()`.
+    Shape::Rect(w, h).area() +. Shape::Circle(1.0).area()
+}}
 
 /// The field of a tuple struct built on the spot.
-pub fn in_metres(v: f64) -> f64 {
-    ml! {
-        // `Meters(v).0` is `Meters(v).0`.
-        Meters(v).0
-    }
-}
+pub fn in_metres(v: f64) -> f64 { ml! {
+    // `Meters(v).0` is `Meters(v).0`.
+    Meters(v).0
+}}
 
 fn describe(label: Option<&str>, n: u32) -> String {
     format!("{} x{n}", label.unwrap_or("?"))
 }
 
 /// As an argument, `Some(x)` is one argument.
-pub fn described(label: &str) -> String {
-    ml! {
-        // `describe Some(label) 3` is `describe(Some(label), 3)`.
-        describe Some(label) 3
-    }
-}
+pub fn described(label: &str) -> String { ml! {
+    // `describe Some(label) 3` is `describe(Some(label), 3)`.
+    describe Some(label) 3
+}}
 
 /// Spaced, the method call binds first: it goes with the argument.
-pub fn trimmed(word: &str) -> Option<&str> {
-    ml! {
-        // `Some (word).map(str::trim)` would be `Some(word.map(str::trim))`;
-        // here `Some (word.trim())` is `Some(word.trim())`.
-        Some (word.trim())
-    }
-}
+pub fn trimmed(word: &str) -> Option<&str> { ml! {
+    // `Some (word).map(str::trim)` would be `Some(word.map(str::trim))`;
+    // here `Some (word.trim())` is `Some(word.trim())`.
+    Some (word.trim())
+}}
 
 pub fn run() {
     println!("name_or_guest \"ada\" = {:?}", name_or_guest("ada"));

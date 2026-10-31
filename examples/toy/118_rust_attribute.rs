@@ -5,7 +5,7 @@
 // removed; rsml-fmt leaves those bodies alone too.
 //
 // When to use it: for code that reads better in Rust (loops with `+=`,
-// `let .. else`, chains of `?`) next to OCaml functions, in one file.
+// `let .. else`, chains of `?`) next to rsml functions, in one file.
 //
 // How to write it: `#[rust]` before the item.
 // * A `#[rust]` function still counts for the arities of the block
@@ -20,28 +20,28 @@ use rsml::rsml;
 pub const SUMMARY: &str = "`#[rust]` keeps a function's body Rust inside `rsml!`";
 
 rsml! {
-    /// A checksum, written in Rust: a loop with `+=`, which OCaml lacks.
-    #[rust]
-    pub fn checksum(bytes: &[u8]) -> u32 {
-        let mut sum: u32 = 0;
-        for b in bytes {
-            sum = sum.wrapping_mul(31).wrapping_add(u32::from(*b));
-        }
-        sum
+/// A checksum, written in Rust: a loop with `+=`, which rsml lacks.
+#[rust]
+pub fn checksum(bytes: &[u8]) -> u32 {
+    let mut sum: u32 = 0;
+    for b in bytes {
+        sum = sum.wrapping_mul(31).wrapping_add(u32::from(*b));
     }
+    sum
+}
 
-    /// Two numbers from a line such as "3, 4", with Rust's `?`s.
-    #[rust]
-    pub fn parse_pair(line: &str) -> Option<(i64, i64)> {
-        let (a, b) = line.split_once(',')?;
-        Some((a.trim().parse().ok()?, b.trim().parse().ok()?))
-    }
+/// Two numbers from a line such as "3, 4", with Rust's `?`s.
+#[rust]
+pub fn parse_pair(line: &str) -> Option<(i64, i64)> {
+    let (a, b) = line.split_once(',')?;
+    Some((a.trim().parse().ok()?, b.trim().parse().ok()?))
+}
 
-    /// OCaml again, calling the Rust ones: `checksum` is known (one
-    /// argument).
-    pub fn signature(text: &str) -> String {
-        format!("{:08x}", checksum text.as_bytes())
-    }
+/// rsml again, calling the Rust ones: `checksum` is known (one
+/// argument).
+pub fn signature(text: &str) -> String {
+    format!("{:08x}", checksum text.as_bytes())
+}
 }
 
 pub fn run() {

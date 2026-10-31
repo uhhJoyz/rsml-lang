@@ -17,25 +17,20 @@ use rsml::ml;
 pub const SUMMARY: &str = "`for i = 3 downto 1 do .. done`: a countdown, ends included";
 
 /// A rocket countdown.
-pub fn countdown(from: u32) -> String {
-    ml! {
-        let mut out = String.new () in
-        for i = from downto 1 do out.push_str(&format!("{i}.. ")) done;
-        out ^ "lift off"
-    }
-}
+pub fn countdown(from: u32) -> String { ml! {
+    let mut out = String.new () in
+    for i = from downto 1 do out.push_str(&format!("{i}.. ")) done;
+    out ^ "lift off"
+}}
 
 /// The letters of a word, last first.
-pub fn backwards(word: &str) -> String {
-    ml! {
-        let letters = word.chars().collect::<Vec<_>>() in
-        let mut out = String.new () in
-        // `letters.len()` is at least 1 here, so `- 1` does not underflow.
-        if not letters.is_empty() then
-          for i = letters.len() - 1 downto 0 do out.push(letters[i]) done;
-        out
-    }
-}
+pub fn backwards(word: &str) -> String { ml! {
+    let letters = word.chars().collect::<Vec<_>>() in
+    let mut out = String.new () in
+    // `letters.len()` is at least 1 here, so `- 1` does not underflow.
+    if not letters.is_empty() then for i = letters.len() - 1 downto 0 do out.push(letters[i]) done;
+    out
+}}
 
 pub fn run() {
     println!("countdown 3 = {:?}", countdown(3));

@@ -1,6 +1,6 @@
 // Toy 083: `for p in e do .. done`, Rust's `for` over an iterator.
 //
-// What it is: Rust's `for` loop, OCaml style: the body runs for each item
+// What it is: Rust's `for` loop, ML style: the body runs for each item
 // of anything iterable (a range, a `Vec`, a map, an iterator), and the
 // item is matched against a pattern:
 // `for (k, v) in m do f k v done` is `for (k, v) in m { f(k, v); }`.
@@ -10,7 +10,7 @@
 // often shorter.
 //
 // How to write it:
-// * The pattern is OCaml's: `x`, `(i, x)`, `&x` (toy 076); a tuple may
+// * The pattern is any pattern: `x`, `(i, x)`, `&x` (toy 076); a tuple may
 //   leave out its parentheses: `for k, v in m do f k v done` is
 //   `for (k, v) in m { f(k, v); }`.
 // * `for x in xs` moves `xs`; `for x in &xs` borrows it, and `x` is then
@@ -25,23 +25,19 @@ use std::collections::BTreeMap;
 pub const SUMMARY: &str = "`for (k, v) in m do .. done`, `for (i, x) in xs.iter().enumerate()`";
 
 /// A numbered shopping list.
-pub fn numbered(items: &[&str]) -> Vec<String> {
-    ml! {
-        let mut out = Vec.new () in
-        for (i, item) in items.iter().enumerate() do out.push(format!("{}. {item}", i + 1)) done;
-        out
-    }
-}
+pub fn numbered(items: &[&str]) -> Vec<String> { ml! {
+    let mut out = Vec.new () in
+    for (i, item) in items.iter().enumerate() do out.push(format!("{}. {item}", i + 1)) done;
+    out
+}}
 
 /// The stock that is running low, from a map of item to count.
-pub fn low_stock(stock: &BTreeMap<&str, u32>) -> Vec<String> {
-    ml! {
-        let mut out = Vec.new () in
-        // A `BTreeMap` gives its pairs in key order; `n` has type `&u32`.
-        for name, n in stock do if !n < 3 then out.push(format!("{name}: {n}")) done;
-        out
-    }
-}
+pub fn low_stock(stock: &BTreeMap<&str, u32>) -> Vec<String> { ml! {
+    let mut out = Vec.new () in
+    // A `BTreeMap` gives its pairs in key order; `n` has type `&u32`.
+    for name, n in stock do if !n < 3 then out.push(format!("{name}: {n}")) done;
+    out
+}}
 
 pub fn run() {
     println!(

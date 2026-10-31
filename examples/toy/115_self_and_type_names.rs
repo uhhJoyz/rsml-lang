@@ -5,7 +5,7 @@
 // `Type::name` everywhere in the module of the `rsml!`, so it can be
 // partially applied like the block's other functions (toy 114).
 //
-// When to use it: for constructors applied OCaml style, and to hand one
+// When to use it: for constructors applied ML style, and to hand one
 // to `map` with some arguments fixed.
 //
 // How to write it:
@@ -24,34 +24,34 @@ use rsml::rsml;
 pub const SUMMARY: &str = "`Self::new 0 0` in the `impl`, `Money::new 5` partial outside";
 
 rsml! {
-    /// An amount of money, in euros and cents.
-    #[derive(Debug, PartialEq, Clone, Copy)]
-    pub struct Money {
-        pub euros: u32,
-        pub cents: u32,
+/// An amount of money, in euros and cents.
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub struct Money {
+    pub euros: u32,
+    pub cents: u32,
+}
+
+impl Money {
+    /// A normalised amount: cents above 99 carry into euros.
+    pub fn new(euros: u32, cents: u32) -> Money {
+        Money { euros = euros + cents / 100; cents = cents mod 100 }
     }
 
-    impl Money {
-        /// A normalised amount: cents above 99 carry into euros.
-        pub fn new(euros: u32, cents: u32) -> Money {
-            Money { euros = euros + cents / 100; cents = cents mod 100 }
-        }
-
-        /// No money: `Self::new` called OCaml style.
-        pub fn zero() -> Money {
-            Self::new 0 0
-        }
-
-        /// The sum of two amounts.
-        pub fn plus(&self, other: Money) -> Money {
-            Self::new (self.euros + other.euros) (self.cents + other.cents)
-        }
+    /// No money: `Self::new` called ML style.
+    pub fn zero() -> Money {
+        Self::new 0 0
     }
 
-    /// Prices of five euros and some cents: `Money::new 5` waits for them.
-    pub fn five_and(cents: &[u32]) -> Vec<Money> {
-        cents |> .iter() |> .copied() |> .map(Money::new 5) |> .collect()
+    /// The sum of two amounts.
+    pub fn plus(&self, other: Money) -> Money {
+        Self::new (self.euros + other.euros) (self.cents + other.cents)
     }
+}
+
+/// Prices of five euros and some cents: `Money::new 5` waits for them.
+pub fn five_and(cents: &[u32]) -> Vec<Money> {
+    cents |> .iter() |> .copied() |> .map(Money::new 5) |> .collect()
+}
 }
 
 pub fn run() {

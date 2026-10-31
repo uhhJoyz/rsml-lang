@@ -24,32 +24,25 @@ use rsml::ml;
 pub const SUMMARY: &str = "`as` patterns: `Some n as found`, `x :: _ as all` name the whole";
 
 /// The first reading and how many there are.
-pub fn summary(readings: &[i32]) -> String {
-    ml! {
-        // `match xs with x :: _ as all -> all.len() | [] -> 0` is
-        // `match ::rsml::__rt::as_slice(&xs) { all @ [x, ..] => all.len(), [] => 0, }`.
-        match readings with
-        | first :: _ as all -> format!("{} readings, starting at {first}", all.len())
-        | [] -> String.from "no readings"
-    }
-}
+pub fn summary(readings: &[i32]) -> String { ml! {
+    // `match xs with x :: _ as all -> all.len() | [] -> 0` is
+    // `match ::rsml::__rt::as_slice(&xs) { all @ [x, ..] => all.len(), [] => 0, }`.
+    match readings with
+    | first :: _ as all -> format!("{} readings, starting at {first}", all.len())
+    | [] -> String.from "no readings"
+}}
 
 /// A coupon worth keeping: one for at least 10%, handed back whole.
-pub fn keep(coupon: Option<u32>) -> Option<u32> {
-    ml! {
-        // `match o with Some n as found -> found | None -> None` is
-        // `match o { found @ Some(n) => found, None => None, }`.
-        match coupon with Some n as found when n >= 10 -> found | _ -> None
-    }
-}
+pub fn keep(coupon: Option<u32>) -> Option<u32> { ml! {
+    // `match o with Some n as found -> found | None -> None` is
+    // `match o { found @ Some(n) => found, None => None, }`.
+    match coupon with Some n as found when n >= 10 -> found | _ -> None
+}}
 
 /// A pair with its larger side, naming the pair inside a bigger pattern.
-pub fn labelled(entry: ((u32, u32), &str)) -> String {
-    ml! {
-        match entry with
-        | (((a, b) as size), name) -> format!("{name} {size:?}: {}", std::cmp::max a b)
-    }
-}
+pub fn labelled(entry: ((u32, u32), &str)) -> String { ml! {
+    match entry with (((a, b) as size), name) -> format!("{name} {size:?}: {}", std::cmp::max a b)
+}}
 
 pub fn run() {
     println!("summary [18; 21] = {:?}", summary(&[18, 21]));

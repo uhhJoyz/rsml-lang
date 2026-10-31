@@ -33,23 +33,19 @@ fn dollars(cents: u32) -> String {
 }
 
 /// A shelf label: the price with tax, rounded down to 10 cents, in dollars.
-pub fn label(cents: u32) -> String {
-    ml! {
-        // `add_tax 20 >> round_to 10 >> dollars` is
-        // `move |argument| dollars(round_to(10, add_tax(20, argument)))`.
-        let price_tag = add_tax 20 >> round_to 10 >> dollars in
-        price_tag cents
-    }
-}
+pub fn label(cents: u32) -> String { ml! {
+    // `add_tax 20 >> round_to 10 >> dollars` is
+    // `move |argument| dollars(round_to(10, add_tax(20, argument)))`.
+    let price_tag = add_tax 20 >> round_to 10 >> dollars in
+    price_tag cents
+}}
 
 /// Tags as people type them, cleaned: trimmed, then in lower case.
-pub fn clean_tags(tags: &[&str]) -> Vec<String> {
-    ml! {
-        // `str::trim >> str::to_lowercase` is
-        // `move |argument| str::to_lowercase(str::trim(argument))`.
-        tags |> .iter() |> .copied() |> .map(str::trim >> str::to_lowercase) |> .collect()
-    }
-}
+pub fn clean_tags(tags: &[&str]) -> Vec<String> { ml! {
+    // `str::trim >> str::to_lowercase` is
+    // `move |argument| str::to_lowercase(str::trim(argument))`.
+    tags |> .iter() |> .copied() |> .map(str::trim >> str::to_lowercase) |> .collect()
+}}
 
 pub fn run() {
     println!("label 1249 = {}", label(1249));

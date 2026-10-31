@@ -34,24 +34,20 @@ fn add_shipping(fee: u32, total: u32) -> u32 {
 }
 
 /// The bill: subtotal, 10% off, then 5 cents of shipping.
-pub fn bill(items: &[(u32, u32)]) -> u32 {
-    ml! {
-        // `items |> subtotal |> discount 10 |> add_shipping 5` is
-        // `add_shipping(5, discount(10, subtotal(items)))`.
-        items |> subtotal |> discount 10 |> add_shipping 5
-    }
-}
+pub fn bill(items: &[(u32, u32)]) -> u32 { ml! {
+    // `items |> subtotal |> discount 10 |> add_shipping 5` is
+    // `add_shipping(5, discount(10, subtotal(items)))`.
+    items |> subtotal |> discount 10 |> add_shipping 5
+}}
 
 /// One step at a time.
-pub fn steps(items: &[(u32, u32)]) -> (u32, u32, u32) {
-    ml! {
-        // `items |> subtotal` is `subtotal(items)`.
-        let s = items |> subtotal in
-        // `s |> discount 10` is `discount(10, s)`: the value goes last.
-        let d = s |> discount 10 in
-        (s, d, d |> add_shipping 5)
-    }
-}
+pub fn steps(items: &[(u32, u32)]) -> (u32, u32, u32) { ml! {
+    // `items |> subtotal` is `subtotal(items)`.
+    let s = items |> subtotal in
+    // `s |> discount 10` is `discount(10, s)`: the value goes last.
+    let d = s |> discount 10 in
+    (s, d, d |> add_shipping 5)
+}}
 
 pub fn run() {
     let items = [(2, 300), (1, 400)];

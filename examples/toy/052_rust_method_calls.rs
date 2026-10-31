@@ -1,17 +1,17 @@
 // Toy 052: Rust method calls, `xs.push(1)`, `line.trim().len()`.
 //
-// What it is: Rust's own method syntax works inside OCaml code, with OCaml
+// What it is: Rust's own method syntax works inside rsml code, with rsml
 // expressions as the arguments. A chain may be broken across lines, one
 // `.method()` per line, as rustfmt would print it.
 //
 // When to use it: whenever a method chain reads well, which is most of the
-// time in Rust code. The OCaml-style `.push xs 1` (toy 045) is for
+// time in Rust code. `.push xs 1`, written ML style (toy 045), is for
 // pipelines.
 //
 // How to write it: no space between the method name and its `(`.
 // * `x.f(a)` calls the method `f`; `x.f (a)`, with a space, applies the
-//   *field* `f` to `a`, as OCaml reads it. A field holding a function is
-//   called that way.
+//   *field* `f` to `a`, ML style. A field holding a function is called
+//   that way.
 // * So `s.len ()` is `(s.len)()`, a field `len` applied, which rustc
 //   rejects for a string: write `s.len()`.
 // * After a function, a field is one argument and a spaced `(..)` the
@@ -30,13 +30,11 @@ pub struct Button {
 }
 
 /// The number of words longer than three letters, by a chain of methods.
-pub fn long_words(line: &str) -> usize {
-    ml! {
-        // `line.split_whitespace().filter(fun w -> w.len() > 3).count()` is
-        // `line.split_whitespace().filter(|w| w.len() > 3).count()`.
-        line.split_whitespace().filter(fun w -> w.len() > 3).count()
-    }
-}
+pub fn long_words(line: &str) -> usize { ml! {
+    // `line.split_whitespace().filter(fun w -> w.len() > 3).count()` is
+    // `line.split_whitespace().filter(|w| w.len() > 3).count()`.
+    line.split_whitespace().filter(fun w -> w.len() > 3).count()
+}}
 
 /// A shopping list, built by `push` calls; the chain below is broken
 /// across lines.
@@ -58,13 +56,11 @@ pub fn shopping(extra: &str) -> Vec<String> {
 }
 
 /// Clicks a button: its `on_click` field is a function.
-pub fn click(b: &Button, times: u32) -> String {
-    ml! {
-        // `b.on_click (times)` is `(b.on_click)(times)`; written
-        // `b.on_click(times)`, it would look for a method `on_click`.
-        b.label.clone() ^ ": " ^ b.on_click (times)
-    }
-}
+pub fn click(b: &Button, times: u32) -> String { ml! {
+    // `b.on_click (times)` is `(b.on_click)(times)`; written
+    // `b.on_click(times)`, it would look for a method `on_click`.
+    b.label.clone() ^ ": " ^ b.on_click (times)
+}}
 
 fn clicked(times: u32) -> String {
     format!("clicked {times} times")
@@ -81,13 +77,11 @@ fn area(width: u32, depth: u32) -> u32 {
 }
 
 /// The floor area with a one metre deeper room: fields as arguments.
-pub fn extended_area(room: &Size) -> u32 {
-    ml! {
-        // `area room.width (room.depth + 1)` is
-        // `area(room.width, room.depth + 1)`.
-        area room.width (room.depth + 1)
-    }
-}
+pub fn extended_area(room: &Size) -> u32 { ml! {
+    // `area room.width (room.depth + 1)` is
+    // `area(room.width, room.depth + 1)`.
+    area room.width (room.depth + 1)
+}}
 
 pub fn run() {
     let ok = Button {

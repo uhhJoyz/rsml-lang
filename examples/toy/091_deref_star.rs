@@ -5,10 +5,10 @@
 // binds as in Rust, so `*w.cents` dereferences the field `w.cents`.
 //
 // When to use it: to write through a `&mut` with `*p <- e`, and wherever
-// Rust code would write `*`. OCaml's `!x` (toy 092) reads the same way.
+// Rust code would write `*`. `!x` (toy 092) reads the same way.
 //
 // How to write it:
-// * `(*` opens an OCaml comment: a dereference in parentheses is `( *x)`
+// * `(*` opens an ML comment: a dereference in parentheses is `( *x)`
 //   (the formatter prints it so).
 // * After an argument, `*` multiplies: `double *x` would be `double * x`.
 //   Write `double ( *x)`, or `double !x`.
@@ -24,17 +24,15 @@ use std::collections::BTreeMap;
 pub const SUMMARY: &str = "Rust's `*`: `*c <- *c + 1`, `*w.cents`, `( *x)`, `**q`, `&*s`";
 
 /// How often each word occurs, in alphabetical order.
-pub fn word_counts(text: &str) -> Vec<(String, usize)> {
-    ml! {
-        let mut counts = BTreeMap.new () in
-        for w in text.split_whitespace() do
-          // The entry is a `&mut usize`: `*c <- *c + 1` writes through it.
-          let c = counts.entry(w.to_string()).or_insert(0) in
-          *c <- *c + 1
-        done;
-        counts.into_iter().collect()
-    }
-}
+pub fn word_counts(text: &str) -> Vec<(String, usize)> { ml! {
+    let mut counts = BTreeMap.new () in
+    for w in text.split_whitespace() do
+      // The entry is a `&mut usize`: `*c <- *c + 1` writes through it.
+      let c = counts.entry(w.to_string()).or_insert(0) in
+      *c <- *c + 1
+    done;
+    counts.into_iter().collect()
+}}
 
 /// A wallet that keeps its cents in a box.
 pub struct Wallet {
@@ -42,37 +40,31 @@ pub struct Wallet {
 }
 
 /// `*w.cents` dereferences the box in the field, as in Rust.
-pub fn cents(w: &Wallet) -> i64 {
-    ml! { *w.cents }
-}
+pub fn cents(w: &Wallet) -> i64 { ml! {
+    *w.cents
+}}
 
 fn double(x: i64) -> i64 {
     x * 2
 }
 
 /// Doubles a value behind a reference.
-pub fn doubled(x: &i64) -> i64 {
-    ml! {
-        // `double ( *x)` is `double(*x)`.
-        double ( *x)
-    }
-}
+pub fn doubled(x: &i64) -> i64 { ml! {
+    // `double ( *x)` is `double(*x)`.
+    double ( *x)
+}}
 
 /// Resets a counter through a `&mut`.
-pub fn reset(p: &mut i64) {
-    ml! {
-        // `*p <- 0` is `*p = 0`.
-        *p <- 0
-    }
-}
+pub fn reset(p: &mut i64) { ml! {
+    // `*p <- 0` is `*p = 0`.
+    *p <- 0
+}}
 
 /// The first letter of a name: `&*name` borrows the `String` as a `&str`.
-pub fn initial(name: String, nested: &&char) -> (Option<char>, char) {
-    ml! {
-        // `&*name` is `&(*name)`, and `**q` is `*(*q)`.
-        (str::chars (&*name) |> .next, **nested)
-    }
-}
+pub fn initial(name: String, nested: &&char) -> (Option<char>, char) { ml! {
+    // `&*name` is `&(*name)`, and `**q` is `*(*q)`.
+    (str::chars (&*name) |> .next, **nested)
+}}
 
 pub fn run() {
     println!("word_counts \"b a b\" = {:?}", word_counts("b a b"));

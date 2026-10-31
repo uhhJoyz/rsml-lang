@@ -7,7 +7,7 @@ formatter, docs, a toy and the editor checks), **L** (several days, or
 work outside this repository). **Decision** marks what needs the owner's
 call before work starts.
 
-Every change ends with `scripts/check_all.sh` (all 19 checks, not only
+Every change ends with `scripts/check_all.sh` (all 20 checks, not only
 `--quick`), as CI runs only part of it.
 
 **Convention** (the owner's rule, 2026-10-30): where OCaml and Rust give
@@ -18,16 +18,24 @@ concatenates, `for i = a to b` includes `b`; `til` is the exclusive
 form); `lsr` and `asr` are both Rust's `>>` (a documented limitation).
 Ask the owner when a new case comes up.
 
-## 0.1.0: the first release
+## Releases
 
-- **Publish**: `cargo publish --workspace` (it orders rsml-compiler,
-  rsml-macros, rsml-fmt, rsml-lang), then tag `v0.1.0` and check the
-  crates.io pages (README, links, keywords) and that docs.rs built
-  `rsml-lang`. S.
+0.1.0 and 0.2.0 are on crates.io. 0.2.0 added Rust's closures (`|x| e`)
+and guards (`p if c`), nested `match`es without parentheses, Rust's `use`
+in place of `open` (no longer a keyword), and the formatter's new layout
+(`block_indent = 0`, `hug_fn_body`, `indent_rsml_items = false`). A
+release: `cargo publish --workspace` (it orders rsml-compiler,
+rsml-macros, rsml-fmt, rsml-lang), tag `vX.Y.Z`, and check the crates.io
+pages (README, links, keywords) and that docs.rs built `rsml-lang`.
 
-## 0.1.x: no change in what accepted code means
+## 0.2.x: no change in what accepted code means
 
 ### Editors
+
+- **Hidden macros outside Neovim**: `editors/nvim/lua/rsml` hides `ml! {`
+  and `}`, marks their lines and shows `- RSML -` in the statusline. Vim
+  could do the same with `conceal` syntax items and a statusline function;
+  VS Code with decorations in the extension planned below. M each.
 
 - **VS Code: color `(* *)` comments.** A tiny extension with a TextMate
   injection grammar (`injectTo: ["source.rust"]`) that starts after
@@ -88,6 +96,19 @@ Ask the owner when a new case comes up.
 
 ### Language (additions only)
 
+- **OCaml-only keywords as names**: `to`, `end`, `done`, `of`, `val`,
+  `type`, `module`, `lazy`, .. cannot name a variable (`r#to` works;
+  `open` is a name since `use` replaced it). Most could be names outside
+  the positions where they are keywords (`to` only follows a `for` bound).
+  Contextual keywords change what the parser must look ahead at;
+  **Decision** on which, then M.
+- **Nested `match` evidence** (`rsml-compiler/src/arms.rs`): a case moves
+  to the enclosing `match` by what its pattern shows of its type, or when
+  the inner `match` already matches it. Unqualified variants (`use E::*`)
+  and struct patterns show nothing, and a type alias would count as another
+  type. A `type_key` for a single-segment constructor seen qualified
+  elsewhere in the same `match` would help the first. S.
+
 - **Mutual tail recursion**: `let rec f .. and g ..` stays recursive
   (only a function calling itself in tail position is a loop). Several
   functions could share one loop over an `enum` of their argument lists.
@@ -126,6 +147,13 @@ Ask the owner when a new case comes up.
 
 ### Formatter
 
+- **`fn f() { ml! {` and rustfmt**: plain rustfmt (`cargo fmt`) undoes the
+  `hug_fn_body` layout, so a project formatting with both churns. The fix
+  is upstream-shaped (rustfmt leaves macro calls alone but not the block
+  around them); until then the docs say to run `rsml-fmt --rustfmt`.
+  `check_all.sh` runs rustfmt only on the crates without rsml code for this
+  reason.
+
 - `ml!` blocks inside `#[rust]` bodies are not formatted: the formatter
   treats those bodies as Rust (rustfmt formats them with
   `rust_items = "rustfmt"`) and does not look for blocks in them; it could
@@ -154,11 +182,11 @@ Ask the owner when a new case comes up.
   trusted publishing (no stored token). S.
 - **Doc links per release**: README links go to `blob/main`, so the
   crates.io page of an old version shows today's docs. Pointing them at
-  the tag (`blob/v0.1.0`) at release time would fix it; `check_docs.py`
+  the tag (`blob/v0.2.0`) at release time would fix it; `check_docs.py`
   would accept both. S.
 
-## 0.2: changes that can break code
+## 0.3: changes that can break code
 
-Nothing is planned yet. What would go here: the `a..b` choice if it is
-not made before 0.1.0, and any change to what an expression expands to
-that is visible to the caller (types, evaluation order, moves).
+Nothing is planned yet. What would go here: any change to what an
+expression expands to that is visible to the caller (types, evaluation
+order, moves), or to the formatter's default layout.

@@ -27,6 +27,9 @@ pub struct Printer<'a> {
     /// The `&` (by position) that starts an application's argument, where
     /// the parser reads `&&` as `a && b`: `f & &x` keeps its space.
     arg_amp: Option<usize>,
+    /// The `match`es and `function`s (by position) that end a case before
+    /// another, without parentheses: their cases go one per line.
+    vertical: Vec<usize>,
 }
 
 fn start_of(span: Span) -> usize {
@@ -73,7 +76,7 @@ fn expr_start(e: &Expr) -> usize {
         | Expr::Function { span, .. }
         | Expr::Let { span, .. }
         | Expr::External { span, .. }
-        | Expr::Open { span, .. }
+        | Expr::Use { span, .. }
         | Expr::If { span, .. }
         | Expr::Match { span, .. }
         | Expr::For { span, .. }
@@ -139,7 +142,7 @@ fn pat_start(p: &Pat) -> Option<usize> {
 
 fn phrase_start(p: &Phrase) -> usize {
     match p {
-        Phrase::Let { span, .. } | Phrase::External { span, .. } | Phrase::Open { span, .. } => {
+        Phrase::Let { span, .. } | Phrase::External { span, .. } | Phrase::Use { span, .. } => {
             start_of(*span)
         }
         Phrase::Expr(e) => expr_start(e),
@@ -160,6 +163,15 @@ fn closes(text: &str) -> bool {
         text.strip_prefix(kw)
             .is_some_and(|rest| !rest.starts_with(|c: char| c.is_alphanumeric() || c == '_'))
     })
+}
+
+/// The path that `e`'s text starts with, perhaps in a tuple's first item.
+fn leading_path(e: &Expr) -> Option<&Path> {
+    match leftmost(e) {
+        Expr::Path(p) => Some(p),
+        Expr::Tuple(es) => leading_path(&es[0]),
+        _ => None,
+    }
 }
 
 /// The subexpression whose text starts `e`'s (`x` in `x.f() + 1`).
@@ -215,6 +227,12 @@ fn starts_with_op(e: &Expr) -> bool {
         | Expr::Borrow { .. }
         | Expr::MethodRef { .. }
         | Expr::FieldRef { .. } => true,
+        // `|x| e`
+        Expr::Fun {
+            bars: Some(_),
+            is_move: false,
+            ..
+        } => true,
         Expr::Surface(s) => matches!(**s, Surface::Label { .. }),
         Expr::Range { lo: None, .. } => true,
         Expr::Range { lo: Some(e), .. } => starts_with_op(e),
@@ -257,6 +275,15 @@ fn takes_next(e: &Expr) -> bool {
     }
 }
 
+/// The `match` or `function` that `e` ends with, whose cases a `|` after
+/// `e` could continue.
+fn tail_cases(e: &Expr) -> Option<&Expr> {
+    match e {
+        Expr::Match { .. } | Expr::Function { .. } => Some(e),
+        _ => tail(e).and_then(tail_cases),
+    }
+}
+
 /// The expression that `e` ends with, when `e` ends with one of its own.
 fn tail(e: &Expr) -> Option<&Expr> {
     match e {
@@ -272,7 +299,7 @@ fn tail(e: &Expr) -> Option<&Expr> {
         Expr::Section { body, .. } => Some(body),
         // Constructs that end with an expression of theirs.
         Expr::Fun { body: e, .. } | Expr::Let { body: e, .. } => Some(e),
-        Expr::External { body: e, .. } | Expr::Open { body: e, .. } => Some(e),
+        Expr::External { body: e, .. } | Expr::Use { body: e, .. } => Some(e),
         Expr::If { then, els, .. } => Some(els.as_deref().unwrap_or(then)),
         Expr::Function { arms, .. } | Expr::Match { arms, .. } => arms.last().map(|a| &a.body),
         Expr::Assert(e, _) => Some(e),
@@ -289,6 +316,7 @@ impl<'a> Printer<'a> {
             done: vec![false; src.comments.len()],
             next_id: 0,
             arg_amp: None,
+            vertical: Vec::new(),
         }
     }
 
@@ -530,8 +558,10 @@ impl<'a> Printer<'a> {
         for (i, ph) in phrases.iter().enumerate() {
             if i > 0 {
                 // `;;` is needed before an expression, and after one or a
-                // `let` that would take the next phrase (`let a = x..`).
+                // `let` that would take the next phrase (`let a = x..`); a
+                // `use` ends with its own `;`.
                 let semi = match cfg.double_semi {
+                    _ if matches!(phrases[i - 1], Phrase::Use { .. }) => false,
                     DoubleSemi::Always => true,
                     DoubleSemi::Minimal => {
                         matches!(ph, Phrase::Expr(_))
@@ -599,13 +629,46 @@ impl<'a> Printer<'a> {
                 rust,
                 span,
             } => self.external(name, ty, rust, *span),
-            Phrase::Open { module, span } => {
-                let kw = self.keyword(*span, "open");
-                let m = self.path(module);
-                concat(vec![kw, text_doc(" "), m])
-            }
+            Phrase::Use { tree, span } => self.use_item(tree, *span),
             Phrase::Expr(e) => self.expr(e),
         }
+    }
+
+    /// `use tree;`, the tree in rustfmt's spelling: `a::b::{c, d as e}`.
+    fn use_item(&mut self, tree: &proc_macro2::TokenStream, span: Span) -> Doc {
+        fn print(ts: proc_macro2::TokenStream, out: &mut String) {
+            use proc_macro2::{Spacing, TokenTree};
+            // A `:` not joined to the next one stays apart from it.
+            let mut apart = false;
+            for t in ts {
+                if apart && matches!(&t, TokenTree::Punct(p) if p.as_char() != ',') {
+                    out.push(' ');
+                }
+                apart = matches!(&t, TokenTree::Punct(p) if p.spacing() == Spacing::Alone);
+                match t {
+                    TokenTree::Ident(i) => {
+                        if out.ends_with(|c: char| c.is_alphanumeric() || c == '_') {
+                            out.push(' ');
+                        }
+                        out.push_str(&i.to_string());
+                    }
+                    TokenTree::Punct(p) if p.as_char() == ',' => out.push_str(", "),
+                    TokenTree::Punct(p) => out.push(p.as_char()),
+                    proc_macro2::TokenTree::Group(g) => {
+                        out.push('{');
+                        print(g.stream(), out);
+                        let n = out.trim_end_matches(' ').len();
+                        out.truncate(n);
+                        out.push('}');
+                    }
+                    proc_macro2::TokenTree::Literal(l) => out.push_str(&l.to_string()),
+                }
+            }
+        }
+        let kw = self.keyword(span, "use");
+        let mut text = String::new();
+        print(tree.clone(), &mut text);
+        concat(vec![kw, text_doc(" "), text_doc(text), text_doc(";")])
     }
 
     fn external(
@@ -785,8 +848,15 @@ impl<'a> Printer<'a> {
     // ----- expressions ---------------------------------------------------
 
     pub fn expr(&mut self, e: &Expr) -> Doc {
-        // Comments before the expression go outside its indentation.
-        let before = self.comments_before(self.start(e), false);
+        // Comments before the expression go outside its indentation, and so
+        // do those inside the path it starts with, which the path prints
+        // before itself (`String. (* c *) from x`): read back, they come
+        // before the expression.
+        let start = self.start(e);
+        let before = match leading_path(e) {
+            Some(p) if self.path_start(p) == start => self.leading_path_comments(p, start),
+            _ => self.comments_before(start, false),
+        };
         let d = self.expr_inner(e);
         match before {
             Doc::Concat(ref v) if v.is_empty() => d,
@@ -900,11 +970,13 @@ impl<'a> Printer<'a> {
                 body,
                 span,
                 is_move,
+                bars,
                 ..
-            } => self.lambda(params, body, *span, *is_move),
+            } => self.lambda(params, body, *span, *is_move, *bars),
             Expr::Function { arms, span } => {
                 let kw = self.keyword(*span, "function");
-                self.cases(kw, arms)
+                let vertical = self.vertical.contains(&start_of(*span));
+                self.cases(kw, arms, vertical)
             }
             Expr::Let {
                 rec_,
@@ -922,10 +994,10 @@ impl<'a> Printer<'a> {
                 let head = self.external(name, ty, rust, *span);
                 self.then_body(concat(vec![head, text_doc(" in")]), body)
             }
-            Expr::Open { module, body, span } => {
-                let kw = self.keyword(*span, "let");
-                let m = self.path(module);
-                let head = concat(vec![kw, text_doc(" open "), m, text_doc(" in")]);
+            Expr::Use {
+                tree, body, span, ..
+            } => {
+                let head = self.use_item(tree, *span);
                 self.then_body(head, body)
             }
             Expr::If { .. } => self.if_(e),
@@ -933,7 +1005,8 @@ impl<'a> Printer<'a> {
                 let kw = self.keyword(*span, "match");
                 let s = align(self.expr(scrut));
                 let head = concat(vec![kw, text_doc(" "), s, text_doc(" with")]);
-                self.cases(head, arms)
+                let vertical = self.vertical.contains(&start_of(*span));
+                self.cases(head, arms, vertical)
             }
             Expr::Seq(..) => self.seq(e),
             Expr::Binary { .. } => self.chain(e),
@@ -1264,6 +1337,18 @@ impl<'a> Printer<'a> {
         concat(vec![pre, self.leaf(start..end, s)])
     }
 
+    /// [`Printer::path_comments`] for a path that starts an expression,
+    /// taken out before the expression. Comments in generic arguments stay
+    /// there: the arguments are printed as written.
+    fn leading_path_comments(&mut self, p: &Path, start: usize) -> Doc {
+        for seg in &p.segs {
+            if let Some(r) = seg.generics.as_ref().and_then(stream_range) {
+                self.mark_done(r);
+            }
+        }
+        self.path_comments(start, path_end(p))
+    }
+
     /// The comments before the path from `start` to `end`, then those
     /// between its tokens (`Vec::<u8> (* c *) ::new`), which go before it:
     /// on lines of their own if they end theirs (as they are read back),
@@ -1294,6 +1379,15 @@ impl<'a> Printer<'a> {
         let r = range(sp);
         let before = self.comments_before(r.start, false);
         let mut after_open = self.trailing_after(r.start + 1);
+        // The comments inside a path the body starts with go before it
+        // (see `expr`): after the `(`, where they are read back.
+        let start = self.start(inner);
+        if let Some(p) = leading_path(inner)
+            && self.path_start(p) == start
+        {
+            let inside = self.leading_path_comments(p, start);
+            after_open = concat(vec![after_open, inside]);
+        }
         // `(begin // c ..)` with `begin_end = "parens"`: after the `(`, as
         // the `begin` is not printed.
         if let Expr::Surface(s) = inner
@@ -1433,6 +1527,11 @@ impl<'a> Printer<'a> {
                 Some(':')
             }
             Expr::Neg(..) => Some('-'),
+            Expr::Fun {
+                bars: Some(_),
+                is_move: false,
+                ..
+            } => Some('|'),
             Expr::Deref(_, sp) => self.src.text[start_of(*sp)..].chars().next(),
             Expr::Borrow { .. } => Some('&'),
             Expr::MethodRef { .. } | Expr::FieldRef { .. } | Expr::Range { lo: None, .. } => {
@@ -1569,19 +1668,59 @@ impl<'a> Printer<'a> {
         choice(vec![all, hugged, broken])
     }
 
-    fn lambda(&mut self, params: &[Pat], body: &Expr, span: Span, is_move: bool) -> Doc {
-        let kw = self.keyword(span, "fun");
-        let mut head = vec![kw, text_doc(" ")];
-        if is_move {
-            head.push(text_doc("move "));
-        }
-        for (i, p) in params.iter().enumerate() {
-            if i > 0 {
+    fn lambda(
+        &mut self,
+        params: &[Pat],
+        body: &Expr,
+        span: Span,
+        is_move: bool,
+        bars: Option<(Span, Span)>,
+    ) -> Doc {
+        let mut head = Vec::new();
+        match bars {
+            None => {
+                head.push(self.keyword(span, "fun"));
                 head.push(text_doc(" "));
+                if is_move {
+                    head.push(text_doc("move "));
+                }
+                for (i, p) in params.iter().enumerate() {
+                    if i > 0 {
+                        head.push(text_doc(" "));
+                    }
+                    head.push(self.pat(p));
+                }
+                head.push(text_doc(" ->"));
             }
-            head.push(self.pat(p));
+            // `|x, y: t|`, typed Rust's way, or `||`.
+            Some((open, close)) => {
+                if is_move {
+                    head.push(self.keyword(span, "move"));
+                    head.push(text_doc(" "));
+                }
+                let o = start_of(open);
+                if matches!(params, [Pat::Unit(sp)] if start_of(*sp) == o) {
+                    head.push(self.leaf(o..end_of(close).max(o + 2), "||"));
+                } else {
+                    head.push(self.leaf(o..o + 1, "|"));
+                    for (i, p) in params.iter().enumerate() {
+                        if i > 0 {
+                            head.push(text_doc(", "));
+                        }
+                        head.push(match p {
+                            Pat::Constraint(p, t) => {
+                                let p = self.pat(p);
+                                let t = self.ty(t);
+                                concat(vec![p, text_doc(": "), t])
+                            }
+                            p => self.pat(p),
+                        });
+                    }
+                    let c = start_of(close);
+                    head.push(self.leaf(c..c + 1, "|"));
+                }
+            }
         }
-        head.push(text_doc(" ->"));
         let hug = self.hugs(body);
         let b = self.expr(body);
         let body = if hug {
@@ -2048,9 +2187,24 @@ impl<'a> Printer<'a> {
         group(concat(parts))
     }
 
-    fn cases(&mut self, head: Doc, arms: &[Arm]) -> Doc {
+    fn cases(&mut self, head: Doc, arms: &[Arm], vertical: bool) -> Doc {
         let m = self.cfg.match_.clone();
         let id = self.id();
+        // A case ending in a `match` with no parentheses, before another
+        // case: one case per line, in both, so that the indentation shows
+        // which `match` each case is of.
+        let nested = match arms.split_last() {
+            Some((_, init)) => {
+                let tails: Vec<usize> = init
+                    .iter()
+                    .filter_map(|a| tail_cases(&a.body))
+                    .map(expr_start)
+                    .collect();
+                self.vertical.extend(&tails);
+                !tails.is_empty()
+            }
+            None => false,
+        };
         let mut lhs = Vec::new();
         let mut bodies = Vec::new();
         let mut hugs = Vec::new();
@@ -2064,8 +2218,13 @@ impl<'a> Printer<'a> {
             let p = self.pat(&arm.pat);
             let l = match &arm.guard {
                 Some(g) => {
+                    let kw = if arm.guard_if.is_some() {
+                        " if "
+                    } else {
+                        " when "
+                    };
                     let g = self.expr(g);
-                    concat(vec![p, text_doc(" when "), g])
+                    concat(vec![p, text_doc(kw), g])
                 }
                 None => p,
             };
@@ -2089,6 +2248,7 @@ impl<'a> Printer<'a> {
         };
         let max = widths.as_ref().and_then(|w| w.iter().max().copied());
         let sep = match m.cases {
+            _ if nested || vertical => Doc::HardLine,
             Cases::Vertical => Doc::HardLine,
             Cases::FitOrVertical => Doc::Line,
         };

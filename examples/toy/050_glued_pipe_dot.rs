@@ -1,9 +1,9 @@
 // Toy 050: the glued `|>.`, `xs |>.iter() |>.count()`.
 //
-// What it is: Rust lexes `xs |>.iter()` with one operator, `|>.`, as
-// OCaml does. Unless you define a `( |>. )` (toy 036), rsml reads it as
-// `|>` and the section `.iter()`: the habit of writing a method chain's
-// dot against the pipe works. The same holds for `>>.`, `<<.` and `@@.`.
+// What it is: in `xs |>.iter()` the operator characters are glued into
+// one operator, `|>.`. Unless you define a `( |>. )` (toy 036), rsml
+// reads it as `|>` and the section `.iter()`: the habit of writing a
+// method chain's dot against the pipe works. The same holds for `>>.`, `<<.` and `@@.`.
 //
 // When to use it: when you write it by habit; rsml-fmt prints the space,
 // `|> .iter()`, which is the usual spelling.
@@ -44,9 +44,9 @@ pub fn second(pair: (&str, u32)) -> u32 {
 }
 
 /// The same pipeline, as rsml-fmt prints it.
-pub fn long_words_spaced(words: &[&str]) -> usize {
-    ml! { words |> .iter() |> .filter(fun w -> w.len() > 3) |> .count() }
-}
+pub fn long_words_spaced(words: &[&str]) -> usize { ml! {
+    words |> .iter() |> .filter(fun w -> w.len() > 3) |> .count()
+}}
 
 pub fn run() {
     let words = ["tea", "cocoa", "milk"];

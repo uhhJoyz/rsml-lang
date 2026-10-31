@@ -28,30 +28,24 @@ fn scale(factor: f64) -> impl Fn(f64) -> f64 {
 }
 
 /// Inches to centimetres: the inches go to the closure `scale(2.54)`.
-pub fn to_cm(inches: f64) -> f64 {
-    ml! {
-        // `inches |> scale(2.54)` is `scale(2.54)(inches)`.
-        inches |> scale(2.54)
-    }
-}
+pub fn to_cm(inches: f64) -> f64 { ml! {
+    // `inches |> scale(2.54)` is `scale(2.54)(inches)`.
+    inches |> scale(2.54)
+}}
 
 /// A percentage kept between 0 and 100, with the value in first place.
-pub fn percent(p: i64) -> i64 {
-    ml! {
-        // `p |> i64::clamp(_, 0, 100)` is `i64::clamp(p, 0, 100)`.
-        p |> i64::clamp(_, 0, 100)
-    }
-}
+pub fn percent(p: i64) -> i64 { ml! {
+    // `p |> i64::clamp(_, 0, 100)` is `i64::clamp(p, 0, 100)`.
+    p |> i64::clamp(_, 0, 100)
+}}
 
 /// With a local function, `with_tax(20)` waits for the price.
-pub fn price_with_tax(price: u32) -> u32 {
-    ml! {
-        let with_tax rate price = price + price * rate / 100 in
-        // Given `let with_tax rate price = price + price * rate / 100`,
-        // `price |> with_tax(20)` is `with_tax(20, price)`.
-        price |> with_tax(20)
-    }
-}
+pub fn price_with_tax(price: u32) -> u32 { ml! {
+    let with_tax rate price = price + price * rate / 100 in
+    // Given `let with_tax rate price = price + price * rate / 100`,
+    // `price |> with_tax(20)` is `with_tax(20, price)`.
+    price |> with_tax(20)
+}}
 
 pub fn run() {
     println!("10.0 |> scale(2.54) = {}", to_cm(10.0));

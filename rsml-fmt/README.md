@@ -1,11 +1,12 @@
 # rsml-fmt
 
-Formats the OCaml in Rust files: the bodies of `ml! { .. }` blocks and the
-function bodies inside `rsml! { .. }`, and the Rust inside `rsml! { .. }`
-(which it hands to rustfmt). rustfmt itself never enters a macro, so the
-two tools don't overlap. `--rustfmt` runs rustfmt on the rest of the file
-first, so one command formats everything, which is what an editor wants
-(see [docs/editors.md](https://github.com/uhhJoyz/rsml-lang/blob/main/docs/editors.md#formatting-on-save)). A block
+Formats the rsml code in Rust files: the bodies of `ml! { .. }` blocks
+and the function bodies inside `rsml! { .. }`, and the Rust inside
+`rsml! { .. }` (which it hands to rustfmt). rustfmt itself never enters
+a macro, so the two tools don't overlap. `--rustfmt` runs rustfmt on the
+rest of the file first, so one command formats everything, which is
+what an editor wants (see
+[docs/editors.md](https://github.com/uhhJoyz/rsml-lang/blob/main/docs/editors.md#formatting-on-save)). A block
 that formatting breaks onto lines of its own changes how rustfmt lays out
 the call around it (`assert_eq!(ml! { .. }, 3)`), so the two passes run in
 turn until neither changes anything: formatting twice changes nothing.
@@ -17,7 +18,7 @@ cargo run -p rsml-fmt -- src tests examples     # format in place
 cargo run -p rsml-fmt -- --check src            # CI: exit 1 if anything would change
 cargo run -p rsml-fmt -- --rustfmt src          # rustfmt and rsml-fmt in one go
 cargo install rsml-fmt                          # then just `rsml-fmt ...`
-echo 'x |> f |> g' | rsml-fmt --ml              # bare OCaml on stdin
+echo 'x |> f |> g' | rsml-fmt --ml              # bare rsml code on stdin
 rsml-fmt --rustfmt < src/main.rs                # a Rust file on stdin, for editors
 ```
 
@@ -60,7 +61,7 @@ the meaning: `f(a, b)` is a Rust-style call with two arguments and `f (a,
 b)` passes one tuple; `v[0]` indexes and `f [0]` passes a list. So is the
 space after a constructor, in expressions and patterns: `Some(x).unwrap()`
 unwraps the option, `Some (x).unwrap()` unwraps `x`. The formatter never
-prints `(*` for a dereference, which would read as an OCaml comment:
+prints `(*` for a dereference, which would read as an ML comment:
 `(*x)` becomes `( *x)`.
 
 Comments (`(* *)`, `//`, `/* */`) and blank lines are kept. A comment stays
@@ -74,7 +75,7 @@ space after `//` or `/*` keeps `(** c *)` from becoming a doc comment, and
 a comment holding `/*` or `*/` stays as it is); `rsmlfmt:` comments keep
 working in either spelling.
 
-The arguments of std macros that take OCaml (`println!`, `assert_eq!`,
+The arguments of std macros that take rsml code (`println!`, `assert_eq!`,
 `format!`, `vec!`, ..) are formatted like a call's, the format string as
 written: on one line if they fit, else one per line with a trailing
 comma. Other macro calls and string literals are printed exactly as
@@ -84,15 +85,16 @@ written.
 
 With `rust_items = "rustfmt"` (the default), the Rust parts of an `rsml!`
 block (items, signatures, attributes, `where` clauses, `use`s, `#[rust]`
-bodies) are formatted by rustfmt: the formatter replaces every OCaml body
+bodies) are formatted by rustfmt: the formatter replaces every rsml body
 by `{}`, runs rustfmt on the result with the nearest rustfmt config and the
-crate's edition, and puts the OCaml bodies back, formatted as OCaml.
-Items that were flush left (a whole file in one `rsml!`) stay flush left;
-otherwise they are indented one level from the line with `rsml! {`, and
-rustfmt's `max_width` counts that indentation. One blank line after `{`
-and before `}` is kept if there was one. Comments in the Rust parts are
+crate's edition, and puts the rsml bodies back, formatted as rsml code.
+The items are at the indentation of the line with `rsml! {`, or one level
+in from it with `indent_rsml_items = true` (see [Layout](#layout)), except
+that items that were flush left (a whole file in one `rsml!`) stay flush
+left; rustfmt's `max_width` counts that indentation. One blank line after
+`{` and before `}` is kept if there was one. Comments in the Rust parts are
 rustfmt's to keep. If rustfmt is missing (`rustfmt_path`) or rejects the
-block (for example a `(* *)` comment between items, which is no Rust),
+block (for example an ML comment between items, which is no Rust),
 the block's Rust is kept as written, with a warning (once, for a missing
 rustfmt). An `rsmlfmt: skip` comment at the top of the block leaves all of
 it alone, and `rust_items = "preserve"` leaves the Rust of every block as
@@ -146,8 +148,9 @@ they are TOML.
 
 ### Presets
 
-ocamlformat-like (the defaults): one `let .. in` per line, sequences
-broken, pipes with a leading `|>` under the subject.
+The defaults: one `let .. in` per line, sequences broken, pipes with a
+leading `|>` under the subject, and a function whose body is one `ml!`
+block opened on the function's line (`hug_fn_body`).
 
 Compact, for short `ml!` blocks inside Rust expressions:
 
@@ -176,8 +179,11 @@ The examples show the default first.
 | Option | Values | |
 |---|---|---|
 | `max_width` | `100` | Line width, counted from column 0 (Rust indentation included). |
-| `indent` | `2` | Spaces per nesting level in OCaml code. |
-| `block_indent` | `4` | Body indentation relative to the line holding the block's `{`. |
+| `indent` | `2` | Spaces per nesting level in rsml code. |
+| `block_indent` | `0` | Indentation of an `ml! { .. }` block's body relative to the line holding its `{` (`0`: the body and the `}` line up with that line). |
+| `fn_body_indent` | `4` | Indentation of a function's body relative to its line: an `rsml!` function's, and a hugged one's (`hug_fn_body`). |
+| `hug_fn_body` | `true` | Lay out a Rust function whose body is one `ml! { .. }` block as `fn f() -> T { ml! {`, the body, `}}` (below). |
+| `indent_rsml_items` | `false` | Indent the items of an `rsml! { .. }` one level from the line with `rsml! {` (`false`: at that line's indentation). |
 | `single_line_blocks` | `"when_fits"`, `"preserve"`, `"never"` | When `ml! { x \|> f }` stays on one line. `preserve`: only if it already was. The width check includes the rest of the Rust line (`}, 3);`). |
 | `fn_single_line` | `false` | Allow `fn f() -> i64 { x \|> g }` in `rsml!`. |
 | `preserve_blank_lines` | `true` | Keep blank lines between phrases, `let .. in` steps and sequence items. |
@@ -190,10 +196,79 @@ The examples show the default first.
 | `rust_items` | `"rustfmt"`, `"preserve"` | Format the Rust inside `rsml!` with rustfmt (above), or keep it as written. |
 | `rustfmt_path` | `"rustfmt"` | The rustfmt to run. |
 
+A Rust function whose whole body is one `ml! { .. }` block gets `{ ml! {`
+on its line and `}}` to close it, so that the block reads as the
+function's body, `fn_body_indent` columns in (`hug_fn_body`). Any other
+`ml!` block's body lines up with the line holding `ml! {`, and so does its
+`}` (`block_indent = 0`), and the items of an `rsml!` line up with the line
+holding `rsml! {` (`indent_rsml_items = false`):
+
+```rust
+fn total(xs: &[i64]) -> i64 { ml! {
+    xs |> .iter() |> .sum()
+}}
+
+fn scaled(xs: &[i64], k: i64) -> i64 {
+    let n = xs.len() as i64;
+    ml! {
+    let s = xs |> .iter() |> .sum::<i64>() in
+    s * k / n
+    }
+}
+
+mod shapes {
+    rsml! {
+    fn area(w: i64, h: i64) -> i64 {
+        let a = w * h in
+        a
+    }
+    }
+}
+```
+
+With `hug_fn_body = false`, `block_indent = 4` and
+`indent_rsml_items = true`, the same code is:
+
+```rust
+fn total(xs: &[i64]) -> i64 {
+    ml! { xs |> .iter() |> .sum() }
+}
+
+fn scaled(xs: &[i64], k: i64) -> i64 {
+    let n = xs.len() as i64;
+    ml! {
+        let s = xs |> .iter() |> .sum::<i64>() in
+        s * k / n
+    }
+}
+
+mod shapes {
+    rsml! {
+        fn area(w: i64, h: i64) -> i64 {
+            let a = w * h in
+            a
+        }
+    }
+}
+```
+
+A function is hugged only when its body holds nothing but the block (no
+comment, no `;` after it), and when `{ ml! {` fits in `max_width` after
+the signature; otherwise the block goes on a line of its own in the body.
+A hugged block always takes lines of its own, even one that would fit on
+one line.
+
+rustfmt does not keep the hug: it puts `ml! {` back on a line of its own
+and indents the body under it, so `cargo fmt` undoes it, and
+`cargo fmt --check` reports every hugged function. Format with
+`rsml-fmt --rustfmt` instead (`rsml-fmt --rustfmt --check src` in CI),
+which runs rustfmt and then hugs again, as the editor setups of
+[docs/editors.md](https://github.com/uhhJoyz/rsml-lang/blob/main/docs/editors.md#formatting-on-save)
+do, or set `hug_fn_body = false`.
+
 With `begin_end_hug`, a block that breaks keeps its opening on the
-keyword's line and lines up its end with that line, as ocamlformat does
-(inside a match case, `end` lines up under the case's body, two columns
-in):
+keyword's line and lines up its end with that line (inside a match case,
+`end` lines up under the case's body, two columns in):
 
 ```ocaml
 if c then begin                  (* begin_end_hug = false: *)
@@ -371,6 +446,7 @@ xs                                 xs |> map f               xs |>
 * Comments are anchored to the token after them, and `then`, `else`,
   `with`, `in` and `->` don't count as tokens for this: a comment on its
   own line just before `then` ends up after it, before the branch.
-* Code inside Rust macro calls in OCaml blocks is not formatted.
-* Doc comments (`///`) inside blocks are not OCaml, and such blocks are
-  left alone.
+* Code inside Rust macro calls in rsml code, other than the std macros
+  above, is not formatted.
+* Doc comments (`///`) inside blocks are not rsml code, and such blocks
+  are left alone.

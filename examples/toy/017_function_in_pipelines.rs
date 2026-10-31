@@ -26,28 +26,26 @@ use rsml::ml;
 pub const SUMMARY: &str = "`.map(function 200 | 204 -> .. | c when .. -> ..)`, `n |> function`";
 
 /// What each HTTP status code means.
-pub fn meanings(codes: &[u16]) -> Vec<&'static str> {
-    ml! {
-        codes
-        |> .iter()
-        |> .map(function
-           | 200 | 204 -> "ok"
-           | 301 | 302 -> "moved"
-           | c when !c >= 500 -> "server error"
-           | _ -> "client error")
-        |> .collect()
-    }
-}
+pub fn meanings(codes: &[u16]) -> Vec<&'static str> { ml! {
+    codes
+    |> .iter()
+    |> .map(function
+       | 200 | 204 -> "ok"
+       | 301 | 302 -> "moved"
+       | c when !c >= 500 -> "server error"
+       | _ -> "client error")
+    |> .collect()
+}}
 
 /// How many: a value piped into `function`.
-pub fn how_many(n: usize) -> &'static str {
-    ml! { n |> function 0 -> "none" | 1 -> "one" | _ -> "many" }
-}
+pub fn how_many(n: usize) -> &'static str { ml! {
+    n |> function 0 -> "none" | 1 -> "one" | _ -> "many"
+}}
 
 /// The length of the word for `n`: parentheses end the `function`.
-pub fn word_length(n: usize) -> usize {
-    ml! { (n |> function 0 -> "none" | 1 -> "one" | _ -> "many") |> str::len }
-}
+pub fn word_length(n: usize) -> usize { ml! {
+    (n |> function 0 -> "none" | 1 -> "one" | _ -> "many") |> str::len
+}}
 
 pub fn run() {
     println!(

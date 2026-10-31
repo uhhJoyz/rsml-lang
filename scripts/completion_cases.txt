@@ -56,7 +56,7 @@ std::cmp::ma$0
 == paths: enum variants -> Circle Rect
 Shape::$0
 
-== paths: enum variants, OCaml style -> Circle Rect
+== paths: enum variants, ML style -> Circle Rect
 Shape.$0
 
 == paths: after generic arguments -> new
@@ -294,17 +294,14 @@ let y = x$0
 let x = 1 in
 let y = $0 in y
 
-== let: `let open` -> max min
-let open std::cmp in $0
+== let: after `use` -> max min
+use std::cmp::*; $0
 
-== let: `open` phrase -> max min
-open std::cmp ;; $0
+== let: `use` in an expression -> max min
+let x = 1 in use std::cmp::*; $0
 
-== let: module of `open` -> cmp
-open std::$0
-
-== let: module of `let open` -> cmp
-let open std::$0 in max 1 2
+== let: module of `use` -> cmp
+use std::$0;
 
 == let: `external` name -> add
 external add : i64 -> i64 -> i64 ;; ad$0 1
@@ -323,6 +320,18 @@ fun (x : $0) -> x
 
 == fun: `fun move` -> x
 fun move x -> $0
+
+== fun: Rust-style closure body -> x
+|x| $0
+
+== fun: Rust-style typed parameter -> len trim
+|x: &str| x.$0
+
+== fun: Rust-style `move` closure -> x
+move |x| $0
+
+== fun: Rust-style closure argument -> abs pow
+xs.iter().map(|x| x.$0)
 
 == fun: closure argument of a method ref -> abs pow
 xs |> .iter |> .map _ (fun x -> x.$0)
@@ -357,10 +366,16 @@ match o with Some x -> 1 | $0
 == match: guard -> x
 match o with Some x when $0 -> 1 | _ -> 0
 
+== match: `if` guard -> x
+match o with Some x if $0 -> 1 | _ -> 0
+
+== match: case after a nested match -> n
+match o with Some x -> match n with 0 -> 1 | _ -> 2 | None -> $0
+
 == match: enum variant patterns -> Circle Rect
 match shape with Shape::$0
 
-== match: enum variant patterns, OCaml style -> Circle Rect
+== match: enum variant patterns, ML style -> Circle Rect
 match shape with Shape.$0
 
 == match: lowercase path pattern -> Less Equal Greater
@@ -563,7 +578,7 @@ while n > 0 do () done; $0
 == if: method in an unfinished condition -> is_some
 if o.$0
 
-== rust: after a Rust-style chain with an OCaml closure -> sum collect
+== rust: after a Rust-style chain with a `fun` closure -> sum collect
 xs.iter().map(fun x -> x + 1).$0
 
 == items: `Self { .. }` field value -> by self

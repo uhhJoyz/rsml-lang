@@ -26,31 +26,25 @@ fn between(low: i64, x: i64, high: i64) -> bool {
 }
 
 /// The scores, highest first.
-pub fn ranking(mut scores: Vec<i64>) -> Vec<i64> {
-    ml! {
-        // `Ord::cmp _1 _0` compares the second with the first: descending.
-        .sort_by scores (Ord::cmp _1 _0);
-        scores
-    }
-}
+pub fn ranking(mut scores: Vec<i64>) -> Vec<i64> { ml! {
+    // `Ord::cmp _1 _0` compares the second with the first: descending.
+    .sort_by scores (Ord::cmp _1 _0);
+    scores
+}}
 
 /// The squares of the sides.
-pub fn squares(sides: &[i64]) -> Vec<i64> {
-    ml! {
-        // `( * ) _0 _0` multiplies its one parameter by itself.
-        sides |> .iter() |> .map(( * ) _0 _0) |> .collect()
-    }
-}
+pub fn squares(sides: &[i64]) -> Vec<i64> { ml! {
+    // `( * ) _0 _0` multiplies its one parameter by itself.
+    sides |> .iter() |> .map(( * ) _0 _0) |> .collect()
+}}
 
 /// Whether `x` is in `low..=high`, asked with `x` first.
-pub fn in_range(x: i64, low: i64, high: i64) -> bool {
-    ml! {
-        // `between _1 _ _` takes `x`, `low`, `high` and calls
-        // `between(low, x, high)`.
-        let is_in = between _1 _ _ in
-        is_in x low high
-    }
-}
+pub fn in_range(x: i64, low: i64, high: i64) -> bool { ml! {
+    // `between _1 _ _` takes `x`, `low`, `high` and calls
+    // `between(low, x, high)`.
+    let is_in = between _1 _ _ in
+    is_in x low high
+}}
 
 pub fn run() {
     println!("ranking [3; 9; 4] = {:?}", ranking(vec![3, 9, 4]));

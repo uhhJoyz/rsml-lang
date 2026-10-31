@@ -10,8 +10,8 @@
 // How to write it:
 // * The cases are those of `match` (toys 068-077); a leading `|` is
 //   allowed: `function | Some n -> n | None -> 0`.
-// * The last case reaches as far right as it can, so as an OCaml argument
-//   `function` goes in parentheses (toy 017).
+// * The last case reaches as far right as it can, so as an ML-style
+//   argument `function` goes in parentheses (toy 017).
 // * With `let rec f : t1 -> t2 = function ..` it is recursive (toy 008).
 //
 // Reference: [Lambdas: fun and function](../../docs/notation.md#lambdas-fun-and-function)
@@ -21,33 +21,27 @@ use rsml::ml;
 pub const SUMMARY: &str = "`function Some n -> n | None -> 0`: a closure of cases";
 
 /// The seats left at a show, 0 when it is sold out.
-pub fn seats_left() -> impl Fn(Option<u32>) -> u32 {
-    ml! {
-        // `function Some n -> n | None -> 0` is
-        // `move |argument| match argument { Some(n) => n, None => 0, }`.
-        function Some n -> n | None -> 0
-    }
-}
+pub fn seats_left() -> impl Fn(Option<u32>) -> u32 { ml! {
+    // `function Some n -> n | None -> 0` is
+    // `move |argument| match argument { Some(n) => n, None => 0, }`.
+    function Some n -> n | None -> 0
+}}
 
 /// Counts in words: `function` as the value of a `let`.
-pub fn in_words(a: u32, b: u32) -> (String, String) {
-    ml! {
-        let describe = function
-        | 0 -> String.from "none"
-        | 1 -> String.from "one"
-        | n -> format!("{n} items")
-        in
-        (describe a, describe b)
-    }
-}
+pub fn in_words(a: u32, b: u32) -> (String, String) { ml! {
+    let describe = function
+    | 0 -> String.from "none"
+    | 1 -> String.from "one"
+    | n -> format!("{n} items")
+    in
+    (describe a, describe b)
+}}
 
 /// The sum of the known values: `function` as a Rust argument.
-pub fn known_total(readings: &[Option<u32>]) -> u32 {
-    ml! {
-        // Each item is a `&Option<u32>`, so `n` has type `&u32`, read with `!n`.
-        readings.iter().map(function Some n -> !n | None -> 0).sum()
-    }
-}
+pub fn known_total(readings: &[Option<u32>]) -> u32 { ml! {
+    // Each item is a `&Option<u32>`, so `n` has type `&u32`, read with `!n`.
+    readings.iter().map(function Some n -> !n | None -> 0).sum()
+}}
 
 pub fn run() {
     let seats = seats_left();

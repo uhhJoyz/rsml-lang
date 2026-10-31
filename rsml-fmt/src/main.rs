@@ -1,4 +1,4 @@
-//! `rsml-fmt`: formats the OCaml in `ml!` / `rsml!` blocks of Rust files.
+//! `rsml-fmt`: formats the rsml code in `ml!` / `rsml!` blocks of Rust files.
 
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -7,7 +7,7 @@ use std::process::ExitCode;
 use rsml_fmt::{Config, DEFAULT_TOML, Env};
 
 const USAGE: &str = "\
-rsml-fmt: formats the OCaml in `ml! { .. }` blocks and `rsml! { .. }` functions
+rsml-fmt: formats the rsml code in `ml! { .. }` blocks and `rsml! { .. }` functions
 
 USAGE:
     rsml-fmt [OPTIONS] [PATH ...]
@@ -19,7 +19,7 @@ and the exit status is 2.
 
 OPTIONS:
     --rustfmt             Run rustfmt on the whole file first, so that one
-                          command formats Rust and OCaml (for editors: use
+                          command formats Rust and rsml (for editors: use
                           `rsml-fmt --rustfmt` where rustfmt would be run)
     --stdin-filepath PATH The file that stdin holds: its directory, not the
                           current one, is where rsmlfmt.toml, rustfmt.toml
@@ -33,7 +33,7 @@ OPTIONS:
                           back unchanged (the exit status is still 2), for
                           filters that replace the text with whatever comes
                           out (Vim's `:%!` and `gq`)
-    --ml                  Stdin is bare OCaml (a block's contents), not Rust
+    --ml                  Stdin is bare rsml code (a block's contents), not Rust
     --config FILE         Use FILE instead of the nearest rsmlfmt.toml
     --set KEY=VALUE       Override an option, e.g. --set max_width=80
                           --set pipe.indent=align (repeatable)

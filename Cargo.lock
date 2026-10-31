@@ -44,7 +44,7 @@ dependencies = [
 
 [[package]]
 name = "rsml-compiler"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -59,7 +59,7 @@ dependencies = [
 
 [[package]]
 name = "rsml-fmt"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "proc-macro2",
  "rsml-compiler",
@@ -69,14 +69,14 @@ dependencies = [
 
 [[package]]
 name = "rsml-lang"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "rsml-macros",
 ]
 
 [[package]]
 name = "rsml-macros"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "proc-macro2",
  "rsml-compiler",
